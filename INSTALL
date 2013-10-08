@@ -1,0 +1,69 @@
+These are installation notes for the laGP R package.
+
+
+INSTALLATION
+------------
+
+It should be possible to install this source package via "R CMD INSTALL laGP",
+where "laGP" is this directory, from "../".  I.e., in the usual way.
+
+The binaries provided on CRAN do not support OpenMP parallelization or CUDA
+graphical processing unit (GPU) subroutines.  The package must be compiled
+manually in order to utilize these features.
+
+However, the binaries do work out of the box, providing a single CPU-only
+implementation.
+
+
+SUPPORT FOR OPENMP
+------------------
+
+If R is compiled with OpenMP support enabled, then no special action is needed
+in order to extend that functionality to laGP - it will just work.  However,
+current R binaries (as of June 2013) are not compiled with OpenMP support
+enabled.  Nevertheless, it is still possible to compile laGP from source with
+OpenMP features assuming your compiler supports them.  Doing that requires two
+small edits to laGP/src/Makevars.
+
+1.) Replace "$(SHLIB_OPENMP_CFLAGS)" with "-fopenmp".  This works for GCC
+compilers.  For other compilers, consult docs for appropriate flags.
+
+2.) Replace "$(SHLIB_OPENMP_CFLAGS)" with "-lgomp".  This works for GCC
+compilers.  For other compilers, consult docs for appropriate flags.
+
+The laGP/src/Makevars file contains commented out lines which implement these
+changes.  After these changes are made, simply install the package as usual
+(e.g., see above)
+
+
+SUPPORT FOR CUDA
+----------------
+
+CUDA support can be highly architecture and operating system specfic,
+therefore the very basic instructions here may not work widely.  However they
+have been tested on a variety of Unix-alikes including OSX.
+
+First compile the alc_gpu.cu file into an object using the Nvidia CUDA
+compiler. E.g., change into laGP/src and do
+
+% nvcc -arch=sm_20 -c -Xcompiler -fPIC alc_gpu.cu -o alc_gpu.o
+
+Alternatively, you can use/edit the "alc_gpu.o:" definition in the Makefile
+provided.
+
+Then, make the following changes to laGP/src/Makevars, possibly augmenting
+changes made above to accommodate OpenMP support.  Note that OpenMP (i.e.,
+using multiple CPU threads) brings out the best in our GPU implementation.
+
+1.) Add "-D_GPU" to the PKG_FLAGS
+
+2.) Add "alc_gpu.o -L /software/cuda-5.0-el6-x86_64/lib64 -lcudart" to the
+PKG_LIBS
+
+Please replace "/software/cuda-5.0-el6-x86_64/lib64" with the path to the CUDA
+libs on your machine.  CUDA 4.x is also supported.  
+
+The laGP/src/Makvars file contains commented out lines which implement these
+changes.  After these changes are made, simply install the package as usual
+(e.g., see above).  Alternatively, use "make allgpu" to compile a standalone
+shared object.

@@ -1,0 +1,10 @@
+This is the R-package: laGP.
+
+It has been tested on Linux, OSX, and Windows.
+
+This README is a stub.  Please see the R-package documentation or for more
+information.  It should be possible to install this source package via "R CMD
+INSTALL laGP", where "laGP" is this directory, from "../".
+
+For more installation information, including support for OpenMP and CUDA
+GPU compilation, please see the INSTALL file.
