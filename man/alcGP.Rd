@@ -1,5 +1,6 @@
 \name{alcGP}
 \alias{alcGP}
+\alias{alcrayGP}
 \alias{mspeGP}
 \alias{efiGP}
 
@@ -15,6 +16,7 @@
 \usage{
 alcGP(gpi, Xcand, Xref = Xcand, parallel = c("none", "omp", "gpu"), 
       verb = 0)
+alcrayGP(gpi, Xref, Xstart, Xend, verb=0)
 mspeGP(gpi, Xcand, Xref = Xcand, fi = TRUE, verb = 0)
 efiGP(gpi, Xcand)
 }
@@ -37,7 +39,8 @@ efiGP(gpi, Xcand)
    at which the reduction in variance, or mean squared predictive error,
    are calculated.  In the context of \code{\link{laGP}}, this is
    the single location \code{Xref = x} around which a local design 
-   is sought
+   is sought.  For \code{alcray} the \code{matrix} may only have one
+   row, i.e., one reference location
 }
 \item{parallel}{
    a switch indicating if any parallel calculation of 
@@ -48,6 +51,14 @@ efiGP(gpi, Xcand)
   in the package source for more details;  at this time this option is
   only supported for ALC calculations
 }
+\item{Xstart}{
+  a \code{1}-by-\code{ncol(Xref)} starting location for a search along
+  a ray between \code{Xstart} and \code{Xend}
+}
+\item{Xend}{
+  a \code{1}-by-\code{ncol(Xref)} starting location for a search along
+  a ray between \code{Xstart} and \code{Xend}
+}
 \item{fi}{
   a scalar logical indicating if the expected Fisher information portion
   of the expression (MSPE is essentially \code{ALC + c(x)*EFI}) should be
@@ -55,10 +66,10 @@ efiGP(gpi, Xcand)
   for error checking against the other functions, \code{alcGP} and \code{efiGP},
   since the constituent parts are separately available via those functions
 }
-  \item{verb}{
-    a positive integer specifying the verbosity level; \code{verb = 0}
-    is quiet, and larger values cause more progress information to be
-    printed to the screen
+\item{verb}{
+  a positive integer specifying the verbosity level; \code{verb = 0}
+  is quiet, and larger values cause more progress information to be
+  printed to the screen
 }
 }
 \details{
@@ -67,7 +78,9 @@ efiGP(gpi, Xcand)
 
   Otherwise they are pretty self explanatory.  They evaluate the ALC, MSPE,
   and EFI quantities outlined in Gramacy & Apley (2013).  The ALC is originally
-  due to Seo, et al. (2000)
+  due to Seo, et al. (2000).
+
+  \code{alcrayGP} allows only one reference location (\code{nrow(Xref) = 1}).  
 }
 \value{
   A vector of length \code{nrow(Xcand)} is returned filled with values

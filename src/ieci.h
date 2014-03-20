@@ -22,3 +22,4 @@ void rbetter_R(int *n_in, int *m_in, double *rect_in, double *ystar_in,
 	       double *X_out);
 
 #endif
+

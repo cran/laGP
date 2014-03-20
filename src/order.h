@@ -7,3 +7,4 @@ int* rank(double *s, unsigned int n);
 unsigned int* rand_indices(unsigned int N);
 
 #endif
+

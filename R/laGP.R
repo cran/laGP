@@ -27,19 +27,28 @@
 ## C-version of sequential design loop for prediction at Xref
 
 laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
-                 method=c("alc", "mspe", "nn", "efi"), Xi.ret=TRUE, 
-                 close=min(1000, nrow(X)), alc.gpu=FALSE, verb=0)
+                 method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
+                 close=min(1000, nrow(X)), alc.gpu=FALSE, rect=NULL, verb=0)
   {
     ## argument matching and numerifying
     method <- match.arg(method)
     if(method == "alc") imethod <- 1
-    else if(method == "mspe") imethod <- 2
-    else if(method == "efi") imethod <- 3
-    else imethod <- 4
+    else if(method == "alcray") imethod <- 2
+    else if(method == "mspe") imethod <- 3
+    else if(method == "efi") imethod <- 4
+    else imethod <- 5
 
     ## massage Xref
     if(!is.matrix(Xref)) Xref <- matrix(Xref, ncol=ncol(X))
     nref <- nrow(Xref)
+
+    ## calculate rectangle if using alcray
+    if(method == "alcray") {
+      if(is.null(rect)) rect <- apply(X, 2, range)
+      if(nrow(Xref) != 1) stop("alcray only implemented for nrow(Xref) = 1")
+      if(nrow(rect) != 2 || ncol(rect) != ncol(X))
+        stop("bad rect dimensions, must be 2 x ncol(X)")
+    } else { if(!is.null(rect)) warning("rect only used by alcray method"); rect <- 0 }
 
     ## sanity checks
     if(start < 6 || end <= start) stop("must have 6 <= start < end")
@@ -79,6 +88,7 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
               imethod = as.integer(imethod),
               close = as.integer(close),
               alc.gpu = as.integer(alc.gpu),
+              rect = as.double(t(rect)),
               verb = as.integer(verb),
               Xi.ret = as.integer(Xi.ret),
               Xi = integer(end*Xi.ret),
@@ -92,7 +102,7 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
               llik = double(1),
               PACKAGE = "laGP")
 
-    ## put timing and in
+    ## put timing in
     toc <- proc.time()[3]
 
     ## assemble output and return
@@ -117,9 +127,9 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 ## C when written)
 
 laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
-                   method=c("alc", "mspe", "nn", "efi"), Xi.ret=TRUE, 
-                   pall=FALSE, close=min(1000, nrow(X)), 
-                   parallel=c("none", "omp", "gpu"), verb=0)
+                   method=c("alc", "alcray", "mspe", "nn", "efi"), 
+                   Xi.ret=TRUE, pall=FALSE, close=min(1000, nrow(X)),
+                   parallel=c("none", "omp", "gpu"), rect=NULL, verb=0)
   {
     ## argument matching
     method <- match.arg(method)
@@ -132,6 +142,14 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     if(ncol(Xref) != ncol(X)) stop("bad dims")
     if(length(Z) != nrow(X)) stop("bad dims")
     if(nrow(X) <= end) stop("nrow(X) <= end so nothing to do")
+
+    ## calculate rectangle if using alcray
+    if(method == "alcray") {
+      if(is.null(rect)) rect <- apply(X, 2, range)
+      if(nrow(Xref) != 1) stop("alcray only implemented for nrow(Xref) = 1")
+      if(nrow(rect) != 2 || ncol(rect) != ncol(X))
+        stop("bad rect dimensions, must be 2 x ncol(X)")
+    } else if(!is.null(rect)) warning("rect only used by alcray method")
 
     ## process the d argument
     d <- darg(d, X)
@@ -179,12 +197,17 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
         pall[t-start,] <- predGP(gpi, Xref, lite=TRUE)
 
       ## calc ALC to reference
-      if(method == "alc") als <- alcGP(gpi, X[cands,,drop=FALSE], Xref, parallel=parallel, verb=verb-2)
-      else if(method == "mspe") als <- 0.0 - mspeGP(gpi, X[cands,,drop=FALSE], Xref, verb=verb-2)
-      else if(method == "efi") als <- efiGP(gpi, X[cands,,drop=FALSE])
-      else als <- c(1, rep(0, length(cands)-1)) ## nearest neighbor
-      als[!is.finite(als)] <- NA
-      w <- which.max(als)
+      if(method == "alcray") {
+        offset <- (t-start) %% floor(sqrt(t-start))+1
+        w <- lalcrayGP(gpi, Xref, X[cands,,drop=FALSE], rect, offset, verb=verb-2)
+      } else {
+        if(method == "alc") als <- alcGP(gpi, X[cands,,drop=FALSE], Xref, parallel=parallel, verb=verb-2)
+        else if(method == "mspe") als <- 0.0 - mspeGP(gpi, X[cands,,drop=FALSE], Xref, verb=verb-2)
+        else if(method == "efi") als <- efiGP(gpi, X[cands,,drop=FALSE])
+        else als <- c(1, rep(0, length(cands)-1)) ## nearest neighbor
+        als[!is.finite(als)] <- NA
+        w <- which.max(als)
+      }
 
       ## add the chosen point to the GP fit
       updateGP(gpi, matrix(X[cands[w],], nrow=1), Z[cands[w]], verb=verb-1)
@@ -225,7 +248,7 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 ## kriging equations for each based on localized subsets of (X,Z)
 
 aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
-                  method=c("alc", "mspe", "nn", "efi"), Xi.ret=TRUE, 
+                  method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
                   close=min(1000, nrow(X)), laGP=laGP.R, verb=1)
   {
     ## sanity checks
@@ -236,6 +259,13 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
 
     ## check method argument
     method <- match.arg(method)
+
+    ## calculate rectangle if using alcray
+    if(method == "alcray") {
+      rect <- apply(X, 2, range)
+      if(nrow(rect) != 2 || ncol(rect) != ncol(X))
+        stop("bad rect dimensions, must be 2 x ncol(X)")
+    } else rect <- NULL
 
     ## memory for each set of approx kriging equations
     ZZ.var <- ZZ.mean <- rep(NA, nrow(XX))
@@ -276,7 +306,7 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
       di <- list(start=d$start[i], mle=d$mle, min=d$min, max=d$max, ab=d$ab)
       gi <- list(start=g$start[i], mle=g$mle, min=g$min, max=g$max, ab=g$ab)
       outp <- laGP(XX[i,,drop=FALSE], start, end, X, Z, d=di, g=gi, method=method,
-                   Xi.ret=Xi.ret, close=1000, verb=verb-1)
+                   Xi.ret=Xi.ret, close=close, rect=rect, verb=verb-1)
 
       ## save MLE outputs and update gpi to use new dmle
       if(!is.null(dmle)) { dmle[i] <- outp$mle$d; dits[i] <- outp$mle$dits }
@@ -323,7 +353,7 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
 ## approx kriging equations for each based on localized subsets of (X,Z)
 
 aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
-                method=c("alc", "mspe", "nn", "efi"), Xi.ret=TRUE, 
+                method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
                 close=min(1000, nrow(X)), num.gpus=0, gpu.threads=num.gpus,
                 omp.threads=if(num.gpus > 0) 0 else 1, 
 		            nn.gpu=if(num.gpus > 0) nrow(XX) else 0, verb=1)
@@ -337,9 +367,17 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
     ## numerify method
     method <- match.arg(method)
     if(method == "alc") imethod <- 1
-    else if(method == "mspe") imethod <- 2
-    else if(method == "efi") imethod <- 3
-    else imethod <- 4
+    else if(method == "alcray") imethod <- 2
+    else if(method == "mspe") imethod <- 3
+    else if(method == "efi") imethod <- 4
+    else imethod <- 5
+
+    ## calculate rectangle if using alcray
+    if(method == "alcray") {
+      rect <- apply(X, 2, range)
+      if(nrow(rect) != 2 || ncol(rect) != ncol(X))
+        stop("bad rect dimensions, must be 2 x ncol(X)")
+    } else rect <- 0
 
     ## check Xi.ret argument
     if(!(is.logical(Xi.ret) && length(Xi.ret) == 1))
@@ -417,6 +455,7 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
               num.gpus = as.integer(num.gpus),
               gpu.threads = as.integer(gpu.threads),
               nn.gpu = as.integer(nn.gpu),
+              rect = as.double(t(rect)),
               verb = as.integer(verb),
               Xi.ret = as.integer(Xi.ret),
               Xi = integer(end*Xi.ret*nn),

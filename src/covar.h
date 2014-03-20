@@ -21,3 +21,4 @@ void dist2covar_symm_R(double *D_in, int *n_in, double *d_in,
 		       double *g_in, double *K_out);
 
 #endif
+

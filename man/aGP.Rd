@@ -1,7 +1,7 @@
 \name{aGP}
 \alias{aGP}
 \alias{aGP.R}
-\alias{aGP.snow}
+\alias{aGP.parallel}
 
 \title{
 Localized Approximate GP Regression For Many Predictive Locations
@@ -14,17 +14,17 @@ Localized Approximate GP Regression For Many Predictive Locations
 }
 \usage{
 aGP(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
-    method = c("alc", "mspe", "nn", "efi"), Xi.ret = TRUE,
+    method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
     close = min(1000, nrow(X)), num.gpus = 0, 
     gpu.threads = num.gpus, omp.threads = if (num.gpus > 0) 0 else 1,
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
-aGP.snow(cls, XX, chunks = length(cls), X, Z, start = 6, end = 50, 
-    d = NULL, g = 1/1000, method = c("alc", "mspe", "nn", "efi"), 
+aGP.parallel(cls, XX, chunks = length(cls), X, Z, start = 6, end = 50, 
+    d = NULL, g = 1/1000, method = c("alc", "alcray", "mspe", "nn", "efi"), 
     Xi.ret = TRUE, close = min(1000, nrow(X)), num.gpus = 0, 
     gpu.threads = num.gpus, omp.threads = if (num.gpus > 0) 0 else 1,
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
 aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
-      method = c("alc", "mspe", "nn", "efi"), Xi.ret = TRUE,
+      method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
       close = min(1000, nrow(X)), laGP=laGP.R, verb = 1)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -80,7 +80,9 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   \item{method}{
     Specifies the method by which \code{end-start} candidates from
     \code{X} are chosen in order to predict at each row \code{XX} independently. 
-    In brief, ALC (\code{"alc"}, default) minimizes predictive variance; MSPE
+    In brief, ALC (\code{"alc"}, default) minimizes predictive variance; 
+    ALCRAY (\code{"alcray")}) executes a thrify search focused on rays eminating
+    out of the reference location(s); MSPE
     (\code{"mspe"}) augments that with extra derivative information to
     minimize mean-squared prediction error (requires extra computation);
     NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"efi"}) uses
@@ -137,12 +139,12 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
     printed to the screen.  The value \code{min(0,verb-1)} is provided
     to each \code{laGP} call}
 \item{cls}{ 
-    a cluster object created by \code{\link[snow]{makeCluster}} 
-    from the \pkg{snow} or \pkg{parallel} packages
+    a cluster object created by \code{\link[parallel]{makeCluster}} 
+    from the \pkg{parallel} or \pkg{parallel} packages
 }
 \item{chunks}{
     a scalar integer indicating the number of chunks to break \code{XX} into
-    for \pkg{snow}/\pkg{parallel} evaluation on a cluster \code{cls}.  
+    for \pkg{parallel} evaluation on a cluster \code{cls}.  
     Usually \code{chunks = length(cl)} is appropriate.  
     However slecifying more chunks can be useful when the nodes of
     the cluster are not homogeneous 
@@ -161,10 +163,10 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   \code{aGP}, which is primarily in C.  However it may be
   useful for developing new programs that involve similar subroutines.
 
-  The function \code{aGP.snow} allows \code{aGP} to be called on segments
-  of the \code{XX} matrix distributed to cluster created by \pkg{snow} or \pkg{parallel}.
+  The function \code{aGP.parallel} allows \code{aGP} to be called on segments
+  of the \code{XX} matrix distributed to cluster created by \pkg{parallel}.
   It breaks \code{XX} into \code{chunks} which are sent to \code{aGP} 
-  workers pointed to by the entries of \code{cls}.  The \code{aGP.snow} function
+  workers pointed to by the entries of \code{cls}.  The \code{aGP.parallel} function
   collects the outputs from each chunk before returning an object
   almost identical to what would have been returned from a single \code{aGP}
   call.  On a single (SMP) node, this represents is a poor-man's version of
@@ -175,7 +177,7 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   farmed out to threads allowing them to proceed in parallel - obtaining
   nearly linear speed-ups.  At this time \code{aGP.R} does not
   facilitate parallel computation, although a future version may exploit
-  the \pkg{snow}/\pkg{parallel} functionality for clustered parallel execution.
+  the \pkg{parallel} functionality for clustered parallel execution.
 
   If \code{num.gpus > 0} then the the ALC part of the independent 
   calculations performed by each thread will be offloaded to a GPU.  
@@ -183,7 +185,7 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   some of the ALC calculations will be done on the GPUs, and some 
   on the CPUs.  In our own experimentation we have not found this
   to lead to large speedups relative to \code{omp.threads = 0} when
-  using GPUs
+  using GPUs.  For more details, see Gramacy, Niemi, \& Niemi (2013)
 
 }
 \value{
@@ -210,11 +212,16 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   chosen for each predictive location in \code{XX}}
 }
 \references{
-R.B. Gramacy and D.W. Apley (2013).
+  R.B. Gramacy and D.W. Apley (2013).
   \emph{Local Gaussian process approximation for large computer
     experiments.}
   Preprint available on arXiv:1303.0383; 
   \url{http://arxiv.org/abs/1303.0383}
+
+  R.B. Gramacy, J. Niemi, R.M. Weiss (2013). 
+  \emph{Massively parallel approximate Gaussian process regression.}
+  Preprint on arXiv:1310.5182
+  \url{http://arxiv.org/abs/1310.5182}
 }
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
@@ -230,7 +237,7 @@ R.B. Gramacy and D.W. Apley (2013).
 
 \seealso{
   \code{\link{laGP}}, \code{\link{alcGP}}, \code{\link{mspeGP}}, 
-  \code{\link[snow]{makeCluster}}, \code{\link[snow]{clusterApply}}
+  \code{\link[parallel]{makeCluster}}, \code{\link[parallel]{clusterApply}}
 }
 \examples{
 ## first, a "computer experiment"

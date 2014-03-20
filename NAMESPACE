@@ -2,9 +2,9 @@
 useDynLib(laGP)
 
 # Exports
-export(aGP, aGP.R, aGP.snow, laGP, laGP.R, newGP, updateGP, predGP, mleGP, 
+export(aGP, aGP.R, aGP.parallel, laGP, laGP.R, newGP, updateGP, predGP, mleGP, 
        jmleGP, jmleGP.R, darg, garg, deleteGP, deleteGPs, distance,
-       alcGP, mspeGP, efiGP, llikGP)
+       alcGP, mspeGP, efiGP, llikGP, alcrayGP, optim.auglag)
 
 # Import all packages listed as Imports or Depends
 # (none)

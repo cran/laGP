@@ -33,7 +33,10 @@ compilers.  For other compilers, consult docs for appropriate flags.
 
 The laGP/src/Makevars file contains commented out lines which implement these
 changes.  After these changes are made, simply install the package as usual
-(e.g., see above)
+(e.g., see above).  Note that as of Xcode v5, and OSX Mavericks, the Clang
+compiler provided by Apple does not include OpenMP support.  We suggest 
+downloading gcc v9 or later, for example from hpc.sourceforge.net, and 
+following the instructions therein.
 
 
 SUPPORT FOR CUDA

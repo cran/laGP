@@ -29,6 +29,7 @@
 #include "gp.h"
 #include "covar.h"
 #include "order.h"
+#include <assert.h>
 #ifdef _GPU
   #include "alc_gpu.h"
 #endif
@@ -66,6 +67,7 @@ void aGP_R(/* inputs */
 		int *numgpus_in,
 		int *gputhreads_in,
 		int *nngpu_in,
+    double *rect_in,
 		int *verb_in,
 		int *Xiret_in,
 		
@@ -80,7 +82,7 @@ void aGP_R(/* inputs */
 		double *llik_out)
 {
   int j, verb, dmle, gmle;
-  double **X, **XX;
+  double **X, **XX, **rect;
   Method method;
 
   /* check gpu input */
@@ -105,14 +107,20 @@ void aGP_R(/* inputs */
   /* copy method */
   method = ALC; /* to guarentee initializaion */
   if(*imethod_in == 1) method = ALC;
-  else if(*imethod_in == 2) method = MSPE;
-  else if(*imethod_in == 3) method = EFI;
-  else if(*imethod_in == 4) method = NN;
+  else if(*imethod_in == 2) method = ALCRAY;
+  else if(*imethod_in == 3) method = MSPE;
+  else if(*imethod_in == 4) method = EFI;
+  else if(*imethod_in == 5) method = NN;
   else error("imethod %d does not correspond to a known method\n", *imethod_in);
 
   /* make matrix bones */
   X = new_matrix_bones(X_in, *n_in, *m_in);
   XX = new_matrix_bones(XX_in, *nn_in, *m_in);
+
+  /* check rect input */
+  if(method == ALCRAY)
+    rect = new_matrix_bones(rect_in, 2, *m_in);
+  else rect = NULL;
 
   /* check for mle */
   gmle = dmle = 0;
@@ -185,7 +193,7 @@ void aGP_R(/* inputs */
 
       /* call C-only code */
       laGP(*m_in, *start_in, *end_in, Xref, 1, *n_in, X, Z_in, dvec,
-        gvec, method, *close_in, gpu, verb-1, Xi, &(mean_out[i]), 
+        gvec, method, *close_in, gpu, rect, verb-1, Xi, &(mean_out[i]), 
         &(var_out[i]), &df, dmlei, ditsi, gmlei, gitsi, &(llik_out[i]));
       var_out[i] *= df/(df-2.0);
 
@@ -216,8 +224,6 @@ void aGP_R(/* inputs */
 }
 
 
-
-
 /*
  * laGP:
  * 
@@ -230,11 +236,12 @@ void aGP_R(/* inputs */
 void laGP(const unsigned int m, const unsigned int start, const unsigned int end, 
        double **Xref, const unsigned int nref, const unsigned int n, double **X, 
        double *Z, double *d, double *g, const Method method, const unsigned int close, 
-       const int alc_gpu, const int verb, int *Xi, double *mean, double *s2, double *df, 
-       double *dmle, int *dits, double *gmle, int *gits, double *llik)
+       const int alc_gpu, double **rect, const int verb, int *Xi, double *mean, 
+       double *s2, double *df, double *dmle, int *dits, double *gmle, int *gits, 
+       double *llik)
 {
   GP *gp;
-  unsigned int i, ncand, w;
+  unsigned int i, j, ncand, w;
   int *oD, *cand;
   double **D, **Xcand, **x, **Sigma;
   double *al;
@@ -255,8 +262,8 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
 
   /* possibly restricted candidate set */
   cand = oD+start;
-  if(close > 0 && close < n-start) ncand = close;
-  else  ncand = n-start;
+  if(close > 0 && close < n-start) ncand = close-start;
+  else ncand = n-start;
   Xcand = new_p_submatrix_rows(cand, X, ncand, m, 0);
 
   /* allocate space for active learning criteria */
@@ -267,7 +274,10 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
   for(i=start; i<end; i++) {
     
     /* perform active learning calculations */
-    if(method == ALC) {
+    if(method == ALCRAY) {
+      assert(nref == 1);
+      w = lalcrayGP(gp, Xcand, ncand, Xref, (i-start+1) % ((int) sqrt(i-start+1.0)), rect, verb-2);
+    } else if(method == ALC) {
       if(alc_gpu) {
 #ifdef _GPU
 	#ifdef _OPENMP
@@ -282,9 +292,15 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
       } else alcGP(gp, ncand, Xcand, nref, Xref, verb-2, al);
     } else if(method == EFI) efiGP(gp, ncand, Xcand, al); /* no verb argument */
     else if(method == MSPE) mspeGP(gp, ncand, Xcand, nref, Xref, 1, verb-2, al);
-    if(method == NN) w = i-start;
-    else if(method != MSPE) max(al, ncand, &w);
-    else min(al, ncand, &w);
+    
+    /* selecting from the evaluated criteria */
+    if(method != ALCRAY) {
+      if(method == NN) w = i-start;
+      else if(method != MSPE) max(al, ncand, &w);
+      else min(al, ncand, &w);
+    }
+    
+    /* record chosen location */
     if(Xi != NULL) Xi[i] = cand[w];
 
     /* update the GP with the chosen candidate */
@@ -292,9 +308,16 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
     updateGP(gp, 1, x, &(Z[cand[w]]), verb-1);
 
     /* remove from candidates */
-    if(al && w != ncand-1) { /* but not preserving distance order */
-      cand[w] = cand[ncand-1]; 
-      dupv(Xcand[w], Xcand[ncand-1], gp->m);
+    if(al && w != ncand-1) { 
+      if(method == ALCRAY) { /* preserving distance order */
+        for(j=w; j<ncand-1; j++) { /* by pulling backwards */
+          cand[j] = cand[j+1];
+          dupv(Xcand[j], Xcand[j+1], gp->m);
+        }
+      } else { /* simply swap: do not preserve distance order */
+        cand[w] = cand[ncand-1]; 
+        dupv(Xcand[w], Xcand[ncand-1], gp->m);
+      }
     }
     ncand--;
   }
@@ -352,6 +375,7 @@ void laGP_R(/* inputs */
          int *imethod_in,
          int *close_in,
          int *alc_gpu_in,
+         double *rect_in,
          int *verb_in,
          int *Xiret_in,
          
@@ -366,7 +390,7 @@ void laGP_R(/* inputs */
          int *gits_out,
          double *llik_out)
 {
-  double **X, **Xref;
+  double **X, **Xref, **rect;
   Method method;
 
     /* check gpu input */
@@ -377,9 +401,10 @@ void laGP_R(/* inputs */
   /* copy method */
   method = ALC; /* to guarentee initialization */
   if(*imethod_in == 1) method = ALC;
-  else if(*imethod_in == 2) method = MSPE;
-  else if(*imethod_in == 3) method = EFI;
-  else if(*imethod_in == 4) method = NN;
+  else if(*imethod_in == 2) method = ALCRAY;
+  else if(*imethod_in == 3) method = MSPE;
+  else if(*imethod_in == 4) method = EFI;
+  else if(*imethod_in == 5) method = NN;
   else error("imethod %d does not correspond to a known method\n", *imethod_in);
 
   /* sanity check d and tmax */
@@ -390,18 +415,24 @@ void laGP_R(/* inputs */
   X = new_matrix_bones(X_in, *n_in, *m_in);
   Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
 
+  /* check rect input */
+  if(method == ALCRAY) {
+    assert(*nref_in == 1);
+    rect = new_matrix_bones(rect_in, 2, *m_in);
+  } else rect = NULL;
+
   /* check Xi input */
   if(! *Xiret_in) Xi_out = NULL;
 
-
   /* call C-only code */
   laGP(*m_in, *start_in, *end_in, Xref, *nref_in, *n_in, X, Z_in,
-    d_in, g_in, method, *close_in, *alc_gpu_in, *verb_in, Xi_out, 
+    d_in, g_in, method, *close_in, *alc_gpu_in, rect, *verb_in, Xi_out, 
     mean_out, s2_out, df_out, dmle_out, dits_out, gmle_out, gits_out, 
     llik_out);
 
   /* clean up */
   free(X);
   free(Xref);
+  if(rect) free(rect);
 }
          

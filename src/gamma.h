@@ -8,3 +8,4 @@ double Igamma_inv(const double a, const double y, const int lower,
 void Igamma_inv_R(double *a, double *y, int *lower, int *ulog, double *result);
 
 #endif
+

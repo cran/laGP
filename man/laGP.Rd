@@ -12,12 +12,13 @@ Localized Approximate GP Regression At a Single Predictive Location
 }
 \usage{
 laGP(Xref, start, end, X, Z, d = NULL, g = 1/1000,
-     method = c("alc", "mspe", "nn", "efi"), Xi.ret = TRUE,
-        close = min(1000, nrow(X)), alc.gpu = FALSE, verb = 0)
+     method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
+        close = min(1000, nrow(X)), alc.gpu = FALSE, rect = NULL, 
+        verb = 0)
 laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
-       method = c("alc", "mspe", "nn", "efi"), Xi.ret = TRUE,
+       method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
        pall = FALSE, close = min(1000, nrow(X)),  
-       parallel = c("none", "omp", "gpu"), verb = 0)
+       parallel = c("none", "omp", "gpu"), rect = NULL, verb = 0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -65,12 +66,14 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     specifies \emph{no} inference for this parameter; i.e., it is fixed
     at its starting value
 }
-  \item{method}{
+\item{method}{
     Specifies the method by which \code{end-start} candidates from
     \code{X} are chosen in order to predict at \code{Xref}. In brief, ALC
-    (\code{"alc"}, default) minimizes predictive variance; MLPE
-    (\code{"mspe"}) augments that with extra derivative information to
-    minimize mean-squared prediction error (requires extra computation);
+    (\code{"alc"}, default) minimizes predictive variance; ALCRAY 
+    (\code{"alcray")}) executes a thrify search focused on rays eminating
+    out of the reference location(s); MSPE (\code{"mspe"}) augments that 
+    with extra derivative information to minimize mean-squared prediction 
+    error (requires extra computation);
     NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"efi"}) uses
     the expected Fisher information - essentially \code{1/G} from
     Gramacy & Apley (2013) - which is global heuristic, i.e., not
@@ -105,6 +108,12 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     in the package source for more details; currently only available 
     via \code{laGP.R}
 }
+\item{rect}{
+  an optional \code{2}-by-\code{ncol(X)} \code{matrix} describing a bounding
+  rectangle for \code{X} that is used by the \code{"alcray"} method.  
+  If not specified, the rectangle is calculated from the \code{range} applied
+  to the columns of \code{X}
+}
   \item{verb}{
     a positive integer specifying the verbosity level; \code{verb = 0}
     is quiet, and larger values cause more progress information to be
@@ -123,7 +132,8 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
   The runtime is cubic in \code{end}, although
   the multiplicative \dQuote{constant} out front depends on the
   \code{method} chosen, the size of the design \code{X}, and
-  \code{close}.
+  \code{close}.  The \code{"alcray"} method has a smaller constant
+  since it does not search over all candidate exhaustively.
 
   After building the sub-design, local MLE/MAP lengthscale (and/or
   nugget) parameters are estimated, depending on the \code{d} and
@@ -141,7 +151,8 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
   The current version allows OpenMP and/or GPU parallelization 
   of the criteria (\code{method}) if the package is compiled with 
   the appropriate flags.  See README/INSTALL in the package source for 
-  more information
+  more information.  For algorithmic details, see 
+  Gramacy, Niemi, \& Weiss (2013)
 }
 \value{
 The output is a \code{list} with the following components.
@@ -172,6 +183,11 @@ The output is a \code{list} with the following components.
     experiments.}
   Preprint available on arXiv:1303.0383; 
   \url{http://arxiv.org/abs/1303.0383}
+
+  R.B. Gramacy, J. Niemi, R.M. Weiss (2013). 
+  \emph{Massively parallel approximate Gaussian process regression.}
+  Preprint on arXiv:1310.5182
+  \url{http://arxiv.org/abs/1310.5182}
 }
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
@@ -183,7 +199,8 @@ The output is a \code{list} with the following components.
   Handling multiple reference locations
   (\code{nrow(Xref) > 1}) is \dQuote{beta} functionality.  In this case
   the initial \code{start} locations are chosen by applying NN to the
-  average distances to all \code{Xref} locations.
+  average distances to all \code{Xref} locations.  This is not
+  supported for \code{method="alcray"}.
 
   Differences between the C \code{qsort} function and \R's
   \code{\link{order}} function may cause chosen designs returned from

@@ -535,7 +535,7 @@ GP* buildGP(GP *gp, int dK)
   int info;
 
   assert(gp && gp->K == NULL);
-  if(gp->d == 0) assert(!dk);
+  if(gp->d == 0) assert(!dK);
   n = gp->n;
   m = gp->m;
   X = gp->X;
@@ -694,7 +694,7 @@ void newparamsGP(GP* gp, const double d, const double g)
 #ifdef UNDEBUG
       printMatrix(gp->K, n, n, stdout);
 #endif
-      error("bad Cholesky decomposition");
+      error("bad Cholesky decomp (info=%d), d=%g, g=%g", info, d, g);
     }
     gp->ldetK = log_determinant_chol(Kchol, n);
     delete_matrix(Kchol);
@@ -1160,10 +1160,9 @@ void mleGP_R(/* inputs */
   gp = gps[gpi];
 
   /* check param */
-  Theta theta;
-  if(*param_in == 1) theta = LENGTHSCALE;
-  else if(*param_in == 2) theta = NUGGET;
-  else error("param must be 1 (d) or 2 (g)");
+  Theta theta = LENGTHSCALE;
+  if(*param_in == 2) theta = NUGGET;
+  else if(*param_in != 1) error("param must be 1 (d) or 2 (g)");
 
   /* check theta and tmax */
   if(*tmin_in <= 0) *tmin_in = SDEPS; 
@@ -1204,7 +1203,7 @@ void jmleGP(GP *gp, double *drange, double *grange, double *dab, double *gab,
 
     /* sanity checks */
     assert(gab && dab);
-    assert(grange & drange);
+    assert(grange && drange);
 
     /* loop over coordinate-wise iterations */
     *dits = *gits = 0;
@@ -1679,6 +1678,271 @@ void predGP_R(/* inputs */
 
 
 /*
+ * alGP:
+ *
+ * calculates a Monte Carlo approximation to the expected improvement (EI)
+ * and expected y-value under an augmented Lagrangian with constraint GPs 
+ * (cgps) assuming a known linear objective function with savel onorm.  
+ * The constraints can be scaled with the cnorms
+ */
+
+void alGP(GP **cgps, unsigned int ngps, unsigned int nn, double **XX, 
+  double onorm, double *cnorms, double *lambda, double *alpha, double fmin, 
+  int nomax, unsigned int N, double *eys, double *eis)
+{
+  unsigned int m;
+  double **mu, **s;
+  double *surr;
+  double Yc, cl, c2al, ei, df, ey;
+  int i, j, k;
+
+  /* degrees of freedom */
+  m = cgps[0]->m;
+
+  /* allocate storage for means and variances */
+  mu = new_matrix(ngps, nn);
+  s = new_matrix(ngps, nn);
+  for(j=0; j<ngps; j++) {
+    predGP_lite(cgps[j], nn, XX, mu[j], s[j], &df, NULL);
+    // for(k=0; k<nn; k++) s[j][k] = sqrt(s[j][k]*df/(df-2.0));
+    for(k=0; k<nn; k++) s[j][k] = sqrt(s[j][k]);
+  }
+
+  /* allocate storage for surr */
+  surr = new_vector(nn);
+  for(k=0; k<nn; k++) surr[k] = sumv(XX[k], m)*onorm;
+  zerov(eis, nn);
+
+  /* calculate the ALC for each candidate */
+  for(i=0; i<N; i++) {
+    for(k=0; k<nn; k++) {
+      cl = c2al = 0;
+      for(j=0; j<ngps; j++) {
+        Yc = rnorm(mu[j][k], s[j][k]) * cnorms[j];
+        // Yc = (rt(df)*s[j][k] + mu[j][k]) * cnorms[j];
+        cl += Yc*lambda[j];
+        if(nomax || Yc > 0) c2al += sq(Yc)*alpha[j];
+      }
+      ey = surr[k] + cl + c2al;
+      eys[k] += ey;
+      ei = fmin - ey;
+      if(ei > 0) eis[k] += ei;
+    }
+  }
+
+  /* normalize */
+  scalev(eis, nn, 1.0/N);
+  scalev(eys, nn, 1.0/N);
+
+  /* clean up */
+  free(surr);
+  delete_matrix(mu);
+  delete_matrix(s);
+}
+
+
+
+/*
+ * utility structure for fcnnalc and defined below
+ * for use with Brent_fmin (R's optimize) or uniroot
+ */
+
+struct alcinfo {
+  double **Xstart;
+  double **Xend;
+  double **Xref;
+  GP *gp;
+  double **k;
+  double *gvec;
+  double *kxy;
+  double *kx;
+  double *ktKikx;
+  double **Gmui;
+  double *ktGmui;
+  double *Xcand;
+  double s2p[2];
+  double df;
+  double mui;
+  int its;
+  int verb;
+};
+
+
+static double fcnnalc(double x, struct alcinfo *info)
+{
+  int m, n, j;
+  double alc;
+
+  m = info->gp->m;
+  n = info->gp->n;
+  (info->its)++;
+
+  /* calculate Xcand along the ray */
+  for(j=0; j<m; j++) info->Xcand[j] = (1.0 - x)*(info->Xstart[0][j]) + x*(info->Xend[0][j]); 
+    
+  /* calculate the g vector, mui, and kxy */
+  calc_g_mui_kxy(m, info->Xcand, info->gp->X, n, info->gp->Ki, info->Xref, 
+    1, info->gp->d, info->gp->g, info->gvec, &(info->mui), info->kx, info->kxy);
+
+  /* skip if numerical problems */
+  if(info->mui <= SDEPS) alc = 0.0 - 1e300 * 1e300;
+  else {
+    /* use g, mu, and kxy to calculate ktKik.x */
+    calc_ktKikx(NULL, 1, info->k, n, info->gvec, info->mui, info->kxy, info->Gmui, 
+      info->ktGmui, info->ktKikx);
+        
+    /* calculate the ALC */
+    alc = calc_alc(1, info->ktKikx, info->s2p, info->gp->phi, NULL, info->df, NULL);
+  }
+
+  /* progress meter */
+  if(info->verb > 0) {
+    myprintf(mystdout, "alcray eval i=%d, Xcand=", info->its);
+    for(j=0; j<m; j++) myprintf(mystdout, "%g ", info->Xcand[j]);
+    myprintf(mystdout, "(s=%g), alc=%g\n", x, alc);
+  }
+
+  return 0.0-alc;
+} 
+
+
+/* alcrayGP:
+ *
+ * optimize AIC via a ray search using the pre-stored GP representation.  
+ * Return the convex combination s in (0,1) between Xstart and Xend
+ */
+
+double alcrayGP(GP *gp, double **Xref, double **Xstart, double **Xend, int verb)
+{
+  unsigned int m, n;
+  struct alcinfo info;
+  double Tol = SDEPS;
+  double snew, objnew, obj0;
+
+  /* degrees of freedom */
+  m = gp->m;
+  n = gp->n;
+  info.df = (double) n;
+
+  /* other copying/default parameters */
+  info.verb = verb;
+  info.its = 0;
+  info.s2p[0] = info.s2p[1] = 0;
+
+  /* copy input pointers */
+  info.Xref = Xref;
+  info.Xstart = Xstart;
+  info.Xend = Xend;
+  info.Xcand = new_vector(m);
+  info.gp = gp;
+
+  /* allocate g, kxy, and ktKikx vectors */
+  info.gvec = new_vector(n);
+  info.kxy = new_vector(1);
+  info.kx = new_vector(n);
+  info.ktKikx = new_vector(1);
+
+  /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
+  info.k = new_matrix(1, n);
+  covar(m, Xref, 1, gp->X, n, gp->d, 0.0, info.k);
+  
+  /* utility allocations */
+  info.Gmui = new_matrix(n, n);
+  info.ktGmui = new_vector(n);
+
+  /* use the C-backend of R's optimize function */
+  snew = Brent_fmin(0.0, 1.0, (double (*)(double, void*)) fcnnalc, &info, Tol);  
+
+  /* check s=0, as multi-modal ALC may result in larger domain of attraction
+     for larger s-values but with lower mode */
+  if(snew > Tol) {
+    objnew = fcnnalc(snew, &info);
+    obj0 = fcnnalc(0.0, &info);
+    if(obj0 < objnew) {
+      snew = 0.0;
+      myprintf(mystdout, "snew=0 (NN) found by trap\n");
+    }
+  }
+
+  /* clean up */
+  delete_matrix(info.Gmui);
+  free(info.ktGmui);
+  free(info.ktKikx);
+  free(info.gvec);
+  free(info.kx);
+  free(info.kxy);
+  delete_matrix(info.k);
+  free(info.Xcand);
+
+  return(snew);
+}
+
+/* lalcrayGP:
+ *
+ * local search of via ALC on rays (see alcrayGP) which finds the element
+ * of Xcand that is closest to the max ALC value along a random ray eminating
+ * from the (one of the) closest Xcands to Xref.  The offset determines which
+ * candidate the ray eminates from (0 being the NN).  On input this function
+ * assumes that the rows od Xcand are ordered by distance to Xref
+ */
+
+int lalcrayGP(GP *gp, double **Xcand, int ncand, double **Xref, int offset, 
+  double **rect, int verb)
+{
+  unsigned int m, j, k, i, mini; 
+  double **Xstart, **Xend;
+  double sc, s, mind, dist;
+
+  /* gp dimension */
+  m = gp->m; 
+
+  /* starting point of a ray */
+  Xstart = Xcand + offset;
+
+  /* ending point of ray */
+  Xend = new_matrix(1, m);
+  for(j=0; j<m; j++) Xend[0][j] = 10.0*(Xstart[0][j] - Xref[0][j]) + Xstart[0][j];
+
+  /* adjusting Xend to fit in bounding box */
+  for(j=0; j<m; j++) {
+    if(Xend[0][j] < rect[0][j]) {
+      sc = (rect[0][j] - Xstart[0][j])/(Xend[0][j] - Xstart[0][j]);
+      for(k=0; k<m; k++) Xend[0][k] = (Xend[0][k] - Xstart[0][k])*sc + Xstart[0][k];
+    } else if(Xend[0][j] > rect[1][j]) {
+      sc = (rect[1][j] - Xstart[0][j])/(Xend[0][j] - Xstart[0][j]);
+      for(k=0; k<m; k++) Xend[0][k] = (Xend[0][k] - Xstart[0][k])*sc + Xstart[0][k];
+    }
+  }
+
+  /* calculate ALC along ray */
+  s = alcrayGP(gp, Xref, Xstart, Xend, verb);
+
+  /* find Xstar with s by re-using Xend */
+  for(j=0; j<m; j++) Xend[0][j] = (1-s)*Xstart[0][j] + s*Xend[0][j];
+
+  /* find the candidate closest to Xstar (Xend) */
+  mini = -1;
+  mind = 1e300*1e300;
+  for(i=0; i<ncand; i++) {
+    dist = 0;
+    for(j=0; j<m; j++) {
+      dist += sq(Xend[0][j] - Xcand[i][j]);
+      if(dist > mind) break;
+    }
+    if(dist > mind) continue;
+    mind = dist;
+    mini = i;
+  }
+
+  /* clean up */
+  free(Xend);
+
+  return(mini);
+}
+
+
+
+/*
  * alcGP:
  *
  * return s2' component of the ALC calculation of the
@@ -1947,6 +2211,108 @@ void alcGP_gpu_R(/* inputs */
 #endif
 
 
+/* lalcrayGP_R:
+ *
+ * R interface to C-side function that implements a local search of via ALC 
+ * on rays (see alcrayGP) which finds the element of Xcand that is closest 
+ * to the max ALC value along a random ray eminating from the (one of the) 
+ * closest Xcands to Xref.  The offset determines which candidate the ray 
+ * eminates from (0 being the NN).  On input this function assumes that the 
+ * rows od Xcand are ordered by distance to Xref
+ */
+
+void lalcrayGP_R(/* inputs */
+       int *gpi_in,
+       int *m_in,
+       double *Xcand_in,
+       int *ncand_in,
+       double *Xref_in,
+       int *start_in,
+       double *rect_in,
+       int *verb_in,
+       
+       /* outputs */
+       int *w_out)
+{
+  GP *gp;
+  unsigned int gpi, start;
+  double **Xref, **Xcand, **rect;
+
+  /* get the gp */
+  gpi = *gpi_in;
+  if(gps == NULL || gps[gpi] == NULL) 
+    error("gp %d is not allocated\n", gpi);
+  gp = gps[gpi];
+  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+
+  /* make matrix bones */
+  Xref = new_matrix_bones(Xref_in, 1, *m_in);
+  Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
+  rect = new_matrix_bones(rect_in, 2, *m_in);
+
+  start = 0;
+  if(*start_in > 1) {
+    GetRNGstate();
+    start = (*start_in)*unif_rand();
+  }
+
+  /* call the C-only function */
+  *w_out = lalcrayGP(gp, Xcand, *ncand_in, Xref, start, rect, *verb_in);
+
+  if(*start_in > 1) PutRNGstate();
+
+  /* clean up */
+  free(Xref);
+  free(Xcand);
+  free(rect);
+}
+
+
+/* alcrayGP_R:
+ *
+ * R interface to C-side function that optimizes AIC via a ray search 
+ * using the pre-stored GP representation.  Return the convex 
+ * combination s in (0,1) between Xstart and Xend
+ */
+
+void alcrayGP_R(
+      /* inputs */
+       int *gpi_in,
+       int *m_in,
+       double *Xref_in,
+       double *Xstart_in,
+       double *Xend_in,
+       int *verb_in,
+       
+       /* outputs */
+       double *s_out)
+{
+  GP *gp;
+  unsigned int gpi;
+  double **Xref, **Xstart, **Xend;
+
+  /* get the gp */
+  gpi = *gpi_in;
+  if(gps == NULL || gps[gpi] == NULL) 
+    error("gp %d is not allocated\n", gpi);
+  gp = gps[gpi];
+  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+
+  /* make matrix bones */
+  Xref = new_matrix_bones(Xref_in, 1, *m_in);
+  Xstart = new_matrix_bones(Xstart_in, 1, *m_in);
+  Xend = new_matrix_bones(Xend_in, 1, *m_in);
+
+  /* call the C-only function */
+  *s_out = alcrayGP(gp, Xref, Xstart, Xend, *verb_in);
+
+  /* clean up */
+  free(Xref);
+  free(Xstart);
+  free(Xend);
+}
+
+
 /*
  * alcGP_R:
  *
@@ -1995,6 +2361,64 @@ void alcGP_R(/* inputs */
   free(Xref);
 }
 
+
+/*
+ * alGP_R:
+ *
+ * R interface to C-side function that returns the a Monte Carlo approximation 
+ * to the expected improvement (EI) and expected y-value (EY) under an augmented 
+ * Lagrangian with constraint GPs (cgps) assuming a known linear objective 
+ * function with savel onorm.  The constraints can be scaled with the cnorms
+ */
+
+void alGP_R(/* inputs */
+       int *cgpis_in,
+       int *ngps_in,
+       int *m_in,
+       double *XX_in,
+       int *nn_in,
+       double *onorm_in,
+       double *cnorms_in,
+       double *lambda_in,
+       double *alpha_in,
+       double *fmin_in,
+       int *nomax_in,
+       int *N_in,
+       
+       /* outputs */
+       double *eys_out,
+       double *eis_out)
+{
+  GP **cgps;
+  unsigned int gpi, ngps, i;
+  double **XX;
+
+  /* get the gps */
+  ngps = *ngps_in;
+  cgps = (GP**) malloc(sizeof(GP*) * ngps);
+  for(i=0; i<ngps; i++) {
+    gpi = cgpis_in[i];
+    if(gps == NULL || gps[gpi] == NULL) 
+      error("gp %d is not allocated\n", gpi);
+    cgps[i] = gps[gpi];
+    if((unsigned) *m_in != cgps[i]->m)  error("ncol(X) does not match GP/C-side");
+  }
+
+  /* make matrix bones */
+  XX = new_matrix_bones(XX_in, *nn_in, *m_in);
+
+  GetRNGstate();
+
+  /* call the C-only function */
+  alGP(cgps, ngps, *nn_in, XX, *onorm_in, cnorms_in, lambda_in, alpha_in, 
+    *fmin_in, *nomax_in, *N_in, eys_out, eis_out);
+
+  PutRNGstate();
+
+  /* clean up */
+  free(XX);
+  free(cgps);
+}
 
 
 /*
@@ -2178,7 +2602,7 @@ void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
     ktKidk = new_zero_vector(nn);
     for(i=0; i<nn; i++) 
       for(j=0; j<n; j++) 
-	ktKidk[i] += ktKi[j][i]*dk[j][i] + dktKi[j][i]*k[j][i];
+	       ktKidk[i] += ktKi[j][i]*dk[j][i] + dktKi[j][i]*k[j][i];
     
     /* wrap up the ds2 calculation */
     assert(ds2);
@@ -2189,17 +2613,17 @@ void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
     if(d2k) {
       ktKid2k = new_zero_vector(nn);
       for(i=0; i<nn; i++) for(j=0; j<n; j++) {
-	  ktKid2k[i] += ktKi[j][i]*d2k[j][i];
-	  ktKid2k[i] += 2.0*dktKi[j][i]*dk[j][i];
-	  ktKid2k[i] += d2ktKi[j][i]*k[j][i];
-	}
+        ktKid2k[i] += ktKi[j][i]*d2k[j][i];
+        ktKid2k[i] += 2.0*dktKi[j][i]*dk[j][i];
+        ktKid2k[i] += d2ktKi[j][i]*k[j][i];
+      }
     } else ktKid2k = NULL;
     
     /* wrap up the d2s2 calculation */
     if(ktKid2k) {
       assert(d2s2);
       for(i=0; i<nn; i++) 
-	d2s2[i] = dfi*(d2phi*(1 + gp->g - ktKik[i]) -
+	       d2s2[i] = dfi*(d2phi*(1 + gp->g - ktKik[i]) -
 		       2.0*dphi*ktKidk[i] - (gp->phi)*ktKid2k[i]);
     }
 

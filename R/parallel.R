@@ -25,7 +25,7 @@
 ## agp.chunk:
 ##
 ## a version of the aGP function which works with a subset of the XX
-## locations, for use with aGP.snow for parallelization
+## locations, for use with aGP.parallel for parallelization
 
 aGP.chunk <- function(chunk, XX, X, Z, start, end, d, g, method, 
 	Xi.ret, close, num.gpus, gpu.threads, omp.threads, nn.gpu, verb)
@@ -57,17 +57,17 @@ aGP.chunk <- function(chunk, XX, X, Z, start, end, d, g, method,
   }
 
 
-## aGP.snow:
+## aGP.parallel:
 ##
-## a version of the aGP function for use with clusters made by snow
+## a version of the aGP function for use with clusters made by parallel
 ## and/or the parallel package.  Uses clusterApply to split up the
 ## XX rows into a particular number of chunks, and then combines
 ## the results into a single aGP output object
 
-aGP.snow <- function(cls, XX, chunks=length(cls), X, Z, start=6, end=50, d=NULL, 
-                     g=1/1000, method=c("alc", "mspe", "nn", "efi"), Xi.ret=TRUE, 
-                	   close=min(1000, nrow(X)), num.gpus=0, gpu.threads=num.gpus,
-                	   omp.threads=if(num.gpus > 0) 0 else 1, 
+aGP.parallel <- function(cls, XX, chunks=length(cls), X, Z, start=6, end=50, d=NULL, 
+                     g=1/1000, method=c("alc", "alcray", "mspe", "nn", "efi"), 
+                     Xi.ret=TRUE, close=min(1000, nrow(X)), num.gpus=0, 
+                     gpu.threads=num.gpus, omp.threads=if(num.gpus > 0) 0 else 1, 
                      nn.gpu=if(num.gpus > 0) nrow(XX) else 0, verb=1)
   {
     ## timing

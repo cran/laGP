@@ -41,8 +41,7 @@ calc.eis <- function(tmat, fmin, w=NULL)
   }
 
 
-
-## rbetter:
+## rbetter_R:
 ##
 ## sample uniformly
 ## from the (diagonal) half of a rectable where the sum of
@@ -59,7 +58,6 @@ rbetter <- function(n, rect, ybest)
 
     return(matrix(rr$X, ncol=nrow(rect), byrow=TRUE))
   }
-
 
 
 ## distance:
@@ -110,7 +108,6 @@ distance <- function(X1, X2=NULL)
       return(matrix(outD$D, ncol=n2, byrow=TRUE))
     }
   }
-
 
 
 ## llikGP.d:

@@ -7,3 +7,4 @@ void alc_gpu(double d, double g, double phi, int m, int n, double *X,
 int num_gpus(void);
 
 #endif
+

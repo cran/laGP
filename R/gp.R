@@ -310,7 +310,6 @@ mleGP.switch <- function(gpi, d, g, verb)
   }
 
 
-
 ## updateGP:
 ##
 ## add X-Z pairs to the C-side GP represnetation
@@ -413,6 +412,167 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
               PACKAGE = "laGP")
     
     return(out$alcs)
+  }
+
+
+## lalcrayGP.R:
+##
+## calculates a ray emiating from a random nearest (of start)
+## neighbor(s) to Xref in Xcand.  The ending point of the ray
+## is 10 times the (opposite) distance from Xstart to Xref,
+## then alcrayGP (either C or R version) is called to optimize
+## over the ray.  The candidate in Xcand which is closest
+## to the solution is returned
+
+lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
+  {
+    ## sanity checks
+    m <- ncol(Xref)
+    if(nrow(Xref) != 1) stop("alcray only applies for one Xref")
+    if(m != ncol(Xcand)) stop("ncol(Xref) != ncol(Xcand)")
+    if(ncol(rect) != m) stop("ncol(rect) != ncol(Xref)")
+    if(length(offset) != 1 || offset < 1 || offset > nrow(Xcand))
+      stop("offset should be a scalar integer >= 1 and <= nrow(Xcand)") 
+
+    ## get starting and ending point of ray
+    Xstart <- Xcand[sample(1:offset, 1),,drop=FALSE]
+    Xend <- as.numeric(10*(Xstart - Xref) + Xstart)
+    while(any(Xend < rect[1,]) | any(Xend > rect[2,])) {
+      w <- which(Xend < rect[1,])
+      if(length(w) > 0) { col <- 1
+      } else { w <- which(Xend > rect[2,]); col <- 2 }
+      w <- w[1]
+      sc <- (rect[col,w] - Xstart[w])/(Xend[w] - Xstart[w])
+      Xend <- (Xend - Xstart)*sc + Xstart
+    }
+
+    ## solve for the best convex combination of Xstart and Xend
+    so <- alcrayGP(gpi, Xref, Xstart, Xend, verb)
+    Xstar <- matrix((1-so)*Xstart + so*Xend, nrow=1)
+
+    ## return the index of the closest Xcand to Xstar
+    w <- which.min(distance(Xstar, Xcand)[1,])
+    return(w)
+  }
+
+
+## lalcrayGP:
+##
+## wrapper to a C-side function used to calculate a ray emiating 
+## from a random nearest (of start) neighbor(s) to Xref in Xcand.  
+## The ending point of the ray is 10 times the (opposite) distance 
+## from Xstart to Xref, then alcrayGP (on the C-side) is called to 
+## optimize over the ray.  The candidate in Xcand which is closest
+## to the solution is returned
+
+lalcrayGP <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
+  {
+    ## sanity checks
+    m <- ncol(Xref)
+    ncand <- nrow(Xcand)
+    if(nrow(Xref) != 1) stop("alcray only applies for one Xref")
+    if(m != ncol(Xcand)) stop("ncol(Xref) != ncol(Xcand)")
+    if(ncol(rect) != m) stop("ncol(rect) != ncol(Xref)")
+    if(length(offset) != 1 || offset < 1 || offset > ncand)
+      stop("offset should be a scalar integer >= 1 and <= nrow(Xcand)") 
+
+    out <- .C("lalcrayGP_R",
+              gpi = as.integer(gpi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              Xref = as.double(t(Xref)),
+              offset = as.integer(offset-1),
+              rect = as.double(t(rect)),
+              verb = as.integer(verb),
+              w = integer(1),
+              PACKAGE = "laGP")
+
+    return(out$w+1)
+  }
+
+
+## alcrayGP:
+##
+## wrapper used to optimize AIC via a ray search using
+## the pre-stored GP representation.  Return the convex
+## combination s in (0,1) between Xstart and Xend
+
+alcrayGP <- function(gpi, Xref, Xstart, Xend, verb=0)
+  {
+    ## coerse to matrices
+    if(is.null(ncol(Xref))) Xref <- matrix(Xref, nrow=1)
+    if(is.null(ncol(Xstart))) Xstart <- matrix(Xstart, nrow=1)
+    if(is.null(ncol(Xend))) Xend <- matrix(Xend, nrow=1)
+   
+    ## check dimensions of matrices
+    m <- ncol(Xstart)
+    if(ncol(Xref) != m) stop("Xstart and Xref have mismatched cols")
+    if(ncol(Xend) != m) stop("Xend and Xref have mismatched cols")
+    if(nrow(Xref) != 1) stop("only one reference location allowed")
+    if(nrow(Xstart) != 1) stop("only one starting location allowed")
+    if(nrow(Xend) != 1) stop("only one ending location allowed")
+
+    ## call the C routine
+    out <- .C("alcrayGP_R",
+              gpi = as.integer(gpi),
+              m = as.integer(m),
+              Xref = as.double(t(Xref)),
+              Xstart = as.double(t(Xstart)),
+              Xend = as.double(t(Xend)),
+              verb = as.integer(verb),
+              s = double(1))
+    
+    ## return the convex combination
+    return(out$s)
+  }
+
+
+## alGP:
+##
+## calculate the E(Y) and EI(Y) for an augmented Lagrangian 
+## composite objective function with linear objective (in X)
+## and constraint GP (gpi) predictive surfaces
+
+alGP <- function(gpis, XX, onorm, cnorms, lambda, alpha, fmin, 
+  nomax=FALSE, N=100)
+  {
+    ## doms
+    m <- ncol(XX)
+    nn <- nrow(XX)
+    ngps <- length(gpis)
+
+    ## checking lengths for number of gps
+    if(length(cnorms) != ngps) stop("length(gpis) != length(cnorms)")
+    if(length(lambda) != ngps) stop("length(gpis) != length(lambda)")
+    if(length(alpha) != ngps) stop("length(gpis) != length(alpha)")
+
+    ## checking scalars
+    if(!is.logical(nomax) || length(nomax) != 1) stop("nomax should be a scalar logical")
+    if(length(N) != 1 || N <= 0) stop("N should be a positive integer scalar")
+    if(length(fmin) != 1) stop("fmin should be a scalar")
+    if(length(onorm) != 1) stop("onorm should be a scalar")
+
+    ## call the C-side
+    out <- .C("alGP_R",
+      gpis = as.integer(gpis),
+      ngps = as.integer(ngps),
+      m = as.integer(m),
+      XX = as.double(t(XX)),
+      nn = as.integer(nn),
+      onorm = as.double(onorm),
+      cnorms = as.double(cnorms),
+      lambda = as.double(lambda),
+      alpha = as.double(alpha),
+      fmin = as.double(fmin),
+      nonmax = as.double(nomax),
+      N = as.integer(N),
+      eys = double(nn),
+      eis = double(nn),
+      PACKAGE = "laGP")
+    
+    ## done
+    return(data.frame(ey=out$eys, ei=out$eis))
   }
 
 
