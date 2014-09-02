@@ -1087,7 +1087,7 @@ void quantiles(double *qs, double *q, unsigned int m, double *v,
       
       /* calculate the index-position of the quantile */
       k = (unsigned int) n*q[j];
-      qs[j] = quick_select(v, n, k);
+      qs[j] = quick_select_index(v, NULL, n, k);
 
     } else { /* else using sorting method */
 
@@ -1373,8 +1373,9 @@ int* find_col(double **V, int *pv, unsigned int n,
  */
 
 #define ELEM_SWAP(a,b) { register double t=(a);(a)=(b);(b)=t; }
+#define IELEM_SWAP(a,b) { register int t=(a);(a)=(b);(b)=t; }
 
-double quick_select(double arr[], int n, int k) 
+double quick_select_index(double arr[], int iarr[], int n, int k) 
 {
   int low, high ;
   int middle, ll, hh;
@@ -1386,19 +1387,31 @@ double quick_select(double arr[], int n, int k)
       return arr[k] ;
     
     if (high == low + 1) {  /* Two elements only */
-      if (arr[low] > arr[high])
-	ELEM_SWAP(arr[low], arr[high]) ;
+      if (arr[low] > arr[high]) {
+        ELEM_SWAP(arr[low], arr[high]) ;
+        if(iarr) IELEM_SWAP(iarr[low], iarr[high]) ;
+      }
       return arr[k] ;
     }
     
     /* Find kth of low, middle and high items; swap into position low */
     middle = (low + high) / 2;
-    if (arr[middle] > arr[high])    ELEM_SWAP(arr[middle], arr[high]) ;
-    if (arr[low] > arr[high])       ELEM_SWAP(arr[low], arr[high]) ;
-    if (arr[middle] > arr[low])     ELEM_SWAP(arr[middle], arr[low]) ;
-    
+    if (arr[middle] > arr[high]) {
+      ELEM_SWAP(arr[middle], arr[high]) ;
+      if(iarr) IELEM_SWAP(iarr[middle], iarr[high]) ;
+    }
+    if (arr[low] > arr[high]) {
+      ELEM_SWAP(arr[low], arr[high]) ;
+      if(iarr) IELEM_SWAP(iarr[low],iarr[high]) ;
+    }
+    if (arr[middle] > arr[low])  {
+      ELEM_SWAP(arr[middle], arr[low]) ;
+      if(iarr) IELEM_SWAP(iarr[middle],iarr[low]) ;
+    }
+
     /* Swap low item (now in position middle) into position (low+1) */
     ELEM_SWAP(arr[middle], arr[low+1]) ;
+    if(iarr) IELEM_SWAP(iarr[middle], iarr[low+1]) ;
 
     /* Nibble from each end towards middle, swapping items when stuck */
     ll = low + 1;
@@ -1411,10 +1424,12 @@ double quick_select(double arr[], int n, int k)
         break;
 
         ELEM_SWAP(arr[ll], arr[hh]) ;
+        if(iarr) IELEM_SWAP(iarr[ll], iarr[hh]) ;
     }
 
     /* Swap middle item (in position low) back into correct position */
     ELEM_SWAP(arr[low], arr[hh]) ;
+    if(iarr) IELEM_SWAP(iarr[low], iarr[hh]) ;
 
     /* Re-set active partition */
     if (hh <= k)
@@ -1423,7 +1438,6 @@ double quick_select(double arr[], int n, int k)
         high = hh - 1;
     }
 }
-
 
 /*
  * same as the quick_select algorithm above, but less

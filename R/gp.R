@@ -36,7 +36,7 @@ newGP <- function(X, Z, d, g, dK=FALSE)
     
     out <- .C("newGP_R",
               m = as.integer(ncol(X)),
-              n = as.integer(nrow(X)),
+              n = as.integer(n),
               X = as.double(t(X)),
               Z = as.double(Z),
               d = as.double(d),
@@ -422,9 +422,11 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
 ## is 10 times the (opposite) distance from Xstart to Xref,
 ## then alcrayGP (either C or R version) is called to optimize
 ## over the ray.  The candidate in Xcand which is closest
-## to the solution is returned
+## to the solution is returned.  This works differently than
+## lalcrayGP, since the starts of the rays are random from 
+## 1:offset
 
-lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
+lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), verb=0) 
   {
     ## sanity checks
     m <- ncol(Xref)
@@ -433,22 +435,29 @@ lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
     if(ncol(rect) != m) stop("ncol(rect) != ncol(Xref)")
     if(length(offset) != 1 || offset < 1 || offset > nrow(Xcand))
       stop("offset should be a scalar integer >= 1 and <= nrow(Xcand)") 
+    if(length(numrays) != 1 || numrays < 1)
+      stop("numrays should be an integer scalar >= 1")
+
+    ## adjust numrays
+    if(numrays > nrow(Xcand)) numrays <- nrow(Xcand)
 
     ## get starting and ending point of ray
-    Xstart <- Xcand[sample(1:offset, 1),,drop=FALSE]
-    Xend <- as.numeric(10*(Xstart - Xref) + Xstart)
-    while(any(Xend < rect[1,]) | any(Xend > rect[2,])) {
-      w <- which(Xend < rect[1,])
-      if(length(w) > 0) { col <- 1
-      } else { w <- which(Xend > rect[2,]); col <- 2 }
-      w <- w[1]
-      sc <- (rect[col,w] - Xstart[w])/(Xend[w] - Xstart[w])
-      Xend <- (Xend - Xstart)*sc + Xstart
+    Xstart <- Xcand[sample(1:offset, numrays),,drop=FALSE]
+    for(r in 1:numrays) {
+      Xend[r,] <- as.numeric(10*(Xstart[r,] - Xref) + Xstart[r,])
+      while(any(Xend[r,] < rect[1,]) | any(Xend[r,] > rect[2,])) {
+        w <- which(Xend[r,] < rect[1,])
+        if(length(w) > 0) { col <- 1
+        } else { w <- which(Xend[r,] > rect[2,]); col <- 2 }
+        w <- w[1]
+        sc <- (rect[col,w] - Xstart[r,w])/(Xend[r,w] - Xstart[r,w])
+        Xend[r,] <- (Xend[r,] - Xstart[r,])*sc + Xstart[r,]
+      }
     }
 
     ## solve for the best convex combination of Xstart and Xend
     so <- alcrayGP(gpi, Xref, Xstart, Xend, verb)
-    Xstar <- matrix((1-so)*Xstart + so*Xend, nrow=1)
+    Xstar <- matrix((1-so$s)*Xstart[so$r,] + so$s*Xend[so$r,], nrow=1)
 
     ## return the index of the closest Xcand to Xstar
     w <- which.min(distance(Xstar, Xcand)[1,])
@@ -465,7 +474,7 @@ lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
 ## optimize over the ray.  The candidate in Xcand which is closest
 ## to the solution is returned
 
-lalcrayGP <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
+lalcrayGP <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), verb=0)
   {
     ## sanity checks
     m <- ncol(Xref)
@@ -475,6 +484,8 @@ lalcrayGP <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
     if(ncol(rect) != m) stop("ncol(rect) != ncol(Xref)")
     if(length(offset) != 1 || offset < 1 || offset > ncand)
       stop("offset should be a scalar integer >= 1 and <= nrow(Xcand)") 
+    if(length(numrays) != 1 || numrays < 1)
+      stop("numrays should be an integer scalar >= 1")
 
     out <- .C("lalcrayGP_R",
               gpi = as.integer(gpi),
@@ -483,6 +494,7 @@ lalcrayGP <- function(gpi, Xref, Xcand, rect, offset=1, verb=0)
               ncand = as.integer(ncand),
               Xref = as.double(t(Xref)),
               offset = as.integer(offset-1),
+              numrays = as.integer(numrays),
               rect = as.double(t(rect)),
               verb = as.integer(verb),
               w = integer(1),
@@ -509,22 +521,24 @@ alcrayGP <- function(gpi, Xref, Xstart, Xend, verb=0)
     m <- ncol(Xstart)
     if(ncol(Xref) != m) stop("Xstart and Xref have mismatched cols")
     if(ncol(Xend) != m) stop("Xend and Xref have mismatched cols")
-    if(nrow(Xref) != 1) stop("only one reference location allowed")
-    if(nrow(Xstart) != 1) stop("only one starting location allowed")
-    if(nrow(Xend) != 1) stop("only one ending location allowed")
+    if(nrow(Xref) != 1) stop("only one reference location allowed for ray search")
+    numrays <- nrow(Xstart)
+    if(nrow(Xend) != numrays) stop("must have same number of starting and ending locations")
 
     ## call the C routine
     out <- .C("alcrayGP_R",
               gpi = as.integer(gpi),
               m = as.integer(m),
               Xref = as.double(t(Xref)),
+              numrays = as.integer(numrays),
               Xstart = as.double(t(Xstart)),
               Xend = as.double(t(Xend)),
               verb = as.integer(verb),
-              s = double(1))
+              s = double(1),
+              r = integer(1))
     
     ## return the convex combination
-    return(out$s)
+    return(list(r=out$r, s=out$s))
   }
 
 

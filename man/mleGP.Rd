@@ -7,8 +7,9 @@
   Inference for GP correlation parameters
 }
 \description{
-  Maximum likelihood/a posteriori inference for (isotropic) lengthscale
-  and nugget parameters, marginally or jointly
+  Maximum likelihood/a posteriori inference for (isotropic Gaussian) 
+  lengthscale and nugget parameters, marginally or jointly, for 
+  Gaussian process regression
 }
 \usage{
 mleGP(gpi, param = c("d", "g"), tmin = 0, tmax = -1, ab = c(0, 0),
@@ -24,10 +25,10 @@ jmleGP.R(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
     a C-side GP object identifier (positive integer);
     e.g., as returned by \code{\link{newGP}}
   }
-  \item{N}{ for \code{jmleGP.R}, the maximum number of time the pair of margins
+  \item{N}{ for \code{jmleGP.R}, the maximum number of times the pair of margins
     should be iterated over before determining failed convergence; note
     that (at this time) \code{jmleGP} uses a hard-coded \code{N=100} in
- its C implementation}
+    its C implementation}
   \item{param}{
     for \code{mleGP}, indicating whether to work on the lengthscale
     (\code{d}) or nugget (\code{g}) margin

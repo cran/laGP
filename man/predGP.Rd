@@ -24,7 +24,9 @@ predGP(gpi, XX, lite = FALSE)
   \item{lite}{
     a scalar logical indicating whether (\code{lite = FALSE}, default) or not
     (\code{lite = TRUE}) a full predictive covariance matrix should be
-    returned
+    returned, as would be required for plotting random sample paths,
+    but substantially increases computation time if only point-prediction
+    is required
 }
 }
 \details{
@@ -64,7 +66,7 @@ predGP(gpi, XX, lite = FALSE)
 ## a "computer experiment" -- a much smaller version than the one shown
 ## in the aGP docs
 
-## Simple 2-d test function used in Gramacy & Apley (2013);
+## Simple 2-d test function used in Gramacy & Apley (2014);
 ## thanks to Lee, Gramacy, Taddy, and others who have used it before
 f2d <- function(x, y=NULL)
   {

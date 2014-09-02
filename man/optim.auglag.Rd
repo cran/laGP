@@ -8,7 +8,7 @@
 \description{
     Uses a surrogate modeled augmented Lagrangian (AL) system to optimize
     a known linear function under unknown multiple (blackbox) constraints via
-    expected improvement (AL) and variations
+    expected improvement (EI) and variations
 }
 \usage{
 optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL, 
@@ -16,7 +16,7 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
     urate = 10, ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
     dlim = sqrt(ncol(B)) * c(1/100, 10), obj.norm = 1, 
     tol = list(ei = 1e-05, ey = 0.05, its = 10), nomax = FALSE, 
-    N = 1000, plotprog = TRUE, verb = 2, ...)
+    N = 1000, plotprog = FALSE, verb = 2, ...)
 }
 \arguments{
   \item{fn}{
@@ -86,8 +86,8 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
     the tolerance determining approximate convergence when sampling under expected
     improvement (EI), i.e., whether the largest EI value obtained in the current search
     is too low to continue; \code{"ey"} is a proportion indicating how many of the EIs
-    at \code{ncandf(t)} candidate locations, 
-    must be non-zero to trust that metric to guide search, reducing to an EY-based 
+    at \code{ncandf(t)} candidate locations must be non-zero to trust that metric to 
+    guide search, reducing to an EY-based 
     search instead [choosing that proportion to be zero forces EY-based search]; 
     \code{"its"} is an integer specifying the maximum number of inner-loop iterations 
     that can pass without improvement in the sub-problem before approximate convergence 
@@ -107,8 +107,13 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
     \code{logical} indicating if progress plots should be made after each inner iteration;
     the plots show three panels tracking the best valid objective, the EI or EY surface
     over the first two input variables (requires \code{\link[akima]{interp}}, 
-    and the parameters of the lengthscale(s) of the GP(s)
-    respectively
+    and the parameters of the lengthscale(s) of the GP(s) respectively.  When 
+    \code{plotprog = TRUE} the \code{\link[tgp]{interp.loess}} function is used to
+    aid in creating surface plots, however this does not work well with fewer than 
+    fifteen points.  You may also provide a function as an argument, having similar
+    arguments/formals as \code{\link[tgp]{interp.loess}}.  For example, we use
+    \code{\link[akima]{interp}} below, which would have been the default if not 
+    for licensing incompatibilities
 }
   \item{verb}{
     positive scalar integer indicating the verbosity level; the larger the value the
@@ -119,9 +124,7 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
 \details{
 In its current form, this is an \dQuote{alpha} code illustrating the suite of
 methods used to optimize two challenging constrained optimization problems
-from Gramacy, et al. (2014); see references below.  That paper is currently
-under review, and will likely require substantial updating alongside the
-implementation provided here.
+from Gramacy, et al. (2014); see references below.  
 
 That scheme hybridizes Gaussian process based surrogate modeling and expected
 improvement (EI; Jones, et., al, 2008) with the additive penalty method (APM)
@@ -189,11 +192,12 @@ software.
 
 \seealso{
 \code{\link[tgp]{optim.step.tgp}} for unconstrained optimization;\cr
-\code{optim} with \code{method-"L-BFGS-B"} for box constraints
+\code{optim} with \code{method="L-BFGS-B"} for box constraints, or
+\code{optim} with \code{method="SANN"} for simulated annealing
 }
 \examples{
 library(tgp) ## uses dopt.gp, will change later
-library(akima) ## plotprog=TRUE requires interpolation
+library(akima) ## for plotprog=interp below
 
 ## a test function returning objective evaluations and constraints
 aimprob <- function(x)
@@ -204,15 +208,46 @@ aimprob <- function(x)
   return(list(obj=f, c=c(c1,c2)))
 }
 
-
 ## set bounding rectangle for adaptive sampling
 B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
 
 ## optimization (primarily) by EI, change 25 to 100 for
 ## 99% chance of finding the global optimum with value 0.6
-out <- optim.auglag(aimprob, B, ab=c(3/2,8), end=25)
+library(akima)
+out <- optim.auglag(aimprob, B, ab=c(3/2,8), end=25, plotprog=interp)
+
+
+## for comparison, here is a version that uses simulated annealing
+## where the Additive Penalty Method (APM) is used to handle
+## the constraints
+\dontrun{
+aimprob.apm <- function(x, B=matrix(c(rep(0,2),rep(1,2)),ncol=2))
+{ 
+  ## check bounding box
+  for(i in 1:length(x)) {
+    if(x[i] < B[i,1] || x[i] > B[i,2]) return(Inf)
+  }
+
+  ## evaluate objective and constraints
+  f <- sum(x)
+  c1 <- 1.5-x[1]-2*x[2]-0.5*sin(2*pi*(x[1]^2-2*x[2]))
+  c2 <- x[1]^2+x[2]^2-1.5
+
+  ## return APM composite
+  return(f + abs(c1) + abs(c2))
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
+
+## use SA; specify control=list(maxit=100), say, to control max 
+## number of iterations; does not easily facilitate plotting progress
+out <- optim(runif(2), aimprob.apm, method="SANN") 
+## check the final value, which typically does not satisfy both
+## constraints
+aimprob(out$par)
+}
+
+
+}
+%  one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
 \keyword{ optimize }
 \keyword{ design }% __ONLY ONE__ keyword per line

@@ -49,7 +49,7 @@ efiGP(gpi, Xcand)
   for \code{parallel = "gpu"}, the package must be compiled with CUDA
   flags (only the ALC criteria is supported on the GPU); see README/INSTALL
   in the package source for more details;  at this time this option is
-  only supported for ALC calculations
+  only supported for \code{method = "alc"} criteria
 }
 \item{Xstart}{
   a \code{1}-by-\code{ncol(Xref)} starting location for a search along
@@ -77,8 +77,9 @@ efiGP(gpi, Xcand)
   approximation is to inspect the code in the \code{\link{laGP.R}} function.
 
   Otherwise they are pretty self explanatory.  They evaluate the ALC, MSPE,
-  and EFI quantities outlined in Gramacy & Apley (2013).  The ALC is originally
-  due to Seo, et al. (2000).
+  and EFI quantities outlined in Gramacy & Apley (2014).  The ALC is originally
+  due to Seo, et al. (2000).  The ray-based search is described by a forthcoming
+  paper by Gramacy & Haaland (2014).
 
   \code{alcrayGP} allows only one reference location (\code{nrow(Xref) = 1}).  
 }
@@ -87,10 +88,22 @@ efiGP(gpi, Xcand)
   corresponding to the desired statistic
 }
 \references{
-  R.B. Gramacy and D.W. Apley (2013).
+  R.B. Gramacy and D.W. Apley (2014).
   \emph{Local Gaussian process approximation for large computer
-    experiments.}  Preprint available on arXiv:1303.0383; 
+    experiments.} Journal of Computational and Graphical Statistics, \emph{to appear};
+  preprint available on arXiv:1303.0383; 
   \url{http://arxiv.org/abs/1303.0383}
+
+  R.B. Gramacy, J. Niemi, R.M. Weiss (2014). 
+  \emph{Massively parallel approximate Gaussian process regression.}
+  SIAM/ASA Journal on Uncertainty Quantification, \emph{to appear};
+  preprint on arXiv:1310.5182
+  \url{http://arxiv.org/abs/1310.5182}  
+
+  R.B. Gramacy and B. Haaland (2014).
+  \emph{Speeding up neighborhood search in local Gaussian process prediction.}
+  Preprint on arXiv:1409.0074 
+  \url{http://arxiv.org/abs/1409.0074}
 
   Seo, S., Wallat, M., Graepel, T., and Obermayer, K. (2000). 
   \emph{Gaussian Process Regression: Active Data Selection and Test Point Rejection.}
@@ -108,7 +121,7 @@ efiGP(gpi, Xcand)
 ## this follows the example in predGP, but only evaluates 
 ## information statistics documented here
 
-## Simple 2-d test function used in Gramacy & Apley (2013);
+## Simple 2-d test function used in Gramacy & Apley (2014);
 ## thanks to Lee, Gramacy, Taddy, and others who have used it before
 f2d <- function(x, y=NULL)
   {

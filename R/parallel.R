@@ -28,7 +28,7 @@
 ## locations, for use with aGP.parallel for parallelization
 
 aGP.chunk <- function(chunk, XX, X, Z, start, end, d, g, method, 
-	Xi.ret, close, num.gpus, gpu.threads, omp.threads, nn.gpu, verb)
+	Xi.ret, close, numrays, num.gpus, gpu.threads, omp.threads, nn.gpu, verb)
   {
     ## might need to chunk-up the d argument
     if(!is.null(d)) {
@@ -53,7 +53,7 @@ aGP.chunk <- function(chunk, XX, X, Z, start, end, d, g, method,
 
     ## run with chunked up XX
     aGP(X, Z, XX=XX[chunk,], start, end, d, g, method, Xi.ret, 
-    	close, num.gpus, gpu.threads, omp.threads, nn.gpu, verb)
+    	close, numrays, num.gpus, gpu.threads, omp.threads, nn.gpu, verb)
   }
 
 
@@ -66,8 +66,9 @@ aGP.chunk <- function(chunk, XX, X, Z, start, end, d, g, method,
 
 aGP.parallel <- function(cls, XX, chunks=length(cls), X, Z, start=6, end=50, d=NULL, 
                      g=1/1000, method=c("alc", "alcray", "mspe", "nn", "efi"), 
-                     Xi.ret=TRUE, close=min(1000, nrow(X)), num.gpus=0, 
-                     gpu.threads=num.gpus, omp.threads=if(num.gpus > 0) 0 else 1, 
+                     Xi.ret=TRUE, close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+                     numrays=ncol(X), num.gpus=0, gpu.threads=num.gpus, 
+                     omp.threads=if(num.gpus > 0) 0 else 1, 
                      nn.gpu=if(num.gpus > 0) nrow(XX) else 0, verb=1)
   {
     ## timing
@@ -83,7 +84,7 @@ aGP.parallel <- function(cls, XX, chunks=length(cls), X, Z, start=6, end=50, d=N
     clusterEvalQ(cls, library(laGP))
     all.outs <- clusterApply(cls, all.chunks, aGP.chunk, XX=XX, X=X, Z=Z, 
     	start=start, end=end, d=d, g=g, method=method, Xi.ret=Xi.ret, 
-    	close=close, num.gpus=num.gpus, gpu.threads=gpu.threads,
+    	close=close, numrays=numrays, num.gpus=num.gpus, gpu.threads=gpu.threads,
      	omp.threads=omp.threads, nn.gpu=nn.gpu, verb=verb)
 
     ## allocate a single output object

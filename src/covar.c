@@ -87,7 +87,7 @@ void covar(const int col, double **X1, const int n1, double **X2,
  * calculate the first and 2nd derivative (wrt d) of the correlation (K)
  * between X1 and X2 with an isotropic power exponential 
  * correlation function with range d and nugget g (though g not
- * needed) -- assymes symmetric matrix
+ * needed) -- assumes symmetric matrix
  */
 
 void diff_covar_symm(const int col, double **X, const int n, 

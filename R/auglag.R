@@ -7,7 +7,7 @@
 optim.auglag <- function(fn, B, start=10, end=100, Xstart=NULL, ab=c(3/2,4), 
   lambda=rep(1,ncol(B)), rho=1/2, urate=10, ncandf=function(t) { t }, 
   dg.start=c(0.1,1e-6), dlim=sqrt(ncol(B))*c(1/100,10), obj.norm=1,
-  tol=list(ei=1e-5, ey=0.05, its=10), nomax=FALSE, N=1000, plotprog=TRUE, 
+  tol=list(ei=1e-5, ey=0.05, its=10), nomax=FALSE, N=1000, plotprog=FALSE, 
   verb=2, ...)
 {
   ## get initial design
@@ -117,10 +117,14 @@ optim.auglag <- function(fn, B, start=10, end=100, Xstart=NULL, ab=c(3/2,4),
     if(nzei <= tol$ey*ncand) { eis <- -(eyei$ey); by <- "ey"; mei <- Inf }
 
     ## continue plotting 
-    if(plotprog) {
+    if(!is.logical(plotprog) || plotprog) {
       par(mfrow=c(1,3))
       plot(prog, type="l")
-      image(interp(XX[,1], XX[,2], eis), xlim=range(X[,1]), ylim=range(X[,2]))
+      if(is.logical(plotprog)) {
+        if(length(eis) < 30) { span <- 0.5 } else { span <- 0.1 }
+        g <- interp.loess(XX[,1], XX[,2], eis, span=span)
+      } else g <- plotprog(XX[,1], XX[,2], eis)
+      image(g, xlim=range(X[,1]), ylim=range(X[,2]))
       points(X[,1:2], col=valid+3, pch=19)
       matplot(ds, type="l", lty=1)
     }

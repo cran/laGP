@@ -67,6 +67,7 @@ void aGP_R(/* inputs */
 		int *numgpus_in,
 		int *gputhreads_in,
 		int *nngpu_in,
+    int *numrays_in,
     double *rect_in,
 		int *verb_in,
 		int *Xiret_in,
@@ -118,9 +119,10 @@ void aGP_R(/* inputs */
   XX = new_matrix_bones(XX_in, *nn_in, *m_in);
 
   /* check rect input */
-  if(method == ALCRAY)
+  if(method == ALCRAY) {
+    assert(*numrays_in >= 1);
     rect = new_matrix_bones(rect_in, 2, *m_in);
-  else rect = NULL;
+  } else rect = NULL;
 
   /* check for mle */
   gmle = dmle = 0;
@@ -193,7 +195,7 @@ void aGP_R(/* inputs */
 
       /* call C-only code */
       laGP(*m_in, *start_in, *end_in, Xref, 1, *n_in, X, Z_in, dvec,
-        gvec, method, *close_in, gpu, rect, verb-1, Xi, &(mean_out[i]), 
+        gvec, method, *close_in, gpu, *numrays_in, rect, verb-1, Xi, &(mean_out[i]), 
         &(var_out[i]), &df, dmlei, ditsi, gmlei, gitsi, &(llik_out[i]));
       var_out[i] *= df/(df-2.0);
 
@@ -225,36 +227,83 @@ void aGP_R(/* inputs */
 
 
 /*
- * laGP:
- * 
- * C-version of R function laGP.R: uses ALC to adaptively
- * select a small (size n) subset of (X,Z) from which to
- * predict by (thus approx) kriging equations; returns
- * those Student-t equg1653ations.
+ * closest_indices:
+ *
+ * returns the close indices into X which are closes (on average) to the
+ * element(s) of Xref.  The first start of those indices are the start 
+ * closest, otherwise the indecies unordered (unless sorted=true).  
+ * Even when sorted=true the incies close+1, ... are not sorted.
  */
 
-void laGP(const unsigned int m, const unsigned int start, const unsigned int end, 
-       double **Xref, const unsigned int nref, const unsigned int n, double **X, 
-       double *Z, double *d, double *g, const Method method, const unsigned int close, 
-       const int alc_gpu, double **rect, const int verb, int *Xi, double *mean, 
-       double *s2, double *df, double *dmle, int *dits, double *gmle, int *gits, 
-       double *llik)
+int *closest_indices(const unsigned int m, const unsigned int start,
+  double **Xref, const unsigned int nref, const unsigned int n, double **X,
+  const unsigned int close, const unsigned int sorted)
 {
-  GP *gp;
-  unsigned int i, j, ncand, w;
-  int *oD, *cand;
-  double **D, **Xcand, **x, **Sigma;
-  double *al;
-
-  /* temporary space */
-  x = new_matrix(1, m);
+  int i;
+  int *oD, *oD2, *temp;
+  double **D;
 
   /* calculate distances to reference location(s), and so-order X & Z */
   D = new_matrix(nref, n);
   distance(Xref, nref, X, n, m, D);
   if(nref > 1) sum_of_columns(*D, D, nref, n);
-  oD = order(*D, n);
+
+  /* partition based on "close"st */
+  if(n > close) {
+    oD = iseq(0, n-1);
+    quick_select_index(*D, oD, n, close);
+  } else oD = NULL;
+
+  /* now partition based on start */
+  if(sorted) {
+    oD2 = order(*D, close);
+    if(oD) {
+      temp = new_ivector(close);
+      for(i=0; i<close; i++) temp[i] = oD[oD2[i]];
+      free(oD);
+      oD = temp;
+      free(oD2);  
+    } else oD = oD2;
+  } else {
+    if(!oD) oD = iseq(0, n-1);
+    quick_select_index(*D, oD, close, start);
+  }
+
   delete_matrix(D);
+  return(oD);
+}
+
+/*
+ * laGP:
+ * 
+ * C-version of R function laGP.R: uses ALC to adaptively
+ * select a small (size n) subset of (X,Z) from which to
+ * predict by (thus approx) kriging equations; returns
+ * those Student-t equations.
+ */
+
+void laGP(const unsigned int m, const unsigned int start, const unsigned int end, 
+       double **Xref, const unsigned int nref, const unsigned int n, double **X, 
+       double *Z, double *d, double *g, const Method method, const unsigned int close, 
+       const int alc_gpu, const unsigned int numrays, double **rect, const int verb, 
+       int *Xi, double *mean, double *s2, double *df, double *dmle, int *dits, 
+       double *gmle, int *gits, double *llik)
+{
+  GP *gp;
+  unsigned int i, j, ncand, w;
+  int *oD, *cand;
+  double **Xcand, **Xcand_orig, **x, **Sigma;
+  double *al;
+
+  /* temporary space */
+  x = new_matrix(1, m);
+
+  /* special cases for close */
+  if(close > 0 && close < n-start) ncand = close-start;
+  else ncand = n-start;
+
+  /* get the indices of the closest X-locations to Xref */
+  oD = closest_indices(m, start, Xref, nref, n, X, close, method == ALCRAY);
 
   /* build GP with closest start locations */
   gp = newGP_sub(m, start, oD, X, Z, *d, *g, method == MSPE || method == EFI);
@@ -262,9 +311,7 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
 
   /* possibly restricted candidate set */
   cand = oD+start;
-  if(close > 0 && close < n-start) ncand = close-start;
-  else ncand = n-start;
-  Xcand = new_p_submatrix_rows(cand, X, ncand, m, 0);
+  Xcand_orig = Xcand = new_p_submatrix_rows(cand, X, ncand, m, 0);
 
   /* allocate space for active learning criteria */
   if(method != NN) al = new_vector(ncand);
@@ -276,7 +323,8 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
     /* perform active learning calculations */
     if(method == ALCRAY) {
       assert(nref == 1);
-      w = lalcrayGP(gp, Xcand, ncand, Xref, (i-start+1) % ((int) sqrt(i-start+1.0)), rect, verb-2);
+      int roundrobin = (i-start+1) % ((int) sqrt(i-start+1.0));
+      w = lalcrayGP(gp, Xcand, ncand, Xref, roundrobin, numrays, rect, verb-2);
     } else if(method == ALC) {
       if(alc_gpu) {
 #ifdef _GPU
@@ -310,9 +358,12 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
     /* remove from candidates */
     if(al && w != ncand-1) { 
       if(method == ALCRAY) { /* preserving distance order */
-        for(j=w; j<ncand-1; j++) { /* by pulling backwards */
-          cand[j] = cand[j+1];
-          dupv(Xcand[j], Xcand[j+1], gp->m);
+        if(w == 0) { cand++; Xcand++; }
+        else {
+          for(j=w; j<ncand-1; j++) { /* by pulling backwards */
+            cand[j] = cand[j+1];
+            dupv(Xcand[j], Xcand[j+1], gp->m);
+          }
         }
       } else { /* simply swap: do not preserve distance order */
         cand[w] = cand[ncand-1]; 
@@ -343,7 +394,7 @@ void laGP(const unsigned int m, const unsigned int start, const unsigned int end
 
   /* clean up */
   deleteGP(gp);
-  delete_matrix(Xcand);
+  delete_matrix(Xcand_orig);
   delete_matrix(Sigma);
   free(oD);
   if(al) free(al);
@@ -375,6 +426,7 @@ void laGP_R(/* inputs */
          int *imethod_in,
          int *close_in,
          int *alc_gpu_in,
+         int *numrays_in,
          double *rect_in,
          int *verb_in,
          int *Xiret_in,
@@ -411,6 +463,7 @@ void laGP_R(/* inputs */
   if(d_in[1] > 0 && (d_in[0] > d_in[3] || d_in[0] < d_in[2])) 
     error("d=%g not in [tmin=%g, tmax=%g]\n", d_in[0], d_in[2], d_in[3]);
 
+
   /* make matrix bones */
   X = new_matrix_bones(X_in, *n_in, *m_in);
   Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
@@ -418,6 +471,7 @@ void laGP_R(/* inputs */
   /* check rect input */
   if(method == ALCRAY) {
     assert(*nref_in == 1);
+    assert(*numrays_in >= 1);
     rect = new_matrix_bones(rect_in, 2, *m_in);
   } else rect = NULL;
 
@@ -426,7 +480,7 @@ void laGP_R(/* inputs */
 
   /* call C-only code */
   laGP(*m_in, *start_in, *end_in, Xref, *nref_in, *n_in, X, Z_in,
-    d_in, g_in, method, *close_in, *alc_gpu_in, rect, *verb_in, Xi_out, 
+    d_in, g_in, method, *close_in, *alc_gpu_in, *numrays_in, rect, *verb_in, Xi_out, 
     mean_out, s2_out, df_out, dmle_out, dits_out, gmle_out, gits_out, 
     llik_out);
 

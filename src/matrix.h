@@ -126,6 +126,7 @@ int* find_col(double **V, int *p, unsigned int n, unsigned int var,
 
 double kth_smallest(double a[], int n, int k);
 double quick_select(double arr[], int n, int k);
+double quick_select_index(double arr[], int iarr[], int n, int k);
 void quantiles_of_columns(double **Q, double *q, unsigned int m, double **M, 
 			  unsigned int n1, unsigned int n2, double *w);
 void quantiles(double *qs, double *q, unsigned int m, double *v,

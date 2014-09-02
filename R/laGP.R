@@ -28,7 +28,8 @@
 
 laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
                  method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
-                 close=min(1000, nrow(X)), alc.gpu=FALSE, rect=NULL, verb=0)
+                 close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+                 alc.gpu=FALSE, numrays=ncol(X), rect=NULL, verb=0)
   {
     ## argument matching and numerifying
     method <- match.arg(method)
@@ -48,9 +49,11 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
       if(nrow(Xref) != 1) stop("alcray only implemented for nrow(Xref) = 1")
       if(nrow(rect) != 2 || ncol(rect) != ncol(X))
         stop("bad rect dimensions, must be 2 x ncol(X)")
+      if(length(numrays) != 1 || numrays < 1)
+        stop("numrays should be an integer scalar >= 1")
     } else { if(!is.null(rect)) warning("rect only used by alcray method"); rect <- 0 }
 
-    ## sanity checks
+    ## sanity checks on input dims
     if(start < 6 || end <= start) stop("must have 6 <= start < end")
     if(ncol(Xref) != ncol(X)) stop("bad dims")
     if(length(Z) != nrow(X)) stop("bad dims")
@@ -62,12 +65,9 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     g <- garg(g, Z)
     dg <- c(g$start, g$mle, g$min, g$max, g$ab)
 
-    ## check Xret argument
+    ## sanity checks on controls
     if(!(is.logical(Xi.ret) && length(Xi.ret) == 1))
       stop("Xi.ret not a scalar logical")
-
-    ## check gpu argument
-    alc.gpu <- as.integer(alc.gpu) 
     if(length(alc.gpu) > 1 || alc.gpu < 0)
       stop("alc.gpu should be a scalar logical or scalar non-negative integer")
     
@@ -88,6 +88,7 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
               imethod = as.integer(imethod),
               close = as.integer(close),
               alc.gpu = as.integer(alc.gpu),
+              numrays = as.integer(numrays),
               rect = as.double(t(rect)),
               verb = as.integer(verb),
               Xi.ret = as.integer(Xi.ret),
@@ -107,7 +108,7 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 
     ## assemble output and return
     outp <- list(mean=out$mean, s2=out$s2, df=out$df, llik=out$llik,
-                 time=toc-tic, method=method, d=d, g=g)
+                 time=toc-tic, method=method, d=d, g=g, close=close)
 
     ## possibly add mle and Xi info
     mle <- NULL
@@ -115,6 +116,9 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     if(g$mle) mle <- cbind(mle, data.frame(g=out$gmle, gits=out$gits)) 
     outp$mle <- mle
     if(Xi.ret) outp$Xi <- out$Xi + 1
+
+    ## add ray info?
+    if(method == "alcray") outp$numrays <- numrays
 
     ##return
     return(outp)
@@ -128,8 +132,10 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 
 laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
                    method=c("alc", "alcray", "mspe", "nn", "efi"), 
-                   Xi.ret=TRUE, pall=FALSE, close=min(1000, nrow(X)),
-                   parallel=c("none", "omp", "gpu"), rect=NULL, verb=0)
+                   Xi.ret=TRUE, pall=FALSE, 
+                   close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+                   parallel=c("none", "omp", "gpu"), numrays=ncol(X), 
+                   rect=NULL, verb=0)
   {
     ## argument matching
     method <- match.arg(method)
@@ -149,6 +155,8 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
       if(nrow(Xref) != 1) stop("alcray only implemented for nrow(Xref) = 1")
       if(nrow(rect) != 2 || ncol(rect) != ncol(X))
         stop("bad rect dimensions, must be 2 x ncol(X)")
+      if(length(numrays) != 1 || numrays < 1)
+        stop("numrays should be an integer scalar >= 1")
     } else if(!is.null(rect)) warning("rect only used by alcray method")
 
     ## process the d argument
@@ -198,8 +206,8 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 
       ## calc ALC to reference
       if(method == "alcray") {
-        offset <- (t-start) %% floor(sqrt(t-start))+1
-        w <- lalcrayGP(gpi, Xref, X[cands,,drop=FALSE], rect, offset, verb=verb-2)
+        offset <- ((t-start) %% floor(sqrt(t-start))) + 1
+        w <- lalcrayGP(gpi, Xref, X[cands,,drop=FALSE], rect, offset, numrays, verb=verb-2)
       } else {
         if(method == "alc") als <- alcGP(gpi, X[cands,,drop=FALSE], Xref, parallel=parallel, verb=verb-2)
         else if(method == "mspe") als <- 0.0 - mspeGP(gpi, X[cands,,drop=FALSE], Xref, verb=verb-2)
@@ -227,6 +235,7 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     outp$time <- toc - tic
     outp$Xi <- Xi.ret
     outp$method <- method
+    outp$close <- close
 
     ## assign d & g
     outp$d <- d
@@ -234,6 +243,9 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     outp$g <- g
     ## assign mle
     outp$mle <- mle
+
+    ## add ray info?
+    if(method == "alcray") outp$numrays <- numrays
 
     ## clean up
     deleteGP(gpi)
@@ -249,7 +261,8 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 
 aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
                   method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
-                  close=min(1000, nrow(X)), laGP=laGP.R, verb=1)
+                  close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+                  numrays=ncol(X), laGP=laGP.R, verb=1)
   {
     ## sanity checks
     nn <- nrow(XX)
@@ -265,6 +278,8 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
       rect <- apply(X, 2, range)
       if(nrow(rect) != 2 || ncol(rect) != ncol(X))
         stop("bad rect dimensions, must be 2 x ncol(X)")
+      if(length(numrays) != 1 || numrays < 1)
+          stop("numrays should be an integer scalar >= 1")
     } else rect <- NULL
 
     ## memory for each set of approx kriging equations
@@ -306,7 +321,7 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
       di <- list(start=d$start[i], mle=d$mle, min=d$min, max=d$max, ab=d$ab)
       gi <- list(start=g$start[i], mle=g$mle, min=g$min, max=g$max, ab=g$ab)
       outp <- laGP(XX[i,,drop=FALSE], start, end, X, Z, d=di, g=gi, method=method,
-                   Xi.ret=Xi.ret, close=close, rect=rect, verb=verb-1)
+                   Xi.ret=Xi.ret, close=close, numrays=numrays, rect=rect, verb=verb-1)
 
       ## save MLE outputs and update gpi to use new dmle
       if(!is.null(dmle)) { dmle[i] <- outp$mle$d; dits[i] <- outp$mle$dits }
@@ -335,12 +350,14 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
     d$start <- ds.norep
     g$start <- gs.norep
     r <- list(Xi=Xi, mean=ZZ.mean, var=ZZ.var, d=d, g=g, 
-              time=toc-tic, method=method)
+              time=toc-tic, method=method, close=close)
     ## add mle info?
     mle <- NULL
     if(d$mle) mle <- data.frame(d=dmle, dits=dits)
     if(g$mle) mle <- cbind(mle, data.frame(g=gmle, gits=gits))
     r$mle <- mle
+    ## add ray info?
+    if(method == "alcray") r$numrays <- numrays
 
     ## done
     return(r)
@@ -354,7 +371,8 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
 
 aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
                 method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
-                close=min(1000, nrow(X)), num.gpus=0, gpu.threads=num.gpus,
+                close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+                numrays=ncol(X), num.gpus=0, gpu.threads=num.gpus,
                 omp.threads=if(num.gpus > 0) 0 else 1, 
 		            nn.gpu=if(num.gpus > 0) nrow(XX) else 0, verb=1)
   {
@@ -377,6 +395,8 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
       rect <- apply(X, 2, range)
       if(nrow(rect) != 2 || ncol(rect) != ncol(X))
         stop("bad rect dimensions, must be 2 x ncol(X)")
+      if(length(numrays) != 1 || numrays < 1)
+        stop("numrays should be an integer scalar >= 1")
     } else rect <- 0
 
     ## check Xi.ret argument
@@ -455,6 +475,7 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
               num.gpus = as.integer(num.gpus),
               gpu.threads = as.integer(gpu.threads),
               nn.gpu = as.integer(nn.gpu),
+              numrays = as.integer(numrays),
               rect = as.double(t(rect)),
               verb = as.integer(verb),
               Xi.ret = as.integer(Xi.ret),
@@ -475,7 +496,7 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
     d$start <- ds.norep
     g$start <- gs.norep
     outp <- list(mean=out$mean, var=out$var, llik=out$llik, d=d, g=g,
-                 time=toc-tic, method=method)
+                 time=toc-tic, method=method, close=close)
 
     ## copy MLE outputs
     outp$mle <- NULL
@@ -484,6 +505,9 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
       if(d$mle) outp$mle <- cbind(outp$mle, data.frame(g=out$gmle, gits=out$gits))
       else outp$mle <- data.frame(g=out$gmle, gits=out$gits)
     }
+
+    ## add ray info?
+    if(method == "alcray") outp$numrays <- numrays
 
     ## copy XI
     if(Xi.ret) outp$Xi <- matrix(out$Xi+1, nrow=nn, byrow=TRUE)

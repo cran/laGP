@@ -69,12 +69,13 @@ updateGP(gpi, X, Z, verb = 0)
 
   For efficient updates of GPs, see: \cr
   
-  R.B. Gramacy and D.W. Apley (2013).
+   R.B. Gramacy and D.W. Apley (2014).
   \emph{Local Gaussian process approximation for large computer
-    experiments.}
-  Preprint available on arXiv:1303.0383; 
+    experiments.} Journal of Computational and Graphical Statistics, \emph{to appear};
+  preprint available on arXiv:1303.0383; 
   \url{http://arxiv.org/abs/1303.0383}
 }
+
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
 }

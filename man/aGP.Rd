@@ -7,30 +7,32 @@
 Localized Approximate GP Regression For Many Predictive Locations
 }
 \description{
-  Provides localized GP inference and prediction at a large set of
+  Provides localized Gaussian process inference and prediction at a large set of
   predictive locations, by (essentially) calling \code{\link{laGP}}
   at each location, and returning the moments of the predictive
-  equations thus obtained
+  equations, and indices intot he design, thus obtained
 }
 \usage{
 aGP(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
     method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
-    close = min(1000, nrow(X)), num.gpus = 0, 
-    gpu.threads = num.gpus, omp.threads = if (num.gpus > 0) 0 else 1,
+    close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+    numrays = ncol(X), num.gpus = 0, gpu.threads = num.gpus, 
+    omp.threads = if (num.gpus > 0) 0 else 1, 
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
 aGP.parallel(cls, XX, chunks = length(cls), X, Z, start = 6, end = 50, 
     d = NULL, g = 1/1000, method = c("alc", "alcray", "mspe", "nn", "efi"), 
-    Xi.ret = TRUE, close = min(1000, nrow(X)), num.gpus = 0, 
-    gpu.threads = num.gpus, omp.threads = if (num.gpus > 0) 0 else 1,
+    Xi.ret = TRUE, close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+    numrays = ncol(X), num.gpus = 0, gpu.threads = num.gpus, 
+    omp.threads = if (num.gpus > 0) 0 else 1,
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
 aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
       method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
-      close = min(1000, nrow(X)), laGP=laGP.R, verb = 1)
+      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+      numrays = ncol(X), laGP=laGP.R, verb = 1)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{X}{
- a \code{matrix} or \code{data.frame} containing
+  \item{X}{ a \code{matrix} or \code{data.frame} containing
     the full (large) design matrix of input locations
 }
 \item{Z}{
@@ -73,7 +75,8 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
     specify a custom prior.  In the case of a partial list, the only the
     missing entries will be generated. Note that a default/generated list
     specifies \emph{no} inference for this parameter; i.e., it is fixed
-    at its starting value. When specifying initial values, a
+    at its starting value, which may be appropriate for emulating 
+    deterministic computer code output. When specifying initial values, a
     vector of length \code{nrow(XX)} can be provided, giving a
     different initial value for each predictive location
 }
@@ -82,12 +85,12 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
     \code{X} are chosen in order to predict at each row \code{XX} independently. 
     In brief, ALC (\code{"alc"}, default) minimizes predictive variance; 
     ALCRAY (\code{"alcray")}) executes a thrify search focused on rays eminating
-    out of the reference location(s); MSPE
-    (\code{"mspe"}) augments that with extra derivative information to
+    from the reference location(s); MSPE
+    (\code{"mspe"}) augments ALC with extra derivative information to
     minimize mean-squared prediction error (requires extra computation);
     NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"efi"}) uses
     the expected Fisher information - essentially \code{1/G} from
-    Gramacy & Apley (2013) - which is global heuristic, i.e., not
+    Gramacy & Apley (2014) - which is global heuristic, i.e., not
     localized to each row of \code{XX}}
   \item{Xi.ret}{
     A scalar logical indicating whether or not a \code{matrix} of indices
@@ -97,8 +100,15 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   \item{close}{
     a non-negative integer specifying the number of NNs
     (to each row \code{XX}) in \code{X} to consider when
-    searching for the sub-design; \code{close = 0} specifies all
+    searching for the sub-design; \code{close = 0} specifies all. 
+    For \code{method="alcray"} this
+    specifies the scope used to snap ray-based solutions back to
+    elements of \code{X}, otherwise there are no restrictions on that 
+    search
   }
+  \item{numrays}{ a scalar integer indicating the number of rays for each
+  greedy search; only relevant when \code{method="alcray"}.  More rays
+  leads to a more thurough, but more computational intensive search }
   \item{laGP}{
     applicable only to the \R-version \code{aGP.R}, this is a
     function providing the local design implementation to be used.
@@ -114,7 +124,8 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
 }
 \item{gpu.threads}{ applicable only to the C-version \code{aGP}; this 
   is a scalar positive integer indicating the number of SMP (i.e., CPU)
-  threads.  If \code{gpu.threads >= 2} then the package must \emph{also}
+  threads queueing ALC jobs on a GPU; the package must be compiled for CUDA support.
+   If \code{gpu.threads >= 2} then the package must \emph{also}
   be compiled for OpenMP support; see README/INSTALL in the package source for
   more details.  We recommend setting \code{gpu.threads} to up to two-times
   the number the sum of the number of GPU devices and CPU cores.
@@ -153,8 +164,8 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
 \details{
 
   This function invokes \code{\link{laGP}} with \code{Xref
-  = XX[i,]} for \code{i=1:nrow(XX)}, building up a local design,
-  inferring correlation parameters, and
+  = XX[i,]} for each \code{i=1:nrow(XX)}, building up local designs,
+  inferring local correlation parameters, and
   obtaining predictive locations independently for each location.  For
   more details see \code{\link{laGP}}.
 
@@ -162,6 +173,8 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   debugging and transparency purposes.  It is slower than
   \code{aGP}, which is primarily in C.  However it may be
   useful for developing new programs that involve similar subroutines.
+  Note that \code{aGP.R} may provide different output than \code{aGP}
+  due to differing library subroutines deployed in \R and C.
 
   The function \code{aGP.parallel} allows \code{aGP} to be called on segments
   of the \code{XX} matrix distributed to cluster created by \pkg{parallel}.
@@ -185,7 +198,7 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
   some of the ALC calculations will be done on the GPUs, and some 
   on the CPUs.  In our own experimentation we have not found this
   to lead to large speedups relative to \code{omp.threads = 0} when
-  using GPUs.  For more details, see Gramacy, Niemi, \& Niemi (2013)
+  using GPUs.  For more details, see Gramacy, Niemi, \& Niemi (2014)
 
 }
 \value{
@@ -210,18 +223,25 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
 \item{Xi }{when \code{Xi.ret = TRUE}, this field contains a \code{matrix} of
   indices of length \code{end} into \code{X} indicating the sub-design
   chosen for each predictive location in \code{XX}}
+\item{close }{ a copy of the input argument }
 }
 \references{
-  R.B. Gramacy and D.W. Apley (2013).
+  R.B. Gramacy and D.W. Apley (2014).
   \emph{Local Gaussian process approximation for large computer
-    experiments.}
-  Preprint available on arXiv:1303.0383; 
+    experiments.} Journal of Computational and Graphical Statistics, \emph{to appear};
+  preprint available on arXiv:1303.0383; 
   \url{http://arxiv.org/abs/1303.0383}
 
-  R.B. Gramacy, J. Niemi, R.M. Weiss (2013). 
+  R.B. Gramacy, J. Niemi, R.M. Weiss (2014). 
   \emph{Massively parallel approximate Gaussian process regression.}
-  Preprint on arXiv:1310.5182
+  SIAM/ASA Journal on Uncertainty Quantification, \emph{to appear};
+  preprint on arXiv:1310.5182
   \url{http://arxiv.org/abs/1310.5182}
+
+  R.B. Gramacy and B. Haaland (2014).
+  \emph{Speeding up neighborhood search in local Gaussian process prediction.}
+  Preprint on arXiv:1409.0074 
+  \url{http://arxiv.org/abs/1409.0074}
 }
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
@@ -236,13 +256,13 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
 }
 
 \seealso{
-  \code{\link{laGP}}, \code{\link{alcGP}}, \code{\link{mspeGP}}, 
+  \code{\link{laGP}}, \code{\link{alcGP}}, \code{\link{mspeGP}},  \code{\link{alcrayGP}},
   \code{\link[parallel]{makeCluster}}, \code{\link[parallel]{clusterApply}}
 }
 \examples{
 ## first, a "computer experiment"
 
-## Simple 2-d test function used in Gramacy & Apley (2013);
+## Simple 2-d test function used in Gramacy & Apley (2014);
 ## thanks to Lee, Gramacy, Taddy, and others who have used it before
 f2d <- function(x, y=NULL)
   {
@@ -261,8 +281,8 @@ X <- as.matrix(expand.grid(x, x))
 Z <- f2d(X)
 
 ## predictive grid with NN=400 locations,
-## change NN to 10K (length=100) to mimic setup in Gramacy & Apley (2013)
-## recommend NN >= 400 (length=20) for pretty results below;
+## change NN to 10K (length=100) to mimic setup in Gramacy & Apley (2014)
+## recommend NN >= 100 (length=10) for pretty results below;
 ## the low NN set here is for fast CRAN checks
 xx <- seq(-1.975, 1.975, length=10)
 XX <- as.matrix(expand.grid(xx, xx))
@@ -293,6 +313,11 @@ out3 <- aGP(X, Z, XX, method="mspe", d=out2$mle$d)
 ## RMSE
 sqrt(mean((out3$mean - ZZ)^2))
 }
+
+## version with ALC-ray which is much faster than the ones not
+## run above
+out2r <- aGP(X, Z, XX, method="alcray", d=out$mle$d, verb=0)
+sqrt(mean((out2r$mean - ZZ)^2))
 
 ## a simple example with estimated nugget
 library(MASS)

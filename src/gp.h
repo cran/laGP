@@ -80,8 +80,8 @@ void predGP_R(int *gpi_in, int *m_in, int *nn_in, double *XX_in,
         double *llik_out);
 void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
      double **Xref,  int verb, double *alc);
-int lalcrayGP(GP *gp, double **Xcand, int ncand, double **Xref, int start, 
-  double **rect, int verb);
+int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref, 
+  const unsigned int offset, unsigned int nr, double **rect, int verb);
 #ifdef _GPU
 void alcGP_gpu(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
      double **Xref,  int verb, double *alc, int omp_threadnum);

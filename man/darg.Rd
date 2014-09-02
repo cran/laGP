@@ -48,7 +48,8 @@ garg(g, y)
   and any initial search values.
 
   \code{darg} output specifies MLE inference (\code{out$mle = TRUE})
-  by default, whereas \code{garg} instead fixes the nugget at the starting value; 
+  by default, whereas \code{garg} instead fixes the nugget at the starting value,
+  which may be sensible for emulating deterministic computer simulation data; 
   when \code{out$mle =  FALSE} the calculated range outputs \code{c(out$min, out$max)} 
   are set to dummy values that are ignored in other parts of the \pkg{laGP} package.
 

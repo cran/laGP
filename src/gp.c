@@ -109,7 +109,7 @@ void deletedKGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -400,7 +400,7 @@ void dllikGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL)
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -415,7 +415,7 @@ void dllikGP_R(/* inputs */
 
 
 /*
- * dllikGP_R:
+ * dllikGP_nug_R:
  *
  * R-interface to calculate the derivatives of the
  * likelihood of a GP - wrt the NUGGET
@@ -434,7 +434,7 @@ void dllikGP_nug_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL)
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -508,7 +508,7 @@ void buildKGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -732,7 +732,7 @@ void newparamsGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -792,7 +792,7 @@ void llikGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -1155,7 +1155,7 @@ void mleGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -1214,7 +1214,7 @@ void jmleGP(GP *gp, double *drange, double *grange, double *dab, double *gab,
       *gits += git;
       if(dit <= 1 && git <= 1) break;
     }
-    if(i == 100) warning("max outer its (N=100) reached");
+    if(i == 100 && verb > 0) warning("max outer its (N=100) reached");
   }
 
 
@@ -1244,7 +1244,7 @@ void jmleGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -1319,7 +1319,7 @@ void copyGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -1462,10 +1462,11 @@ void updateGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m)  
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* check that this is not a degenerate GP: not implemented (yet) */
   if(gp->d <= 0) error("updating degenerate GP (d=0) not supported");
@@ -1657,10 +1658,11 @@ void predGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m) 
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* sanity check and XX representation */
   XX = new_matrix_bones(XX_in, *nn_in, *m_in);
@@ -1812,12 +1814,14 @@ static double fcnnalc(double x, struct alcinfo *info)
  * Return the convex combination s in (0,1) between Xstart and Xend
  */
 
-double alcrayGP(GP *gp, double **Xref, double **Xstart, double **Xend, int verb)
+double* alcrayGP(GP *gp, double **Xref, const unsigned int nump, 
+  double **Xstart, double **Xend, double *negalc, const unsigned int verb)
 {
-  unsigned int m, n;
+  unsigned int m, n, r;
   struct alcinfo info;
   double Tol = SDEPS;
-  double snew, objnew, obj0;
+  double obj0, na;
+  double *snew;
 
   /* degrees of freedom */
   m = gp->m;
@@ -1831,8 +1835,6 @@ double alcrayGP(GP *gp, double **Xref, double **Xstart, double **Xend, int verb)
 
   /* copy input pointers */
   info.Xref = Xref;
-  info.Xstart = Xstart;
-  info.Xend = Xend;
   info.Xcand = new_vector(m);
   info.gp = gp;
 
@@ -1850,18 +1852,29 @@ double alcrayGP(GP *gp, double **Xref, double **Xstart, double **Xend, int verb)
   info.Gmui = new_matrix(n, n);
   info.ktGmui = new_vector(n);
 
-  /* use the C-backend of R's optimize function */
-  snew = Brent_fmin(0.0, 1.0, (double (*)(double, void*)) fcnnalc, &info, Tol);  
+  /* allocate snew */
+  snew = new_vector(nump);
 
-  /* check s=0, as multi-modal ALC may result in larger domain of attraction
-     for larger s-values but with lower mode */
-  if(snew > Tol) {
-    objnew = fcnnalc(snew, &info);
-    obj0 = fcnnalc(0.0, &info);
-    if(obj0 < objnew) {
-      snew = 0.0;
-      myprintf(mystdout, "snew=0 (NN) found by trap\n");
-    }
+  /* loop ovewr all pairs Xstart and Xend */
+  assert(nump > 0);
+  for(r=0; r<nump; r++) {
+
+    /* select the rth start and end pair */
+    info.Xstart = Xstart + r;
+    info.Xend = Xend + r;
+
+    /* use the C-backend of R's optimize function */
+    snew[r] = Brent_fmin(0.0, 1.0, (double (*)(double, void*)) fcnnalc, &info, Tol);  
+    if(snew[r] < Tol) snew[r] = 0.0;
+
+    /* check s=0, as multi-modal ALC may result in larger domain of attraction
+       for larger s-values but with lower mode */
+    if(snew[r] > 0.0) {
+      obj0 = fcnnalc(0.0, &info);
+      na = fcnnalc(snew[r], &info);
+      if(obj0 < na) { snew[r] = 0.0; na = obj0; }
+      if(negalc) negalc[r] = na;
+    } else if(negalc) negalc[r] = fcnnalc(snew[r], &info);
   }
 
   /* clean up */
@@ -1886,56 +1899,83 @@ double alcrayGP(GP *gp, double **Xref, double **Xstart, double **Xend, int verb)
  * assumes that the rows od Xcand are ordered by distance to Xref
  */
 
-int lalcrayGP(GP *gp, double **Xcand, int ncand, double **Xref, int offset, 
-  double **rect, int verb)
+int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref, 
+  const unsigned int offset, unsigned int nr, double **rect, int verb)
 {
-  unsigned int m, j, k, i, mini; 
+  unsigned int m, j, k, i, mini, r, rmin, eoff; 
   double **Xstart, **Xend;
-  double sc, s, mind, dist;
+  double *s, *negalc;
+  double sc, smin, mind, dist;
 
   /* gp dimension */
   m = gp->m; 
 
-  /* starting point of a ray */
-  Xstart = Xcand + offset;
+  /* check numrays argument */
+  assert(nr > 0);
+  if(nr > ncand) nr = ncand;
 
-  /* ending point of ray */
-  Xend = new_matrix(1, m);
-  for(j=0; j<m; j++) Xend[0][j] = 10.0*(Xstart[0][j] - Xref[0][j]) + Xstart[0][j];
+  /* allocation and initialization */
+  Xend = new_matrix(nr, m);
+  Xstart = new_matrix(nr, m);
+  negalc = new_vector(nr);
 
-  /* adjusting Xend to fit in bounding box */
-  for(j=0; j<m; j++) {
-    if(Xend[0][j] < rect[0][j]) {
-      sc = (rect[0][j] - Xstart[0][j])/(Xend[0][j] - Xstart[0][j]);
-      for(k=0; k<m; k++) Xend[0][k] = (Xend[0][k] - Xstart[0][k])*sc + Xstart[0][k];
-    } else if(Xend[0][j] > rect[1][j]) {
-      sc = (rect[1][j] - Xstart[0][j])/(Xend[0][j] - Xstart[0][j]);
-      for(k=0; k<m; k++) Xend[0][k] = (Xend[0][k] - Xstart[0][k])*sc + Xstart[0][k];
+  /* set up starting and ending pairs */
+  for(r=0; r<nr; r++) {
+
+    /* starting point of a ray */
+    eoff = (offset + r) % ncand;
+    dupv(Xstart[r], Xcand[eoff], m);
+
+    /* ending point of ray */
+    for(j=0; j<m; j++) Xend[r][j] = 10.0*(Xstart[r][j] - Xref[0][j]) + Xstart[r][j];
+
+    /* adjusting Xend to fit in bounding box */
+    for(j=0; j<m; j++) {
+      if(Xend[r][j] < rect[0][j]) {
+        sc = (rect[0][j] - Xstart[r][j])/(Xend[r][j] - Xstart[r][j]);
+        for(k=0; k<m; k++) Xend[r][k] = (Xend[r][k] - Xstart[r][k])*sc + Xstart[r][k];
+      } else if(Xend[r][j] > rect[1][j]) {
+        sc = (rect[1][j] - Xstart[r][j])/(Xend[r][j] - Xstart[r][j]);
+        for(k=0; k<m; k++) Xend[r][k] = (Xend[r][k] - Xstart[r][k])*sc + Xstart[r][k];
+      }
     }
   }
 
   /* calculate ALC along ray */
-  s = alcrayGP(gp, Xref, Xstart, Xend, verb);
+  s = alcrayGP(gp, Xref, nr, Xstart, Xend, negalc, verb);
+  
+  /* find the best amongst the pairs */
+  min(negalc, nr, &rmin);
+  smin = s[rmin];
 
-  /* find Xstar with s by re-using Xend */
-  for(j=0; j<m; j++) Xend[0][j] = (1-s)*Xstart[0][j] + s*Xend[0][j];
+  /* find Xstar with smin */
+  if(smin > 0.0) {
 
-  /* find the candidate closest to Xstar (Xend) */
-  mini = -1;
-  mind = 1e300*1e300;
-  for(i=0; i<ncand; i++) {
-    dist = 0;
-    for(j=0; j<m; j++) {
-      dist += sq(Xend[0][j] - Xcand[i][j]);
-      if(dist > mind) break;
+    /* re-using Xend */
+    for(j=0; j<m; j++) Xend[rmin][j] = (1-smin)*Xstart[rmin][j] + smin*Xend[rmin][j];
+
+    /* find the candidate closest to Xstar (Xend) */
+    mini = -1;
+    mind = 1e300*1e300;
+    eoff = offset + nr; /* explicitly avoid searcing over Xstart locations */
+    if(eoff >= ncand) eoff = 0;  /* unless there aren't any candidates left */
+    for(i=eoff; i<ncand; i++) {
+      dist = 0;
+      for(j=0; j<m; j++) {
+        dist += sq(Xend[rmin][j] - Xcand[i][j]);
+        if(dist > mind) break;
+      }
+      if(dist > mind) continue;
+      mind = dist;
+      mini = i;
     }
-    if(dist > mind) continue;
-    mind = dist;
-    mini = i;
-  }
+  } else mini = (offset + rmin) % ncand;
 
   /* clean up */
-  free(Xend);
+  delete_matrix(Xstart);
+  delete_matrix(Xend);
+  free(s);
+  free(negalc);
 
   return(mini);
 }
@@ -2124,10 +2164,11 @@ void alcGP_omp_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m)  
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* make matrix bones */
   Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
@@ -2192,10 +2233,11 @@ void alcGP_gpu_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m)  
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* make matrix bones */
   Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
@@ -2227,7 +2269,8 @@ void lalcrayGP_R(/* inputs */
        double *Xcand_in,
        int *ncand_in,
        double *Xref_in,
-       int *start_in,
+       int *offset_in,
+       int *numrays_in,
        double *rect_in,
        int *verb_in,
        
@@ -2235,31 +2278,27 @@ void lalcrayGP_R(/* inputs */
        int *w_out)
 {
   GP *gp;
-  unsigned int gpi, start;
+  unsigned int gpi;
   double **Xref, **Xcand, **rect;
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m) 
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
+
+  /* check num rays */
+  if(*numrays_in <= 0) error("numrays must me an interger scalar >= 1");
 
   /* make matrix bones */
   Xref = new_matrix_bones(Xref_in, 1, *m_in);
   Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
   rect = new_matrix_bones(rect_in, 2, *m_in);
 
-  start = 0;
-  if(*start_in > 1) {
-    GetRNGstate();
-    start = (*start_in)*unif_rand();
-  }
-
   /* call the C-only function */
-  *w_out = lalcrayGP(gp, Xcand, *ncand_in, Xref, start, rect, *verb_in);
-
-  if(*start_in > 1) PutRNGstate();
+  *w_out = lalcrayGP(gp, Xcand, *ncand_in, Xref, *offset_in, *numrays_in, rect, *verb_in);
 
   /* clean up */
   free(Xref);
@@ -2280,33 +2319,49 @@ void alcrayGP_R(
        int *gpi_in,
        int *m_in,
        double *Xref_in,
+       int *numrays_in,
        double *Xstart_in,
        double *Xend_in,
        int *verb_in,
        
        /* outputs */
-       double *s_out)
+       double *s_out,
+       int *r_out)
 {
   GP *gp;
-  unsigned int gpi;
+  unsigned int gpi, rui;
   double **Xref, **Xstart, **Xend;
+  double *s, *negalc;
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m)  
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
+
+  /* check numrays */
+  if(*numrays_in < 1)
+    error("numrays should be a integer scalar >= 1");
 
   /* make matrix bones */
   Xref = new_matrix_bones(Xref_in, 1, *m_in);
-  Xstart = new_matrix_bones(Xstart_in, 1, *m_in);
-  Xend = new_matrix_bones(Xend_in, 1, *m_in);
+  Xstart = new_matrix_bones(Xstart_in, *numrays_in, *m_in);
+  Xend = new_matrix_bones(Xend_in, *numrays_in, *m_in);
 
   /* call the C-only function */
-  *s_out = alcrayGP(gp, Xref, Xstart, Xend, *verb_in);
+  negalc = new_vector(*numrays_in);
+  s = alcrayGP(gp, Xref, *numrays_in, Xstart, Xend, negalc, *verb_in);
+
+  /* get the best combination */
+  min(negalc, *numrays_in, &rui);
+  *s_out = s[rui];
+  *r_out = rui;  
 
   /* clean up */
+  free(s);
+  free(negalc);
   free(Xref);
   free(Xstart);
   free(Xend);
@@ -2344,10 +2399,11 @@ void alcGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m) 
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* make matrix bones */
   Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
@@ -2398,10 +2454,11 @@ void alGP_R(/* inputs */
   cgps = (GP**) malloc(sizeof(GP*) * ngps);
   for(i=0; i<ngps; i++) {
     gpi = cgpis_in[i];
-    if(gps == NULL || gps[gpi] == NULL) 
+    if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
       error("gp %d is not allocated\n", gpi);
     cgps[i] = gps[gpi];
-    if((unsigned) *m_in != cgps[i]->m)  error("ncol(X) does not match GP/C-side");
+    if((unsigned) *m_in != cgps[i]->m)  
+      error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, cgps[i]->m);
   }
 
   /* make matrix bones */
@@ -2672,10 +2729,11 @@ void dmus2GP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m)  
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* double check that derivatives have been calculated */
   if(! gp->dK) error("derivative info not in gp; use buildKGP or newGP with dK=TRUE");
@@ -2750,10 +2808,11 @@ void efiGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
+  if((unsigned) *m_in != gp->m) 
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* double check that derivatives have been calculated */
   if(! gp->dK) error("derivative info not in gp; use newGP with dK=TRUE");
@@ -2895,11 +2954,12 @@ void mspeGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  error("ncol(X) does not match GP/C-side");
-
+  if((unsigned) *m_in != gp->m) 
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
+  
   /* double check that derivatives have been calculated */
   if(! gp->dK) error("derivative info not in gp; use newGP with dK=TRUE");
 
