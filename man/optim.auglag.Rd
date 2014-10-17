@@ -158,8 +158,10 @@ blackbox under optimization
   of the objective over the trials }
 \item{obj }{ vector giving the value of the objective for the input under consideration 
   at each trial }
+\item{X }{ \code{matrix} giving the input calues at which the blackbox function was
+evaluated }
 \item{C }{ \code{matrix} giving the value of the constraint function for the input 
-  under consideration at each trial}
+  under consideration at each trial (corresponding to \code{X} above)}
 \item{d}{ \code{matrix} of lengthscale values obtained at each update of the GP 
   estimator(s), i.e., every \code{urate} iterations}
 }

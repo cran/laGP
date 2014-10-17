@@ -1,0 +1,2091 @@
+%!TEX root = laGP.tex
+
+\documentclass[article,nojss]{jss}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{algorithmic}
+\usepackage[boxed]{algorithm}
+\newcommand{\bE}[0]{\mathbb{E}}
+
+\newcommand{\mN}[0]{\mathcal{N}}
+\newcommand{\Var}[0]{\mathbb{V}\mathrm{ar}}
+\newcommand{\iidsim}[0]{\stackrel{\mathrm{iid}}{\sim}}
+
+%\VignetteIndexEntry{a guide to the laGP package}
+%\VignetteKeywords{laGP}
+%\VignetteDepends{laGP,MASS,lhs,akima,tgp}
+%\VignettePackage{laGP}
+
+\author{Robert B. Gramacy\\The University of Chicago\\Booth School of Business}
+\title{\pkg{laGP}: Large-Scale Spatial Modeling via Local 
+Approximate Gaussian Processes in \proglang{R}}
+
+%% for pretty printing and a nice hypersummary also set:
+\Plainauthor{Robert B. Gramacy} %% comma-separated
+\Plaintitle{laGP: Large-Scale Spatial Modeling via Local Approximate Gaussian Processes in R} %% without formatting
+\Shorttitle{\pkg{laGP}: Local Approximate Gaussian Processes} %% a short title (if necessary)
+
+%% an abstract and keywords
+\Abstract{
+  Gaussian process (GP) regression models make for powerful predictors in out
+  of sample exercises, but cubic runtimes for dense matrix decompositions
+  severely limits the size of data---training and testing---on which they can
+  be deployed.  That means that in computer experiment, spatial/geo-physical,
+  and machine learning contexts, GPs no longer enjoy privledged status as
+  modern data sets continue balloon in size. We discuss an implementation of
+  local approximate Gaussian process models, in the \pkg{laGP} package for
+  \proglang{R}, which offers a particular sparse-matrix remedy uniquely
+  positioned to leverage modern parallel computing architectures.  The
+  \pkg{laGP} approach can be seen as an update on the spatial statistical
+  method of local \emph{kriging} neighborhoods.  We briefly review the method,
+  and provide extensive illustrations of the features in the package through
+  worked-code examples.  The appendix covers custom building options, for
+  symmetric multi-processor and graphical processing unit support which are
+  not enabled by default, and the built-in wrapper routines that automate
+  distribution over a simple network of workstations.
+  }
+
+\Keywords{sequential design, active learning, surrogate/emulator, calibration, local kriging, symmetric multi-processor, graphical processing unit, cluster computing, big data}
+\Plainkeywords{sequential design, active learning, surrogate/emulator, calibration, local kriging, symmetric multi-processor, graphical processing unit, cluster computing, big data} %% without formatting
+%% at least one keyword must be supplied
+
+%% publication information
+%% NOTE: Typically, this can be left commented and will be filled out by the technical editor
+%% \Volume{50}
+%% \Issue{9}
+%% \Month{June}
+%% \Year{2012}
+%% \Submitdate{2012-06-04}
+%% \Acceptdate{2012-06-04}
+
+%% The address of (at least) one author should be given
+%% in the following format:
+\Address{
+  Robert B. Gramacy\\
+  Booth School of Business\\
+  The University of Chicago\\
+  5807 S.~Woodlawn Ave\\
+  Chicago, IL 60605 USA\\
+  E-mail: \email{rbgramacy@chicagobooth.edu}\\
+  URL: \url{http://faculty.chicagobooth.edu/robert.gramacy/}
+}
+%% It is also possible to add a telephone and fax number
+%% before the e-mail in the following format:
+%% Telephone: +43/512/507-7103
+%% Fax: +43/512/507-2851
+
+%% for those who use Sweave please include the following line (with % symbols):
+%% need no \usepackage{Sweave.sty}
+
+%% end of declarations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+<<echo=false,results=hide>>=
+library(laGP)
+library(MASS)
+library(lhs)
+library(akima)
+library(tgp)
+options(prompt="R> ", width=65)
+@
+
+%% include your article here, just as usual
+%% Note that you should use the \pkg{}, \proglang{} and \code{} commands.
+
+\section{Gaussian process regression and sparse approximation}
+
+Gaussian process (GP) regression models, sometimes called a Gaussian spatial
+process (GaSP), have been popular for decades in spatial data contexts like
+geostatistics \citep[e.g.,][]{cressie:1993} where they are known as {\em
+kriging} \citep{math:1963}, and in computer experiments where they are
+deployed as {\em surrogate models} or {\em emulators}
+\citep{sack:welc:mitc:wynn:1989,sant:will:notz:2003}.  More recently, they have
+become a popular prediction engine in the machine learning literature
+\citep{rasmu:will:2006}.  The reasons are many, but the most important are probably
+that the Gaussian structure affords a large degree of analytic capability not
+enjoyed by other general-purpose approaches to nonpatrametric nonlinear
+modeling, and because they perform well in out-of-sample tests.  They are not, however,
+without their drawbacks, and two important ones are computational tractability and
+nonstationary flexibility, which we shall return to shortly.
+
+A GP is technically a prior over functions \citep{stein:1999}, with finite
+dimensional distributions defined by a mean $\mu(x)$ and positive definite
+covariance $\Sigma(x, x')$, for $p$-dimensional input(s) $x$ and $x'$. For $N$
+input $x$-values this defines a $\mu_N$ $N$-vector and $\Sigma_N$ positive
+definite $N\times N$ matrix whereby the output is a random $N$-vector $Y_N
+\sim
+\mN_N(\mu_N, \Sigma_N)$.  However, for regression applications a likelihood
+perspective provides a more direct view of the relevant quantities for
+inference and prediction.  In that setup, $N$ data (training) pairs $D_N =
+(X_N, Y_N)$, comprised of $N \times p$-dimensional design $X_N$ define a
+multivariate normal (MVN) likelihood for an
+$N$-vector of scalar responses $Y_N$ through a small number of parameters $\theta$
+that describe how $X_N$ is related to $\mu_N$ and $\Sigma_N$.  Linear regression
+is a special case where $\theta = (\beta, \tau^2)$ and $\mu_N = X_N \beta$
+and $\Sigma_N = \tau^2 I_N$.
+
+Whereas the linear case puts most of the ``modeling'' structure in the mean,
+GP regression focuses more squarely on the covariance structure.
+In many computer experiments contexts the mean is taken to be zero
+\citep[e.g.,][]{sant:will:notz:2003}, which is the simplifying assumption we shall
+make throughout, although it is easy to generalize to a mean described by a 
+polynomial basis.  Let $K_\theta(x, x')$ be a correlation function so
+that $Y_N \sim \mN_N(0, \tau^2 K_N)$ where $K_N$ is a $N \times N$ positive
+definite matrix comprised of entries $K_\theta(x_i, x_j)$ from the rows of
+$X_N$.  Here we are changing the notation slightly so that $\theta$ is reserved
+explicity for $K_\theta$, isolating $\tau^2$ as a separate scale parameter.
+Choices of $K_\theta(\cdot, \cdot)$ determine stationarity,
+smoothness, differentiability, etc., but most importantly they determine the
+decay of spatial correlation.  
+
+A common first choice is the so-called {\em isotropic Gaussian}: $K_\theta(x,
+x') = \exp\{-\sum_{k=1}^p (x_k - x'_k)^2/\theta\}$, where correlation decays
+exponentially fast at rate $\theta$.  Since $K_\theta(x, x) = 1$ the resulting
+regression function is an interpolator, which is appropriate for many
+deterministic computer experiments.  For smoothing noisy data, or for a
+more robust to modeling computer experiments
+\citep{gra:lee:2012}, a {\em nugget} can be added to $K_{\theta, \eta}(x, x')
+= K_\theta(x, x') + \eta \mathbb{I}_{\{x=x'\}}$.   Much of the technical work
+described below, and particularly in Section \ref{sec:laGP}, is generic to the
+particular choice of $K(\cdot, \cdot)$, excepting that it be differentiable in
+all parameters. Although the \pkg{laGP} package favors the
+isotropic Gaussian case, we argue that many of the drawbacks of that overly
+simplistic choice, leading theorists and practitioners alike to prefer other
+choices like the Mat\'ern \citep{stein:1999}, are less of a concern in our
+particular approach to sparse approximation.  The package also provides
+a limited set of routines which can accommodate a separable Gaussian correlation
+function; more details are provided in Section \ref{sec:sep}.
+Our empirical work will contain
+examples where correlation parameters $(\theta, \eta)$ are {\em both} estimated
+from data, however, we emphasize cases where $\eta$ is fixed at a small value
+which is typical for numerically robust near-interpolation of computer
+experiments.
+
+\subsection{Inference and prediction}
+\label{sec:gp}
+
+GP regression is popular because  inference (for all parameters but particularly for $\theta$)
+is easy, and (out-of-sample) prediction is highly accurate and conditionally
+(on $\theta$ and $\eta$) analytic.  It the spatial and computer experiments literatures
+it has become convention to deploy a reference $\pi(\tau^2)
+\propto 1/\tau^2$ prior \citep{berger:deiliveira:sanso:2001} and obtain a marginal
+likelihood for the remaining unknowns. 
+\begin{equation}
+p(Y_N|K_\theta(\cdot, \cdot)) = \frac{\Gamma[N/2]}{(2\pi)^{N/2}|K_N|^{1/2}} \times
+\left(\frac{\psi_N}{2}\right)^{\!-\frac{N}{2}}
+\label{eq:gpk}
+\;\;\;\;\; \mbox{where} \;\;\;
+\psi_N = Y_N^\top K_N^{-1} Y_N
+\end{equation}
+Derivatives are available analytically, leading to fast Newton-like schemes for
+maximizing.
+Some complications can arise when the likelihood is multi-modal
+for $\theta$, however, where fully Bayesian inference may be preferred
+\citep[e.g.,][Chapter 5]{rasmu:will:2006}.\footnote{Eq.~(\ref{eq:gpk})
+emphasizes $K_\theta(\cdot, \cdot)$, dropping $\eta$ to streamline the
+notation in the following discussion.  Everything applies to $K_{\theta,
+\eta}(\cdot, \cdot)$ as well.}
+
+The predictive distribution $p(y(x) | D_N, K_\theta(\cdot, \cdot))$, is
+Student-$t$ with degrees of freedom $N$,
+\begin{align} 
+  \mbox{mean} && \mu(x|D_N, K_\theta(\cdot, \cdot)) &= k_N^\top(x)  K_N^{-1}Y_N,
+\label{eq:predgp} \\ 
+\mbox{and scale} && 
+ \sigma^2(x|D_N, K(\cdot, \cdot)) &=   
+\frac{\psi_N [K_\theta(x, x) - k_N^\top(x)K_N^{-1} k_N(x)]}{N},
+\label{eq:preds2}
+\end{align}
+where $k_N^\top(x)$ is the $N$-vector whose $i^{\mbox{\tiny th}}$
+component is $K_\theta(x,x_i)$.  Using properties of the Student-$t$,
+ the variance of $Y(x)$ is $V_N(x) \equiv \Var[Y(x)|D_N, K_\theta(\cdot, \cdot)] =
+\sigma^2(x|D_N,K_\theta(\cdot, \cdot))\times N/(N - 2)$.  
+
+As an example illustrating both inference and prediction, consider a simple
+sinusoidal ``data set'' treated as a deterministic computer simulation, i.e., modeled
+without noise.
+<<cache=TRUE>>=
+X <- matrix(seq(0,2*pi,length=6), ncol=1)
+Z <- sin(X)
+@
+The code below uses some low-level routines in the package to initialze
+a GP representation with $\theta=2$ and $\eta=10^{-6}$.  Then, a derivative-based
+MLE sub-routine is used to find $\hat{\theta}_{N=7}$, maximizing (\ref{eq:gpk}).
+<<>>=
+gp <- newGP(X, Z, 2, 1e-6, dK=TRUE)
+mleGP(gp, tmax=20)
+@
+The output printed to the screen shows the inferred $\hat{\theta}_N$ value, called
+\code{d} in the package, and the number of Newton iterations required.  
+The \code{mleGP} command alters the stored GP object (\code{gp}) to contain
+the new representation of the GP using $\hat{\theta}_{N=7}$.  Now, the code
+below obtains the parameters of the predictive equations on a grid
+of new $x$-values \code{XX}, following
+Eqs.~(\ref{eq:predgp}--\ref{eq:preds2}).
+<<cache=TRUE>>=
+XX <- matrix(seq(-1,2*pi+1, length=499), ncol=ncol(X))
+p <- predGP(gp, XX)
+deleteGP(gp)
+@
+The last line, above, frees the internal representation of the GP object, as
+we no longer need it to complete this example.  The moments stored in \code{p}
+can be used to plot mean predictions and generate sample predictive paths,
+as follows.
+<<cache=TRUE>>=
+library(mvtnorm)
+N <- 100
+ZZ <- rmvt(N, p$Sigma, p$df)
+ZZ <- ZZ + t(matrix(rep(p$mean, N), ncol=N))
+@
+Finally, Figure \ref{f:sin} provides a visualization of those sample paths
+on a scatter plot of the data.
+\begin{figure}[ht!]
+\centering
+<<label=sin,fig=TRUE,echo=TRUE,width=6,height=5>>=
+matplot(XX, t(ZZ), col="gray", lwd=0.5, lty=1, type="l",
+	bty="n", main="simple sinusoidal example", xlab="x", 
+	ylab="Y(x) | theta-hat")
+points(X, Z, pch=19)
+@
+\caption{Predictions from fitted GP regression model on simple sinusoidal data.}
+\label{f:sin}
+\end{figure}
+Each gray line, plotted by \code{matplot}, is a single random realization of
+$Y(x)|D_N, \hat{\theta}_N$. Obseve how the predictive variance narrows for $x$
+nearby elements of $X_N$ and expands out in a ``football shape'' away from
+them.  This feature has attractive uses in design: high variance inputs
+represent sensible choices for new simulations
+\citep{gra:lee:2009}.
+
+\subsection{Supercomputing and sparse approximation for big data}
+
+Despite its many attractive features, GP regression implementations are
+buckling under the weight of the growing size of data sets in many modern
+applications.  For example, supercomputers make submitting one job as easy as
+thousands, leading to ever larger computer simulation data.  The problem is
+$O(N^3)$ matrix decompositions required to calculate $K_N^{-1}$ and $|K_N|$
+in Eqs.~(\ref{eq:gpk}--\ref{eq:preds2}).  In practice that limits $N$ to the
+low thousands for point inference, and high hundreds for sampling-based
+inference like the bootstrap or Bayesian MCMC.  This has pushed some practitioners
+towards wholly new modeling apparatuses, say via trees 
+\citep{pratola:etal:2013,gramacy:taddy:wild:2013,chipman:ranjan:wang:2012}.  Although
+trees offer an appealing divide-and-conquer approach, their obvious drawback
+is that they struggle to capture the smoothness known, in many cases, to exist
+in the physical and mathematical quantities being modeled.
+
+One approach to salvaging GP inference for use in larger contexts has been to
+allocate supercomputer resources.  \citet{franey:ranjan:chipman:2012} were the
+first to use graphical processing unit (GPU) linear algebra subroutines,
+extending the $N$ which could be accommodated by an order of magnitude.
+\citet{paciorek:etal:2013} developed a package for \proglang{R} called
+\pkg{bigGP} that combined symmetric-multiprocessor, cluster, and GPU facilities
+to gain yet another order of magnitude.  \citeauthor{paciorek:etal:2013} were
+able to handle $N=67275$. To go too far down that road, however, may miss the
+point in certain contexts.  Computer model emulation is meant to {\em avoid}
+expensive computer simulation, not be a primary consumer of it.
+
+An orthogonal approach is to perform approximate GP regression, and a common
+theme in that literature is sparsity, leading to fast matrix decompositions
+\citep[e.g.,][]{kaufman:etal:2012,sang:huang:2012}.  Again, the expansion of
+capability is one- to two-orders of magnitude, albeit without tapping
+supercomputer resources which is more practical for most applications.  For
+example, \citeauthor{kaufman:etal:2012} reported on an experiment with
+$N=20000$. Some approaches in a similar vein include fixed rank kriging
+\citep{cressie:joh:2008} and using `'`pseudo-inputs''
+\citep{snelson:ghahr:2006}.
+
+Hybrid approximate GP regression and big-computer resources have been combined
+to push the boundary even farther. \citet{eidsvik2013estimation} suggest
+composite likelihood approach, rather than directly leveraging spare matrix
+library, and when combined with a GPU implementation their method is able to
+cope with $N=173405$. This represents a substantial inroad into retaining
+many of the attractive features of GP regression in larger data applications.
+However, a larger (and thriftier) capability would certainly be welcome.
+\citet{pratola:etal:2013} found it necessary to modify a tree-based approach
+for distribution over the nodes of a supercomputer to handle an $N=7$M sized
+design.
+
+The remainder of the paper is outlined as follows.  In Section \ref{sec:laGP}
+we discuss the local approximate Gaussian process method for large scale
+inference and prediction.  Several variations are discussed, including
+parallelized and GPU versions for combining with supercomputing resources in
+order to order to handle large-$N$ problems in reasonable computation times
+(e.g., under an hour).  Live-code examples, demonstrating the features of the
+\pkg{laGP} package for \proglang{R}, are peppered throughout paper, however
+Sections \ref{sec:examples} and \ref{sec:calib} devoted to larger scale and
+more exhaustive demonstration of the features in action, first demonstrating
+local emulation and regression/smoothing and then adapting them to the
+important problem of large scale computer model calibration.  Section
+\ref{sec:hooks} discusses extra features of the package which are useful
+in other contexts, like the optimization of blackbox functions, and the 
+potential for customization and extension of existing subroutines in the package.
+The appendix describes how the package can be compiled to enable SMP and
+GPU support, and discusses a variation a the key wrapper function \code{aGP}, which
+enables distribution of predictions across the nodes of a cluster.
+
+
+\section{Local approximate Gaussian process models}
+\label{sec:laGP}
+
+The methods in the \pkg{laGP} package take a two-pronged approach to large
+data GP regression.  They utilize a sparse representation, but in fact only
+work with small dense matrices.  And the many-independent nature of the
+calculations required are amenable to massive parallelization.  The result is
+an approximate GP regression capability that can accommodate orders of
+magnitude larger training and testing sets than ever before.  The method can
+be seen as a modernization of {\em local kriging} from the spatial statistics
+literature \citep[][pp,131--134]{cressie:1993}.  It involves focusing on
+approximate predictive equations at a particular generic location, $x$,
+via a subset of the data $D_n(x) \subseteq D_N$, where the sub-design $X_n(x)$
+is (primarily) comprised of $X_N$ close to $x$.  The thinking is that, with
+the typical choices of $K_\theta(x, x')$, where correlation between elements
+$x' \in X_N$ decays quickly for $x'$ far from $x$, remote $x'$s have
+vanishingly small influence on prediction anyways.  Ignoring them in order
+to work with much smaller, $n$-sized, matrices will bring a big computational
+savings with little impact on accuracy.
+
+This is a sensible idea:  It can be shown to induce a valid stochastic
+process; when $n \ll 1000$ the method is fast and accurate, and as $n$ grows
+the predictions increasingly resemble their full $N$-data counterparts; and
+for smaller $n$ $V_n(x)$ is organically inflated relative to $V_N(x)$,
+acknowledging greater uncertainty in approximation.  The simplest version of
+such a scheme would be via nearest neighbors (NN):  $X_n(x)$ comprised of closest
+elements of $X_N$ to $x$.  \citet{emory:2009} showed that this works well for
+many common choices of $K_\theta$.  However, NN designs are known to be
+sub-optimal \citep{vecchia:1988,stein:chi:welty:2004} as it pays to have some
+spread in $X_n(x)$ in order to obtain good estimates of correlation
+hyperparameters like $\theta$.  Still, searching for the optimal sub-design,
+which involves choosing $n$ from $N$ things, is a combinatorially huge
+undertaking.
+
+\citet{gramacy:apley:2014} showed how a greedy search could provide
+designs $X_n(x)$ where predictors based on $D_n(x)$ out-performed the NN
+alternative out-of-sample, yet required no more computational effort than NN,
+i.e., they worked in $O(n^3)$ time.  The idea is to search iteratively,
+starting with a small NN set $D_{n_0}(x)$, and choosing $x_{j+1}$ to augment
+$X_j(x)$ to form $D_{j+1}(x)$ according to one of several simple objective
+criteria. Importantly, they showed that the criteria they chose, on which we
+elaborate below, along with the the other relevant GP quantities for
+inference and prediction (\ref{eq:gpk}--\ref{eq:preds2}) can be updated as $j
+\rightarrow j+1$ in $O(j^2)$ time as long as the parameters, $\theta$, remain
+constant across iterations.  Therefore over the entirety of those iterations,
+$j=n_0, \dots, n$, the scheme is in $O(n^3)$.  The idea of sequential updating
+for GP inference, whether for design or for speed, is not new
+\citep{gramacy:polson:2011,haaland:qian:2012}, however the focus of previous
+approaches has been global.  Working local to particular $x$
+brings both computational and modeling/accuracy advantages.
+
+\subsection{Criterion for local design}
+
+\citeauthor{gramacy:apley:2014} considered two criteria in addition to NN, one being
+a special case of the other.  The first is to minimize the empirical Bayes
+mean-square prediction error (MSPE)
+\[
+J(x_{j+1}, x) = \bE\{ [Y(x) -
+\mu_{j+1}(x|D_{j+1}, \hat{\theta}_{j+1})]^2 | D_j(x) \}
+\]
+where $\hat{\theta}_{j+1}$ is the estimate for $\theta$ based on $D_{j+1}$.
+The predictive mean $\mu_{j+1}(x|D_{j+1}, \hat{\theta}_{j+1})$ follows
+equation \eqref{eq:predgp}, except that the $j\!+\!1$ subscript has been added
+in order to indicate dependence on $x_{j+1}$ and the future, unknown
+$y_{j+1}$. They then derive the approximation
+\begin{equation}
+J(x_{j+1},x) \approx  \left. V_j(x | x_{j+1}; \hat{\theta}_j) + \left(\frac{\partial \mu_j(x;
+    \theta)}{\partial \theta}
+\Big{|}_{\theta = \hat{\theta}_j}\right)^2 \right/
+\mathcal{G}_{j+1}(\hat{\theta}_j).
+\label{eq:mspe}
+\end{equation}
+%
+The first term in (\ref{eq:mspe}) estimates predictive variance at $x$ after $x_{j+1}$ is
+added into the design,
+\begin{align}
+V_j(x|x_{j+1}; \theta) &= \frac{(j+1)\psi_j}{j(j-1)} v_{j+1}(x; \theta),
+\nonumber \\ 
+\mbox{where } \;\;\; v_{j+1}(x; \theta) &= \left[ K_{j+1}(x, x) -
+k_{j+1}^\top(x) K_{j+1}^{-1} k_{j+1}(x) \right].
+\label{eq:newv}
+\end{align}
+Minimizing predictive variance at $x$ is a sensible goal.  The second term in
+(\ref{eq:mspe}) estimates the rate of change of the predictive mean at $x$,
+weighted by the expected {\em future} inverse information,
+$\mathcal{G}_{j+1}(\hat{\theta}_j)$, after $x_{j+1}$ and the corresponding
+$y_{j+1}$ are added into the design.  The weight, which is constant in $x$
+comments on the value of $x_{j+1}$ for estimating the
+parameter of the correlation function, $\theta$, by controlling the influence
+of the rate of change (derivative) of the predictive mean at $x$ on the
+overall criteria.
+
+The influence of that extra term beyond the reduced variance is small. The
+full MSPE criteria tends to yield qualitatively similar local designs
+$X_n(x)$ as ones obtained using just $V_j(x|x_{j+1}; \hat{\theta}_j)$, but at a
+fraction of the computational cost (since no derivative calculations are
+necessary).  This simplified criteria is equivalent to choosing $x_{j+1}$ to
+maximize {\em reduction} in variance:
+\begin{align}
+ v_j(x&; \theta)  - v_{j+1}(x; \theta) \label{eq:dxy} \\
+&= k_j^\top(x) G_j(x_{j+1}) m_j^{-1}(x_{j+1}) k_j(x) + 2k_j^\top(x)
+  g_j(x_{j+1}) K(x_{j+1},x) + K(x_{j+1},x)^2 m_j(x_{j+1}), \nonumber
+\end{align}
+where $G_j(x') \equiv g_j(x') g_j^\top(x')$,
+\begin{equation}
+ g_j(x') = -m_j(x') K_j^{-1}
+k_j(x') \;\;\;\;\; \mbox{and} \;\;\;\;\; m_j^{-1}(x') = K_j(x',x') -
+k_j^\top(x') K_j^{-1} k_j(x'). \label{eq:piedef}
+\end{equation}
+Observe that only $O(j^2)$ caluclations are required above. Although known for
+ some time in other contexts,
+\citeauthor{gramacy:apley:2014} chose the acronym ALC to denote the use
+of that decomposition in local design in order to recognize a similar approach
+ to {\em global} design via a method called {\em active learning Cohn}
+(\citeyear{cohn:1996}).
+
+To illustrate local designs derived under greedy application of both criteria,
+consider the following gridded design in $[-2,2]^2$.
+<<cache=TRUE>>=
+x <- seq(-2, 2, by=0.02)
+X <- as.matrix(expand.grid(x, x))
+N <- nrow(X)
+@
+Here we have $N=\Sexpr{N}$, a very large design by traditional GP standards.
+You cannot invert an $N \times N$ matrix for $N$ that big on even the best
+modern workstation.  As a point of reference, it takes about seven seconds to
+perform a single decomposition of an $4000 \times 4000$ matrix using
+hyperthreaded libraries on a 2010 iMac.
+
+The \code{laGP} function requires a vector of responses to perform local
+design, even though the design itself doesn't directly depend on the
+responses---a point which we will discuss at greater length shortly.  The synthetic
+response \citeauthor{gramacy:apley:2014} used for illustrations is coded below, and
+we shall elucidate that nature of input/output relationships
+in due course.
+<<cache=TRUE>>=
+f2d <- function(x)
+  {
+    g <- function(z)
+      return(exp(-(z-1)^2) + exp(-0.8*(z+1)^2) - 0.05*sin(8*(z+0.1)))
+    -g(x[,1])*g(x[,2])
+  }
+Y <- f2d(X)
+@
+Now, consider a prediction location $x$, denoted by \code{Xref} in the code
+below, and local designs for prediction at that $x$ based on MSPE and 
+ALC criteria.
+<<cache=TRUE>>=
+Xref <- matrix(c(-1.725, 1.725), nrow=TRUE)
+p.mspe <- laGP(Xref, 6, 50, X, Y, d=0.1, method="mspe")
+p.alc <- laGP(Xref, 6, 50, X, Y, d=0.1, method="alc")
+@
+Both designs use $n_0=6$ nearest neigbors to start, make greedy selections until
+$n=50$ locations are chosen, and use $\theta = 0.1$.
+\begin{figure}[ht!]
+\centering
+<<label=lagp,fig=TRUE,echo=TRUE,width=6,height=5>>=
+plot(X[p.mspe$Xi,], xlab="x1", ylab="x2", type="n", 
+  main="comparing local designs")
+text(X[p.mspe$Xi,], labels=1:length(p.mspe$Xi), cex=0.7)
+text(X[p.alc$Xi,], labels=1:length(p.alc$Xi), cex=0.7, col=2)
+points(Xref[1], Xref[2], pch=19, col=3)
+legend("topright", c("mspe", "alc"), text.col=c(1,2), bty="n")
+@
+\caption{Local designs at $x$ (green dot), derived under MSPE and ALC criteria.}
+\label{f:lagp}
+\end{figure}
+The output object from \code{laGP} contains indices into the original design.
+Those locations, and the order in which they were chosen, are plotted in
+Figure \ref{f:lagp}.  They are not identical under the two criteria, but 
+any qualitative differences are subtle.  Both contain a clump of nearby 
+points with satellite points emanating
+along rays from $x$, the green dot.  The satellite points are still relatively
+close to $x$ considering the full scope of locations in $X_N$---all locations chosen
+are in the upper-left quadrant of the space.  
+
+It is perhaps intriguing that the greedy local designs differ from NN ones. An
+exponentially decaying $K_\theta(\cdot, \cdot)$, like our isotropic Gaussian
+choice, should substantially devalue locations far from $x$.
+\citet{gramacy:haaland:2014} offer an explanation, which surprisingly has
+little to do with the particular choice of $K_\theta$. Consider two potential
+locations, an $x_{j+1}$ close to $x$  and $x_{j+1}'$ farther away. One
+naturally wonders: how could the latter choice, $x_{j+1}'$ with
+$y_{j+1}'$-value exponentially less correlated with $y(x)$ than $y_{j+1}$ via
+$x_{j+1}$, be preferred over the closer $x_{j+1}$ choice? The answer lies the
+form of (\ref{eq:piedef}). Although quadratic in $K_\theta(x_{j+1}, x)$, the
+``distance'' between the $x$ and the potential new local design location
+$x_{j+1}$, it is also quadratic in  $g_j(x_{j+1})$, a vector measuring
+``inverse distance'', via $K_j^{-1}$, between $x_{j+1}$ and the current local
+design $X_j(x)$. So the criteria makes a tradeoff: minimize ``distance'' to
+$x$ while maximizing ``distance'' (or minimizing ``inverse distance'') to the
+existing design.   Or in other words, the potential value of new design
+element $(x_{j+1}, y_{j+1})$ depends not just on its proximity to $x$, but
+also on how potentially different that information is to where we already have
+(lots of) it, at $X_j(x)$.
+
+Returning to the code example, we see below that the predictive equations are 
+also very similar under both local designs.
+<<cache=TRUE>>=
+p <- rbind(c(p.mspe$mean, p.mspe$s2, p.mspe$df),
+  c(p.alc$mean, p.alc$s2, p.alc$df))
+colnames(p) <- c("mean", "s2", "df")
+rownames(p) <- c("mspe", "alc")
+p
+@
+Although the designs are built using a fixed $\theta = 0.1$, the predictive equations
+output at the end are derived based on a local MLE calculation given the data $D_n(x)$.
+<<>>=
+p.mspe$mle
+p.alc$mle
+@
+MLE calculations can be turned off by adjusting the \code{laGP} call to include
+ \code{d=list(start=0.1, mle=FALSE)} as an argument.
+More about local inference for $\theta$ is deferred until Section \ref{sec:global}.
+For now we note that the implementation is same as the one behind the \code{mleGP}
+routine described earlier in Section \ref{sec:gp}.
+
+Finally, both local design methods are fast,
+<<>>=
+c(p.mspe$time, p.alc$time)
+@
+though ALC is about \Sexpr{signif(p.mspe$time/p.alc$time,2)} times faster
+since it doesn't require evaluation of derivatives, etc.  Although a more
+thorough out of sample comparison on both time and accuracy fronts is left to
+Section \ref{sec:examples}, the factor of (at least) two speedup in execution time,
+together with the simpler implementation, led \citeauthor{gramacy:apley:2014} to
+prefer ALC in most cases.
+
+\subsection{Global inference, prediction and parallelization}
+\label{sec:global}
+
+The simplest way to extend the analysis to cover a dense design of
+predictive locations $x\in \mathcal{X}$ is to serialize: loop over
+each $x$ collecting approximate predictive equations, each in $O(n^3)$
+time.  For $T = |\mathcal{X}|$ the total computational time is in
+$O(Tn^3)$.  Obtaining each of the full GP sets of predictive
+equations, by contrast, would require computational time in $O(T N^2 +
+N^3)$, where the latter $N^3$ is attributable to obtaining
+$K^{-1}$.\footnote{If only the predictive mean is needed, and not the
+  variance, then the time reduces to $O(TN + N^3)$.}  One of the nice
+features of standard GP emulation is that once $K^{-1}$ has been
+obtained the computations are fast $O(N^2)$ operations for each
+location $x$.  However, as long as $n \ll N$ our approximate method is
+even faster despite having to rebuild and re-decompose $K_j(x)$'s for
+each $x$.
+
+The approximation at $x$ is built up sequentially, but completely
+independently of other predictive locations.  Since a high degree of local
+spatial correlation is a key modeling assumption this may seem like an
+inefficient use of computational resources, and indeed it would be in serial
+computation for each $x$. However, independence allows trivial
+parallelization requiring token programmer effort.  When compiled
+correctly [see Appendix \ref{sec:omp}] the  \pkg{laGP} package can 
+exploit symmetric multiprocessor (SMP) via \code{OpenMP} pragmas in its
+underlying \proglang{C} implementation.  The simplest way this is
+accomplished is via a ``parallel-for'' pragma.
+\begin{verbatim}
+#ifdef _OPENMP
+  #pragma omp parallel for private(i)
+#endif
+  for(i=0; i<npred; i++) { ...
+\end{verbatim}
+That is actual code from an early implementation, where {\tt npred}
+$=|\mathcal{X}|$, leading to a nearly linear speedup: runtimes for $P$
+processors scale roughly as $1/P$.  Later versions of the package use
+the ``\code{parallel}'' pragma which has slightly less overhead. 
+
+To illustrate, consider the following predictive grid in $[-2,2]^2$ spaced
+to avoid the original $N=40$K design.
+<<cache=TRUE>>=
+xx <- seq(-1.97, 1.95, by=0.04)
+XX <- as.matrix(expand.grid(xx, xx))
+YY <- f2d(XX)
+@
+Now, we use the \code{aGP} function to iterate over the elements of $\tilde{X}
+\equiv$\ \code{XX}.  The package used in this illustration is compiled for
+\code{OpenMP} support, and executed on a 4-core hyperthreaded 2010 iMac.  Therefore
+any timings are 7-8x faster than on a similar one-core run. 
+<<cache=TRUE>>=
+nth <- 8
+P.alc <- aGP(X, Y, XX, omp.threads=nth, verb=0)
+@
+Note that the default method is ALC.  The results obtained with \code{method = "mspe"}
+are similar, but require more computation time.  Further comparison is delayed until
+Section \ref{sec:examples}.  The \code{verb=0} argument suppresses a progress meter 
+which is printed to the screen.
+\begin{figure}[ht!]
+<<label=aggp,fig=TRUE,echo=TRUE,width=6,height=5,include=FALSE>>=
+persp(xx, xx, -matrix(P.alc$mean, ncol=length(xx)), phi=45, theta=45,
+      main="", xlab="x1", ylab="x2", zlab="y-hat(x)")
+@
+\centering
+\includegraphics[trim=30 80 20 60]{laGP-aggp}
+\caption{Emulated surface based on $N=40$K and $|\mathcal{X}|=10$K gridded
+predictive locations.}
+\label{f:aagp}
+\end{figure}
+Figure \ref{f:aagp} shows the resulting (predictive mean) emulation
+surface.\footnote{The negative is shown for better visibility.}  Although the
+input dimension is low, the input-output relationship is nuanced and merits a
+dense design in the input space to fully map.
+
+\begin{figure}[ht!]
+\centering
+<<label=aggp-slice,fig=TRUE,echo=TRUE,width=6,height=5>>=
+med <- 0.51
+zs <- XX[,2] == med
+sv <- sqrt(P.alc$var[zs])
+r <- range(c(-P.alc$mean[zs] + 2*sv, -P.alc$mean[zs] -2*sv))
+plot(XX[zs,1], -P.alc$mean[zs], type="l", lwd=2, , ylim=r, xlab="x1",
+     ylab="predicted & true response", bty="n",
+     main="slice through surface")
+lines(XX[zs,1], -P.alc$mean[zs] + 2*sv, col=2, lty=2, lwd=2)
+lines(XX[zs,1], -P.alc$mean[zs] -2*sv, col=2, lty=2, lwd=2)
+lines(XX[zs,1], YY[zs], col=3, lwd=2, lty=3)
+@
+\caption{Slice of the predictive surface shown in Figure \ref{f:aagp} including
+the true surface [covered by the mean] and predictive interval.}
+\label{f:aagp-s}
+\end{figure}
+For a closer look, Figure \ref{f:aagp-s} shows a slice through that predictive
+surface at $x_w = 0.51$ along with the true responses (completely covered by
+the prediction) and error-bars.  Observe that the error bars are very tight on
+the scale of the response, and that although no continuity is
+enforced---calculations at nearby locations are independent and occur
+potentially in parallel---the resulting surface looks smooth to the eye.
+This is not always the case, as we illustrate in Section \ref{sec:moto}.
+
+Accuracy, however, is not uniform.  
+\begin{figure}[ht!]
+\centering
+<<label=aggp-slice-ydiff,fig=TRUE,echo=TRUE,width=6,height=5>>=
+diff <- P.alc$mean - YY
+plot(XX[zs,1], diff[zs], type="l", lwd=2, 
+     main="systematic bias in prediction", 
+     xlab="x1", ylab="y(x) - y-hat(x)", bty="n")
+@
+\caption{Bias in the predictive mean surface shown in Figure \ref{f:aagp-s}.}
+\label{f:aagp-se}
+\end{figure}
+Figure \ref{f:aagp-se} shows that predictive bias oscillates across
+the same slice of the input space shown in Figure \ref{f:aagp-s}. 
+Crucially, however, notice that the magnitude of the bias is small: one-hundredth
+of a tick on the scale of the response.  Still, given the density of the
+input design one could easily guess that the model may not be flexible
+enough to characterize the fast-moving changes in the input-output relationships.
+
+Although an approximation, the local nature of modeling means that, from a
+global perspective, the predictor is \emph{more} flexible that the full-$N$
+stationary Gaussian process predictor.  Here, stationarity loosely means that
+the covariance structure is modeled  uniformly across the input space. Most
+choices of $K_\theta(\cdot, \cdot)$, like the isotropic Gaussian we use,
+induce stationarity in the spatial field.  Inferring separate independent
+predictors across the elements of a vast predictive grid lends \code{aGP} a
+degree of non-stationarity.  In fact, by default, \code{aGP} goes beyond
+that by learning separate $\hat{\theta}_n(x)$ local to each $x \in \mathcal{X}$
+by maximizing the local likelihood (or posterior probabilities). 
+\begin{figure}[ht!]
+\centering
+<<label=aggp-slice-d,fig=TRUE,echo=TRUE,width=6,height=5>>=
+diff <- P.alc$mean - YY
+plot(XX[zs,1], P.alc$mle$d[zs], type="l", lwd=2, 
+     main="spatially varying lengthscale", 
+     xlab="x1", ylab="theta-hat(x)", bty="n")
+@
+\caption{Spatially varying lengthscale estimated along the slice shown in Figure \ref{f:aagp-s}.}
+\label{f:aagp-sd}
+\end{figure} 
+Figure \ref{f:aagp-sd} shows indeed that the estimated lengthscales vary spatially.  However,
+apparently even this extra degree of flexibility is not enough to mitigate the
+small amount of bias shown in Figure \ref{f:aagp-se}.
+
+\citeauthor{gramacy:apley:2014} recommend a two-stage scheme wherein the above
+process is repeated wherein new $X_n(x)$ are chosen conditional upon
+$\hat{\theta}_n(x)$ values from the first stage. i.e., so that the second
+iteration's local designs use locally estimated parameters. This leads to a
+globally non-stationary model and generally more accurate predictions than the
+single-stage scheme.
+\begin{figure}
+\centering
+\fbox{
+\begin{minipage}{13cm}
+\begin{enumerate}
+  \item Choose a sensible starting global $\theta_x = \theta_0$ for all $x$.
+\item Calculate local designs $X_n(x, \theta_x)$ based on ALC,
+  independently for each $x$:
+\begin{enumerate}
+\item Choose a NN design $X_{n_0}(x)$ of size $n_0$.
+\item For $j=n_0, \dots, n-1$, set
+\[
+  x_{j+1} = \mathrm{arg}\max_{x_{j+1} \in X_N \setminus X_j(x)} v_j(x; \theta_x) 
+  - v_{j+1}(x; \theta_x),
+\]
+and then update $D_{j+1}(x, \theta_x) = D_j(x, \theta_x) \cup (x_{j+1}, y(x_{j+1}))$.
+\end{enumerate}
+\item Also independently, calculate the MLE $\hat{\theta}_n(x) |
+  D_n(x, \theta_x)$ thereby explicitly obtaining a globally nonstationary
+  predictive surface. Set $\theta_x = \hat{\theta}_n(x)$.   
+\item Repeat steps 2--3 as desired. 
+\item Output predictions $Y(x)|D_n(x, \theta_x)$ for each $x$.
+\end{enumerate}
+\end{minipage}
+}
+\caption{Multi-stage approximate local GP modeling algorithm.}
+\label{f:alg}
+\end{figure}
+The full scheme is outlined algorithmically in Figure
+\ref{f:alg}.  Step 2(b) of the algorithm implements the ALC reduction in
+variance scheme, via Eq.~(\ref{eq:dxy}), although MSPE (\ref{eq:mspe}) or
+any other criteria could be deployed there, at each greedy stage of local
+design. Of course, more than two repetitions of the global search scheme can
+be performed, but in many examples two has been sufficient to achieve rough
+convergence of the overall iterative scheme.  Optionally, the
+$\hat{\theta}_n(x)$-values can be smoothed (e.g., by \pkg{loess}) before they
+are fed back into the local design schemes.  Considering other popular
+approaches to adapting a stationary model to achieve nonstationary surfaces,
+which usually involve orders of magnitude more computation \citep[e.g.][and
+references therein]{schmidt:ohagan:2003}, this small adaptation is a thrifty
+alternative that does not change the overall computational order of the
+scheme.
+
+Consider the following illustration continuing on from our example
+above.
+<<cache=TRUE>>=
+df <- data.frame(y=log(P.alc$mle$d), XX)
+lo <- loess(y~., data=df, span=0.01)
+P.alc2 <- aGP(X, Y, XX, d=exp(lo$fitted), omp.threads=nth, verb=0)
+@
+This causes the design, for each element of \code{XX}, to initialize search
+based on the smoothed \code{d}-values output from the previous \code{aGP}
+run, stored in the \code{P.alc} object.  Compariing the predictions
+from the first iteration to those from the second, we can see that the
+latter has lower RMSE.
+<<>>=
+rmse <- data.frame(alc=sqrt(mean((P.alc$mean - YY)^2)), 
+  alc2=sqrt(mean((P.alc2$mean - YY)^2)))
+rmse
+@
+This result is not impressive, but it is statistically significant across a
+wide range of examples.  For example \citet{gramacy:apley:2014} provided an
+experiment based on the borehole data [more in Section \ref{sec:examples}]
+showing that the second iteration consistently improves upon predictions from
+the first. Although explicitly facilitating a limited degree of
+non-stationarity, second stage local designs do not solve the bias problem
+completely.  The method is still locally stationary, and indeed locally
+isotropic in its \pkg{laGP} implementation.  Finally, the subsequent stages
+of design tend to be slightly faster than earlier stages since the number
+of Newton iterations required to converge on $\hat{\theta}_n(x)$ is
+reduced given refined starting values for search.
+% <<>>=
+% c(P.alc$time, P.alc2$time)
+% @
+
+\subsection{Computational techniques for speeding up local search}
+
+The most expensive step in Algorithm \ref{f:alg} is the inner-loop of Step
+2(b), iterating over all $N-j$ remaining candidates in $X_N \setminus X_j(x)$
+in search of $X_{j+1}$.  Assuming the criteria involves predictive variance
+(\ref{eq:preds2}) in some way, every candidate entertained involves an
+$O(j^2)$ calculation.  Viewed pessimistically, one could argue the scheme
+actually requires computation in $O(Nn^3)$ not $O(n^3)$.  However, there are
+several reasons to remain cheery about computational aspects.  One is that
+$O(Nn^3)$ is not $O(N^3)$.  The others require more explanation, and
+potentially slight adjustments in implementation.
+
+Not all $N-j$ need be entertained for the method to work well.  For the same
+reason prediction is localized to $x$ in the first place, that correlation
+decays quickly away from $x$, we can probably afford to limit search to $N'
+\ll N-j$ candidates near to $x$.  By default, \code{laGP} and \code{aGP} limit
+search to the nearest $N' = 1000$ locations, though this can be adjusted
+with the \code{close} argument.  One can check [not shown here] that increasing
+\code{close} by an order of magnitude, to 2000 or 10,000 uses more compute
+cycles but yields identical results in the applications described in this
+document.
+
+But it is risky to reduce \code{close} too much, as doing so will negate the
+benefits of search, eventually yielding the NN GP predictor.  Another option,
+allowing $N'$ to be greatly increased if desired, is to deploy further
+parallelization.
+\citet{gramacy:niemi:weiss:2014} showed that ALC-based greedy search is
+perfect for graphical processing unit (GPU) parallelization.  Each potential
+candidate, up to 65K candidates, can be entertained on a seprate GPU block,
+and threads within that block can be used to perform many of the required
+dense linear algebra operations in Eq.~(\ref{eq:dxy}) in parallel.  In
+practice they illustrate that this can result in speedups of between twenty
+and seventy times, with greater efficiencies for large $n$ and $N'$. Enabling
+GPU subroutines requires custom compilation of \proglang{CUDA} source code via
+the NVIDIA compiler \code{nvcc} and re-compilation of the \proglang{C} code in
+the \pkg{laGP} package.  For more details see Appendix \ref{sec:gpu}. For best
+results, enabling \code{OpenMP} support [Appendix \ref{sec:omp}] is also
+recommended.
+
+Finally, \citet{gramacy:haaland:2014} suggested that the discrete and exhaustive
+nature of search could be bypassed all together.  They studied the topology
+of the reduction in variance landscape---the spatial surface searched in Step 2(b)
+via Eq.~(\ref{eq:dxy}))---and observed many that regularities persist over choices
+of $K_\theta(\cdot, \cdot)$ and its parameterization.  As long as the $X_N$ is
+reasonably space-filling, local designs predictably exhibit the features
+observed in Figure \ref{f:lagp}: a substantial proportion of NNs accompanied by
+farther out satellite points positioned roughly along rays emanating from 
+the reference predictive location, $x$.  To mimic that behavior without exhaustive
+search they proposed a continuous one-dimensional line search along rays
+emanating from $x$.  Optimizing along the ray is fast and can be implemented
+with library routines, like \code{Brent_fmin} \citep{brent:1973}, the workhorse
+behind \proglang{R}'s \code{optimize} function.  
+
+The code below calculates an such an ALC-ray based design, augmenting our
+example from Section \ref{sec:laGP}.
+<<cache=TRUE>>=
+p.alcray <- laGP(Xref, 6, 50, X, Y, d=0.1, method="alcray")
+@
+Although a similar idea could be deployed for finding MSPE-based designs based
+on rays, this is not implemented in the \pkg{laGP} package at the present time.
+\begin{figure}[ht!]
+\centering
+<<label=lagp,fig=TRUE,echo=TRUE,width=6,height=5>>=
+plot(X[p.alc$Xi,], xlab="x1", ylab="x2", type="n", 
+  main="comparing local designs")
+text(X[p.alc$Xi,], labels=1:length(p.alc$Xi), cex=0.7, col=2)
+text(X[p.alcray$Xi,], labels=1:length(p.mspe$Xi), cex=0.7, col=3)
+points(Xref[1], Xref[2], pch=19, col=3)
+legend("topright", c("alc", "alcray"), text.col=c(2,3), bty="n")
+@
+\caption{Local designs at $x$ (green dot), derived under ALC and ALC-ray search criteria.}
+\label{f:lagp-ray}
+\end{figure}
+Figure \ref{f:lagp-ray} compares local designs based on ray and exhaustive
+search.  The exhaustive search design is identical to the ALC one shown in
+Figure \ref{f:lagp}, and just like in that example the ray-based version is
+not idential to the others but clearly exhibits similar qualitative features.
+The time required to derive the ALC-ray local design is:
+<<>>=
+p.alcray$time
+@
+and this is \Sexpr{signif(p.alc$time/p.alcray$time, 2)} times better than 
+the exhaustive alternative.  The predictive equations are nearly identical.
+<<>>=
+p <- rbind(p, c(p.alcray$mean, p.alcray$s2, p.alcray$df))
+rownames(p)[3] <- c("alcray")
+p
+@
+\citeauthor{gramacy:haaland:2014} recommend using $p$ rays per greedy search
+iteration, where $p$ is the dimension of the input space.  However this can be
+adjusted with the \code{numrays} argument, fine-tuning the exhaustiveness of
+search relative to the computational expense.
+
+To complete the picture, the code below performs two stage global/local
+design based on ALC-ray searches.
+<<cache=TRUE>>=
+P.alcray <- aGP(X, Y, XX, method="alcray", omp.threads=nth, verb=0)
+dfray <- data.frame(y=log(P.alcray$mle$d), XX)
+loray <- loess(y~., data=dfray, span=0.01)
+P.alcray2 <- aGP(X, Y, XX, method="alcray", d=exp(loray$fitted), 
+  omp.threads=nth, verb=0)
+@
+The result is a global predictor which is 
+\Sexpr{signif((P.alc$time + P.alc2$time)/(P.alcray$time + P.alcray2$time), 2)} times
+faster, echoing the single-$x$ results form \code{laGP} above
+<<>>=
+c(P.alcray$time, P.alcray2$time)
+@
+and provides nearly identical out-of-sample accuracy via RMSE:    
+<<>>=
+rmse <- cbind(rmse, 
+  data.frame(alcray=sqrt(mean((P.alcray$mean - YY)^2)), 
+    alcray2=sqrt(mean((P.alcray2$mean - YY)^2))))
+rmse
+@
+Time in \Sexpr{signif(P.alcray$time + P.alcray2$time, 2)} seconds on a 2010
+desktop to accurately emulate at 10K locations from an input design of $N=40$K
+is an unmatched capability in the recent computer experiment literature.
+
+\section{Examples}
+\label{sec:examples}
+
+The 2-d example above, while illustrative, was somewhat simplistic.  Below we
+present three further examples which offer a more convincing demonstration of
+the merits of local GP prediction and expand its feature set to accommodate a
+wider range of application.  After exploring its performance on the
+``borehole'' data, a classic computer experiment benchmark, we illustrate how
+noisy data can be accommodated by estimating local nuggets.  The following
+section provides a further example of how it can be deployed for computer
+model calibration.
+
+\subsection{Borehole data}
+\label{sec:borehole}
+
+The borehole experiment
+\citep{worley:1987,morris:mitchell:ylvisaker:1993}  involves an 8-dimensional
+input space, and our use of it here follows the setup of
+\cite{kaufman:etal:2012}; more details can be found therein.
+ The response $y$ is given by
+\begin{equation}
+y = \frac{2\pi T_u [H_u - H_l]}{\log\left(\frac{r}{r_w}\right) 
+\left[1 + \frac{2 L T_u}{\log (r/r_w) r_w^2 K_w} + \frac{T_u}{T_l}
+\right]}\,.
+\label{eq:borehole}
+\end{equation}
+The eight inputs are constrained to lie in a rectangular domain:
+\begin{align*}
+r_w &\in [0.05, 0.15] & r &\in [100,5000] & T_u &\in [63070, 115600] &
+T_l &\in [63.1, 116] \\
+H_u &\in [990, 1110] & H_l &\in [700, 820] & L &\in [1120, 1680] & 
+K_w &\in [9855, 12045].
+\end{align*}
+We use the following implementation in \proglang{R} which accepts inputs
+in the unit 8-cube.
+<<cache=TRUE>>=
+borehole <- function(x){
+  rw <- x[1] * (0.15 - 0.05) + 0.05
+  r <-  x[2] * (50000 - 100) + 100
+  Tu <- x[3] * (115600 - 63070) + 63070
+  Hu <- x[4] * (1110 - 990) + 990
+  Tl <- x[5] * (116 - 63.1) + 63.1
+  Hl <- x[6] * (820 - 700) + 700
+  L <-  x[7] * (1680 - 1120) + 1120
+  Kw <- x[8] * (12045 - 9855) + 9855
+  m1 <- 2 * pi * Tu * (Hu - Hl)
+  m2 <- log(r / rw)
+  m3 <- 1 + 2*L*Tu/(m2*rw^2*Kw) + Tu/Tl
+  return(m1/m2/m3)
+}
+@
+
+We consider a modestly big training set ($N=100000$), to illustrate
+how large emulations can proceed with relatively little computational effort.
+However, we keep the testing set somewhat smaller so that we can 
+so that we can duplicate part of a Monte Carlo experiment (i.e., multiple
+repeats of random training and testing sets) from 
+\citet{gramacy:apley:2014} without requiring too many compute cycles.
+<<cache=TRUE>>=
+N <- 100000
+Npred <- 1000
+dim <- 8
+library(lhs)
+@
+The experiment involves ten repetitions of inputs from a random Latin hypercube sample
+\citep[LHS;][]{mckay:conover:beckman:1979} which generate the training data and testing
+sets, with responses from \code{borehole}, and automates calculations of a sequence of
+(local GP) estimators fit to the training sets followed by out-of-sample RMSE
+calculations on the testing sets.  Storage for those RMSEs, along with timing info, is allocated as follows
+<<cache=TRUE>>=
+T <- 10
+nas <- rep(NA, T)
+times <- rmse <- data.frame(mspe=nas, mspe2=nas, 
+  alc.nomle=nas, alc=nas, alc2=nas,
+  nn.nomle=nas, nn=nas, big.nn.nomle=nas, big.nn=nas,
+  big.alcray=nas, big.alcray2=nas)
+@
+The names of the columns of the data frame are indicative of the
+corresponding estimator.  For example, \code{big.nn.nomle} indicates a nearest
+neighbor (NN) estimator fit to with a larger local neighborhood ($n=200)$ 
+using a sensible, but not likelihood maximizing, global value of $\theta$.
+The other estimators describe variations either via a smaller local neighborhood
+($n=50$), greedy search, and local calculation of $\hat{\theta}_n(x)$.
+
+The \code{for} loop below iterates over each Monte Carlo repetition.
+<<cache=TRUE>>=
+for(t in 1:T) {
+
+  ## generate random training and testing data
+  x <- randomLHS(N+Npred, dim)
+  y <- apply(x, 1, borehole)
+  ypred.0 <- y[-(1:N)]; y <- y[1:N]
+  xpred <- x[-(1:N),]; x <- x[1:N,]
+
+  ## arguments common to all comparators
+  formals(aGP)[c("omp.threads", "verb")] <- c(8, 0)
+  formals(aGP)[c("X", "Z", "XX")] <- list(x, y, xpred)
+
+  out1<- aGP(d=list(mle=FALSE, start=0.7))
+  rmse$alc.nomle[t] <- sqrt(mean((out1$mean - ypred.0)^2))
+  times$alc.nomle[t] <- out1$time
+  
+  out2 <- aGP(d=list(max=20))
+  rmse$alc[t] <- sqrt(mean((out2$mean - ypred.0)^2))
+  times$alc[t] <- out2$time
+  
+  out3 <- aGP(d=list(start=out2$mle$d, max=20))
+  rmse$alc2[t] <- sqrt(mean((out3$mean - ypred.0)^2))
+  times$alc2[t] <- out3$time
+
+  out4 <- aGP(d=list(max=20), method="alcray")
+  rmse$alcray[t] <- sqrt(mean((out4$mean - ypred.0)^2))
+  times$alcray[t] <- out4$time
+  
+  out5 <- aGP(d=list(start=out4$mle$d, max=20), method="alcray")
+  rmse$alcray2[t] <- sqrt(mean((out5$mean - ypred.0)^2))
+  times$alcray2[t] <- out5$time
+
+  out6<- aGP(d=list(max=20), method="mspe")
+  rmse$mspe[t] <- sqrt(mean((out6$mean - ypred.0)^2))
+  times$mspe[t] <- out6$time
+  
+  out7 <- aGP(d=list(start=out6$mle$d, max=20), method="mspe")
+  rmse$mspe2[t] <- sqrt(mean((out7$mean - ypred.0)^2))
+  times$mspe2[t] <- out7$time
+
+  out8 <- aGP(d=list(mle=FALSE, start=0.7), method="nn")
+  rmse$nn.nomle[t] <- sqrt(mean((out8$mean - ypred.0)^2))
+  times$nn.nomle[t] <- out8$time
+
+  out9 <- aGP(end=200, d=list(mle=FALSE), method="nn")
+  rmse$big.nn.nomle[t] <- sqrt(mean((out9$mean - ypred.0)^2))
+  times$big.nn.nomle[t] <- out9$time
+
+  out10 <- aGP(d=list(max=20), method="nn")
+  rmse$nn[t] <- sqrt(mean((out10$mean - ypred.0)^2))
+  times$nn[t] <- out10$time
+
+  out11 <- aGP(end=200, d=list(max=20), method="nn")
+  rmse$big.nn[t] <- sqrt(mean((out11$mean - ypred.0)^2))
+  times$big.nn[t] <- out11$time
+
+  out12 <- aGP(end=200, d=list(max=20), method="alcray")
+  rmse$big.alcray[t] <- sqrt(mean((out12$mean - ypred.0)^2))
+  times$big.alcray[t] <- out12$time
+  
+  out13 <- aGP(end=200, d=list(start=out12$mle$d, max=20), method="alcray")
+  rmse$big.alcray2[t] <- sqrt(mean((out13$mean - ypred.0)^2))
+  times$big.alcray2[t] <- out13 $time
+}
+@
+
+The code below collects summary information into a table, whose rows
+are ordered by average RMSE value.  The final column of the table shows
+the $p$-value of a one-sided $t$-test for differences between adjacent
+rows in the table---indicating if the RMSE in the row is statistically
+distinguishable from the one below it.
+<<>>=
+timev <- apply(times, 2, mean, na.rm=TRUE)
+rmsev <- apply(rmse, 2, mean)
+tab <- cbind(timev, rmsev)
+o <- order(rmsev, decreasing=FALSE)
+tt <- rep(NA, length(rmsev))
+for(i in 1:(length(o)-1)) {
+  tto <- t.test(rmse[,o[i]], rmse[,o[i+1]], alternative="less", 
+    paired=TRUE)
+  tt[o[i]] <- tto$p.value
+}
+tab <- cbind(tab, data.frame(tt))
+tab[o,]
+@
+The two biggest takeaways from the table are that (1) everything is fast on a
+data set of this size by comparison to the state of the art in GP emulation,
+approximately or otherwise; (2) local inference of the lengthscale parameter,
+$\hat{\theta}_n(x)$ leads to substantial improvements in accuracy.  
+\citeauthor{gramacy:apley:2014}'s similar experiments included variations
+on the method of compactly supported covariances (CSC) \citep{kaufman:etal:2012}
+which provided estimators with similar accuracies, but required at least
+an order magnitude more compute time.  In fact, they commented that $N=10000$
+was the limit that CSC could accommodate on their machine due to memory swapping
+issues.
+
+The best methods, based on a larger local neighborhood and ray-based search,
+point to an impressive emulation capability. In a time that is comparable to a
+plain NN-based emulation strategy (with local inference for $\hat{\theta}_n(x)$;
+i.e., \code{nn} in the table), a greedy design is three times more accurate
+out-of-sample.  \citet{gramacy:haaland:2014} show that the trend continues as
+$N$ is increased, indicating the potential for extremely accurate emulation on
+testing and training sets of size $N > 1$M in a few hours.  Pairing with
+cluster-style distribution, across 96 16-CPU nodes, that can be reduced to 188
+seconds, or extended to $N > 8M$ in just over an hour.  They show that smaller
+(yet still large) designs $N < 100000$, searching exhaustively rather than by
+rays leads to more accurate predictors.  In those cases, massive
+parallelization over a cluster and/or with GPUs
+\citep{gramacy:niemi:weiss:2014} can provide accurate predictions on a
+commensurately sized testing set ($N$) in about a minute.
+
+\subsection{Challenging global/local isotropy}
+\label{sec:sep}
+
+Our choice of isotropic correlation function was primarily one of convenience.
+It is a common first choice for computer experiments, and since it has just
+one parameter, $\theta$, inferential schemes like maximum likelihood via
+Newton-like methods are vastly simplified.  When deployed for local inference
+over thousands of elements of a vast predictive grid, that simplicity is a near
+necessity from an engineering perspective.  However, the local GP methodology
+is not limited to this choice.  Indeed \citet{gramacy:apley:2014} developed
+all of the relevant equations for a generic choice of separable correlation
+function.  Here, separable means the joint correlation over all input
+directions factors as a product of a simpler one in each direction,
+independently.  The simplest example is a separable Gaussian form, $K_\theta(x,
+x') = \exp\{-\sum_{k=1}^p (x_k - x'_k)^2/\theta_k\}$.  It is easy to imagine,
+as in our eight-dimensional borehole example above, that the spatial model
+could benefit for allowing differential rate of decay $\theta_k$ in each
+input direction. 
+
+The \pkg{laGP} package contains limited support for a separable correlation
+function in the context of {\em global}, that is canonical, GP inference.
+On a data set of size $N=100$K like the one we entertain above, this is
+not a reasonable undertaking.  But we have found it useful on subsets of the data
+for the purpose of obtaining a rough re-scaling of the inputs so that a
+(local) isotropic analysis is less objectionable.  For example,
+the code below considers ten random subsets of size $n=1$K from the
+full $N=100$K design, and collects $\hat{\theta}$ vectors under the
+separable Gaussian formulation.
+<<cache=TRUE>>=
+## allocate space
+thats <- matrix(NA, nrow=T, ncol=dim)
+its <- rep(NA, T)
+n <- 1000
+
+## get reasonable starting values and ranges
+g2 <- garg(list(mle=TRUE), y)
+d2 <- darg(list(mle=TRUE, max=100), x)
+
+## do reps
+for(t in 1:T) {
+  
+  ## get random subset
+  subs <- sample(1:N, n, replace=FALSE)
+
+  ## estimate with fixed small nugget
+  gpsepi <- newGPsep(x[subs,], y[subs], rep(d2$start, dim), g=1/1000)
+  that <- mleGPsep(gpsepi, param="d", tmin=d2$min, tmax=d2$max, 
+    ab=d2$ab, maxit=200)
+  thats[t,] <- that$d
+  its[t] <- that$its
+
+  ## free space
+  deleteGPsep(gpsepi)
+}
+@
+The \code{mleGPsep} function uses \code{optim} with \code{method="L-BFGS-B"}
+together with analytic derivatives of the log likelhood; the function
+\code{mleGP} offers a similar feature for the isotropic Gaussian correlation,
+except that it uses a Newton-like method with analytic first and second
+derivatives. The package also offers \code{jmleGPsep}, an analog of
+\code{jmleGP}, which automates a profile-like approach to iterating over
+$\theta | \eta$ and $\eta | \theta$ where the latter is performed with a
+Newton-like scheme leveraging first and second derivatives.  We do not
+demonstrate \code{jmleGPsep} on this example since the large data subset
+($n=1000$) combined with very smooth deterministic outputs from moderately
+size (8-dim) inputs, from the borehole experiment, leads to estimating
+near-zero nuggets and ill-conditioning in the matrix decompositions, arising
+from our choice of Gaussian correlation function.
+
+For estimating nuggets in this setup, where the response is both deterministic
+and extremely smooth (and stationary), we recommend the \pkg{GPfit} \citep{gpfit}
+based on the methods of \citet{ranjan:haynes:karsten:2011}.  However, we caution
+that our experience is \pkg{GPfit} can be slow on data sets as large as $N=1000$.
+
+\begin{figure}[ht!]
+\centering
+<<label=thetas,fig=TRUE,echo=TRUE,width=6,height=5>>=
+boxplot(thats, main="distribution of thetas", xlab="input", ylab="theta")
+@
+\caption{Distribution of maximum {\em a' posteriori} lengthscales over
+random subsets of the borehole data.}
+\label{f:thetas}
+\end{figure}
+
+Figure \ref{f:thetas} shows the distribution of estimated lengthscales
+obtained by randomizing over subsets of size $n=1000$. We see that some
+lengthscales are orders of magnitude smaller than others, suggesting that some
+inputs may be more important than others.  Input one ($r_w$) has a
+distribution that is highly concentrated near small values suggesting that it
+may be the most important.  Perhaps treating all inputs equally 
+when performing a global/local approximation, as in Section \ref{sec:borehole},
+is leaving some predictability on the table.  The \pkg{laGP} package does
+not support using a separable correlation function for local analysis, however
+we can pre-scale the data globally to explore whether there is any benefit
+from treating some inputs differently than others.
+<<>>=
+scales <- sqrt(apply(thats, 2, median))
+xs <- x; xpreds <- xpred
+for(j in 1:ncol(xs)) {
+  xs[,j] <- xs[,j]/scales[j]
+  xpreds[,j] <- xpreds[,j]/scales[j]
+}
+@
+Using the new inputs, consider the following global approximation for
+the final iteration in the Monte Carlo experiment from Section \ref{sec:borehole}.
+<<cache=TRUE>>=
+out14 <- aGP(xs, y, xpreds, d=list(max=20), method="alcray")
+@
+The RMSE obtained,
+<<>>=
+sqrt(mean((out14$mean - ypred.0)^2))
+@
+is competitive with the best methods in the study above---which are based on
+$n=200$ whereas only the default $n=50$ was used here.  Also observe that the
+RMSE we just obtained is better than half of the one we reported
+``\code{alcray}'' in the Monte Carlo experiment.
+
+Determining if this reduction is statistically significant would require
+incorporating it into the Monte Carlo.  We encourage the reader to test that
+off-line, if so inclined, and permit us and simply conclude here that it can
+be beneficial to perform a cursory global analysis with a separable
+correlation function to determine if the inputs should be scaled before
+performing a local (isotropic) analysis on the full data set.
+
+\subsection{Motorcycle data}
+\label{sec:moto}
+
+For a simple illustration of heteroskedastic local GP modeling, consider
+the motorcycle accident data \citep{silv:1985}, 
+simulating the acceleration of the head of a motorcycle rider as a function of time
+in the first moments after an impact.  It can be found
+ in the \pkg{MASS}
+package for \proglang{R}.  For comparison, we first fit a simple GP
+model to the full data set ($N=133$), estimating both lengthscale $\theta$ and
+nugget $\eta$.
+<<cache=TRUE>>=
+library(MASS)
+d <- darg(NULL, mcycle[,1,drop=FALSE])
+g <- garg(list(mle=TRUE), mcycle[,2])
+motogp <- newGP(mcycle[,1,drop=FALSE], mcycle[,2], d=d$start, 
+  g=g$start, dK=TRUE)
+jmleGP(motogp, drange=c(d$min, d$max), grange=c(d$min, d$max), 
+  dab=d$ab, gab=g$ab)
+@
+Now consider the predictive equations derived from that full-data,
+alongisde a local approximate alternative (via ALC) with a local neighborhood
+size of $n=30$. 
+<<cache=TRUE>>=
+XX <- matrix(seq(min(mcycle[,1]), max(mcycle[,1]), length=100), ncol=1)
+motogp.p <- predGP(motogp, XX=XX, lite=TRUE)
+motoagp <- aGP(mcycle[,1,drop=FALSE], mcycle[,2], XX, end=30, 
+  d=d, g=g, verb=0)
+@
+Figure \ref{f:mcycle} shows the predictive surfaces obtained for the two
+predictors in terms of means and 90\% credible intervals.
+\begin{figure}[ht!]
+\centering
+<<label=mcycle,fig=TRUE,echo=TRUE,width=6,height=5>>=
+plot(mcycle, cex=0.5, main="motorcycle data")
+lines(XX, motogp.p$mean, lwd=2)
+q1 <- qnorm(0.05, mean=motogp.p$mean, sd=sqrt(motogp.p$s2))
+q2 <- qnorm(0.95, mean=motogp.p$mean, sd=sqrt(motogp.p$s2))
+lines(XX, q1, lty=2, lwd=2)
+lines(XX, q2, lty=2, lwd=2)
+lines(XX, motoagp$mean, col=2, lwd=2)
+q1 <- qnorm(0.05, mean=motoagp$mean, sd=sqrt(motoagp$var))
+q2 <- qnorm(0.95, mean=motoagp$mean, sd=sqrt(motoagp$var))
+lines(XX, q1, lty=2, col=2, lwd=2)
+lines(XX, q2, lty=2, col=2, lwd=2)
+@
+\caption{Comparison of a global GP predictive surface (black) with a local one (red).
+Predictive means (solid) and 90\% interval (dashed) shown.}
+\label{f:mcycle}
+\end{figure}
+The (full) GP mean surface, shown as solid-black, is smooth and tracks the
+center of the data nicely from left to right over the range of $x$-values.
+However, it is poor at capturing the heteroskedastic nature of the noise
+(dashed-black). The local GP mean is similar, except near $x=35$ where it is
+not smooth.  This is due to the small design.  With only $N=132$ there isn't
+much opportunity for smooth transition as the local predictor tracks across
+the input space, leaving little wiggle room to make a trade-off between
+smoothness ($n=132$, reproducing the full GP results exactly) and adaptivitity
+($n \ll 132$).  Although the mean of the local GP may disappoint, the variance
+offers an improvement over the full GP.  It is conservative where the response
+is wiggly, being similar to the full GP but slightly wider, and narrower where
+the response is flat.
+
+It is interesting to explore how the local GP approximation would fare on
+a larger version of the same problem, where otherwise a local approach is not only essential
+for computational reasons, but also potentially more appropriate from
+a nonstationary modeling perspective on this data.
+For a crude simulation of a larger data setup we
+replicated the data ten times with a little bit of noise on the inputs.
+<<cache=TRUE>>=
+X <- matrix(rep(mcycle[,1], 10), ncol=1)
+X <- X + rnorm(nrow(X), sd=1)
+Z <- rep(mcycle[,2], 10)
+motoagp2 <- aGP(X, Z, XX, end=30, d=d, g=g, verb=0)
+@
+Figure \ref{f:mcycle2} shows the resulting predictive surface.  Notice
+how it does a much better job of tracing predictive uncertainty across the
+input space.
+\begin{figure}[ht!]
+\centering
+<<label=mcycle-rep,fig=TRUE,echo=TRUE,width=6,height=5>>=
+plot(X, Z, main="simulating a larger data setup", xlab="times", ylab="accel")
+lines(XX, motoagp2$mean, col=2, lwd=2)
+q1 <- qnorm(0.05, mean=motoagp2$mean, sd=sqrt(motoagp2$var))
+q2 <- qnorm(0.95, mean=motoagp2$mean, sd=sqrt(motoagp2$var))
+lines(XX, q1, col=2, lty=2, lwd=2)
+lines(XX, q2, col=2, lty=2, lwd=2)
+@
+\caption{Predictive surface obtained after combining ten replications of the
+data with jittered $x$-values.}
+\label{f:mcycle2}
+\end{figure}
+The predictive mean is still overly wiggly, but it does appear to be
+reasonably
+smooth also reveals structure in the
+data that may not have been evident from the scatter-plot alone, and
+likewise is disguised (or overly smoothed) by the full GP fit.  The
+local GP is picking up oscillations for larger input values which
+make sense considering the output is measuring a whiplash effect.  However,
+that may simply be wishful thinking; the replicated response values paired
+with the jittered predictors may not be representative of what would
+have been observed in a larger simulation.
+
+\section{Calibration}
+\label{sec:calib}
+
+Computer model {\em calibration} is the enterprise of matching a simulation
+engine with real, or field, data to ultimately build an accurate predictor for
+the real process at novel inputs.  In the case of large computer simulations,
+calibration represents a capstone application uniquely blending (and allowing
+review of) features, for both large and small-scale spatial modeling
+via GPs, provided by the \pkg{laGP} package.
+
+\citet{kennedy:ohagan:2001} were the first to propose a statistical framework
+for combining simulation output and noisy field observations for model
+calibration. Their hierarchical model links field measurements to potentially
+biased computer simulations.  It is paired with a Bayesian inferential framework for
+jointly estimating, using data from both processes, the bias, noise level, and
+any parameters required to run the computer simulation---so-called {\em
+calibration parameter(s)}---but which cannot be controlled or observed in the
+field.  The setup, which we review below, has many attractive features, however
+it scales poorly when simulations get large.  We explain how
+\citet{gramacy:bingham:etal:2014} modified that setup using \pkg{laGP} and
+provide a live demonstration via an example extracted from that paper.
+
+\subsection{A hierarchical model for Bayesian inference}
+
+Consider data comprised of runs of a computer model $M$ at a
+large space-filling design, and a much smaller number observations from a
+physical or field experiment $F$ which follows a design that respects
+limitations of the experimental apparatus. It is typical to assume that the
+runs of $M$ are deterministic, and that its input space fully contains that of $F$.
+Use $x$ to denote {\em design variables}, that can be adjusted, or at leased
+measured, in the physical system; and let $u$ to denote {\em calibration} or {\em
+tuning parameters}, whose values are required to simulate the system, but are
+unknown in the field. The primary goal is to predict the result of new field
+data experiments, via $M$, which in turn means finding a good $u$.
+
+Toward that goal, \citet[][hereafter KOH]{kennedy:ohagan:2001} proposed the
+following coupling of $M$ and $F$.  Let $y_j^F(x)$ denote the $j^\mathrm{th}$
+replication of the field ``run'' at $x$, and $y^M(x,u)$ denote the (deterministic)
+output of a computer model run.  KOH represent the {\em real} mean process $R$
+as the computer model output at the best setting of the tuning parameters,
+$u^*$, plus a bias term acknowledging that there can be systematic
+discrepancies between the computer model and the underlying mean of the
+physical process.  In symbols, the mean of the physical process is $y^R(x) =
+y^M(x, u^*) + b(x)$. The field observations connect reality with data:
+\begin{align}
+&& y^F_j(x) &= y^R(x) + \varepsilon_{xj},& \varepsilon_{xj} 
+&\iidsim \mN(0, \sigma_\varepsilon^2),  \;\;\; j=1, \dots, n_x. \nonumber \\
+\mbox{giving } && y^F_j(x) &= y^M(x, u^*) + b(x) + \varepsilon_{xj} \label{eq:kohmodel},
+\end{align}
+The unknown parameters are $u^*$, $\sigma_\varepsilon^2$, and the discrepency
+or bias $b(\cdot)$.
+
+If evaluating the computer model is fast, then inference can proceed via
+residuals $y^F_j(x) - y^M(x, u)$, which can be computed at will for any
+$(x,u)$ \citep{higdon2004combining}. However, $y^M$ simulations are usually
+time consuming, in which case it helps to build an emulator $\hat{y}^M(\cdot,
+\cdot)$ fit to code outputs obtained on a computer experiment design of $N_M$
+locations $(x, u)$.  KOH recommend a GP prior for $y^M$, however rather learn
+$\hat{y}^M$ in isolation, using just the $N_M$ runs, as we
+have been doing throughout this document, they recommend inference joint with
+$b(\cdot)$, $u$, and $\sigma_\varepsilon^2$ using both field observations and
+runs of the computer model. From a Bayesian perspective this is the coherent
+thing to do: infer all unknowns jointly given all data.
+
+This is a practical approach when the computer model is {\em very} slow, giving small
+$N_M$. In that setup, the field data can be informative for emulation of
+$y^M(\cdot, \cdot)$, especially when the bias $b(\cdot)$ is very small
+or easy to estimate. Generally however, the computation required for inference in
+this setup is fraught with challenges, especially in the fully Bayesian
+formulation recommended by KOH.  The coupled $b(\cdot)$ and $y^M(\cdot,
+\cdot)$ lead to parameter identification and MCMC mixing issues.  And GP regression,
+taking a substantial computational toll when deployed
+in isolation, faces a compounded burden when coupled with other processes.
+
+\subsection{Calibration as optimization}
+
+\citet{gramacy:bingham:etal:2014} proposed a thriftier approach pairing
+local approximate GP models for emulation with a modularized calibration
+framework \citep{liu:bayarri:berger:2009} and derivative free optimization
+\citep{cohn:scheinberg:vincente:2009}.  {\em Modularized} calibration sounds
+fancy, but its really just back-to-basics: fitting the emulator
+$\hat{y}^M(\cdot, \cdot)$ separately or independently from the bias, using
+only the outputs of runs at a design of $N_M$ inputs $(x, u)$.
+\citeauthor{liu:bayarri:berger:2009}'s justification for modularization
+stemmed from a ``contamination'' concern echoed by other researchers
+\citep[e.g.,][]{joseph:2006,sant:will:notz:2003} where, in the fully Bayesian
+scheme, joint inference allows ``pristine'' field observations to be
+contaminated by an imperfect computer model.
+
+\citeauthor{gramacy:bingham:etal:2014} motivate modularization from
+a more practical perspective, that of de-coupling inference for computational
+tractability in large $N_M$ settings.  They argue that there is little harm in
+doing so for most modern calibration applications, in terms of the quality of
+estimates obtained irrespective of computational considerations.  Due to the
+relative costs, the number of computer model runs involved increasingly dwarfs
+the data available from the field, i.e., $N_M \gg N_F$, making it unlikely
+that field data would substantively enhance the quality of the emulator,
+leaving only risk that joint inference with the bias will obfuscate
+traditional computer model diagnostics, and possibly stunt their subsequent
+re-development or refinement.
+
+Combining modularization with local approximate GPs for emulation, and full GP
+regressions (with nugget $\eta$) for estimating bias-plus-noise from a relatively
+small number of field data observations, $N_F$,
+\citeauthor{gramacy:bingham:etal:2014} recommend
+viewing calibration as an optimization which acts as the glue that ``sticks it
+all together''.
+\begin{algorithm}[ht!]
+\begin{algorithmic}[1]
+\REQUIRE Calibration parameter $u$, fidelity parameter $n_M$, 
+computer data $D^M_{N_M}$,\\ and field data $D^F_{N_F}$.
+\FOR{$j=1, \dots, N_F$}
+\STATE $I \leftarrow \mbox{\tt laGP}(x^F_j, u \mid n_M, D^M_{N_M})$ 
+        \hfill \COMMENT{get indicies of local design}
+\STATE $\hat{\theta} \leftarrow \mbox{\tt mleGP}(D^M_{N_M}[I])$
+        \hfill \COMMENT{local MLE of correlation parameter(s)}
+\STATE $y^{M|u}_j \leftarrow \mbox{\tt muGP}(x^F_j \mid D^M_{N_M}[I], 
+        \hat{\theta})$
+        \hfill \COMMENT{predictive mean emulation 
+        following Eq.~(\ref{eq:preds2})}
+\ENDFOR
+\STATE $\hat{b}_{N_F} \leftarrow  Y^F_{N_F} - Y^{M|u}$
+        \hfill \COMMENT{vectorized bias calculation}
+\STATE $D_{N_F}^{\hat{b}} \leftarrow (\hat{b}_{N_F}, X^F_{N_F})$
+        \hfill \COMMENT{create data for estimating $\hat{b}(\cdot)|\mu$}
+\STATE $\hat{\theta} \leftarrow \mbox{\tt mleGP}(D_{N_F}^{\hat{b}})$
+        \hfill \COMMENT{full GP estimate of $\hat{b}|u$}
+\RETURN $\mbox{\tt predGP}(Y^F_{N_M} | X_{N_M}, \hat{\theta})$ 
+        \hfill \COMMENT{multivariate Student-$t$ density 
+        generalizing (\ref{eq:preds2})}
+\end{algorithmic}
+\caption{Objective function evaluation for modularized local GP calibration.}
+\label{alg:obj}
+\end{algorithm}
+Algorithm \ref{alg:obj} provides pseudocode comprised library
+functions describing the objective function.  In \pkg{laGP}, 
+this objective is
+implemented as \code{fcalib}, comprising of first (steps {\small 1--5}) a call
+to
+\code{aGP.seq} to emulate on a schedule of sequential stages of local
+refinements [Figure \ref{f:alg}]; and then ({\small 6--8}) a call to
+\code{discrep.est} which estimates the GP discrepancy or bias term.  The
+notation used in the psuedo-code, and further explanation, is provided below.
+
+Let the field data be denoted as
+$D^F_{N_F} = (X^F_{N_F}, Y^F_{N_F})$ where $X^F_{N_F}$ is the design matrix of
+$N_F$ field data inputs, paired with a $N_F$ vector of $y^F$ observations
+$Y_{N_F}^F$. Similarly, let $D^M_{N_M} = ([X^M_{N_M},U_{N_M}], Y^M_{N_M})$ be
+the $N_M$ computer model input-output combinations with column-combined $x$-
+and $u$-design(s) and $y^M$-outputs. Then, with an emulator $\hat{y}^M(\cdot,
+u)$ trained on $D^M_{N_M}$, let $\hat{Y}^{M|u}_{N_F} = \hat{y}^M(X^F_{N_F},
+u)$ denote a vector of $N_F$ emulated output $y$-values at the $X_F$ locations
+obtained under a setting, $u$, of the calibration parameter. With local
+approximate GP modeling, each $\hat{y}^{M|u}_j$-value therein, for $j=1,
+\dots, N_F$, can be obtained independently (and in parallel) with
+the others via local sub-design $X_{n_M}(x^F_j, u) \subset
+[X^M_{N_M},U_{N_M}]$ and local inference for the correlation structure.  A key
+advantage of this approach, which makes \pkg{laGP} methods well-suited to the
+task,  is that emulation is performed only where it is needed, at a small
+number $N_F$ of locations $X^F_{N_F}$, regardless of the size $N_M$ of the
+computer model data. The size of the local sub-design, $n_M$, is a fidelity
+parameter, meaning that larger values provide more accurate emulation at
+greater computational expense.  Finally, denote the $N_F$-vector of fitted
+discrepancies as $\hat{b}_{N_F} = Y^F_{N_F} -
+\hat{Y}_{N_F}^{M|u}$.  Given these quantities, the objective
+function for calibration of $u$, coded in Algorithm \ref{alg:obj}, is the
+(log) joint probability density of observing $Y^F_{N_F}$ at inputs
+$X^F_{N_F}$.  Since $N_F$ is small, this can be obtained from a best-fitting GP
+regression model trained on data $D^{\hat{b}}_{N_F} = (\hat{b}_{N_F},
+X^F_{N_F})$, representing the bias estimate $\hat{b}(\cdot)$.
+
+Objective function in hand, we turn to optimizing. The discrete nature of
+independent local design searches for $\hat{y}^M(x_j^F, u)$ ensures that the
+objective is not continuous in $u$. It can look `noisy', although it is in
+fact deterministic.  This means that optimization with derivatives---even
+numerically approximated ones---is fraught with challenges.
+\citeauthor{gramacy:bingham:etal:2014} suggest a derivative-free 
+approach via the mesh adaptive direct search (MADS) algorithm \citep{AuDe2006}
+known as \pkg{NOMAD} \citep{Le09b}. The authors of the \pkg{crs} package
+\citep{crs} provide \code{snomadr}, an \proglang{R} wrapper to the underlying
+\proglang{C++} \pkg{NOMAD} implementation. MADS/\pkg{NOMAD} proceeds by
+successive pairs of {\em search} and {\em poll} steps, trying inputs to the
+objective function on a sequence of meshes which are refined in such a way as
+to guarantee convergence to a local optima under very weak regularity
+conditions; for more details see \cite{AuDe2006}.
+
+As MADS is a local solver, \pkg{NOMAD} requires initialization.  
+\citeauthor{gramacy:bingham:etal:2014} recommend choosing starting
+$u$-values from the best value(s) of the objective found on a small random
+space-filling design.  We note here that although \pkg{laGP} provides
+functions like \code{fcalib}, \code{aGP.seq} and \code{discrep.est} to
+facilitate calibration via optimization, there is no single subroutine
+automating the combination of all elements: selection of initial search point,
+executing search, and finally utilizing the solution to make novel predictions
+in the field.  The illustrative example below in Section \ref{sec:calibex} is
+intended to double as a skeleton for novel application.  It involves a
+\code{snomadr} call with objective \code{fcalib}, after pre-processing to find
+an initial $u$-value via simple iterative search over \code{fcalib} calls.
+Then, after optimization returns an optimal $u^*$ value, the example
+demonstrates how estimates of $\hat{b}(x)$ and $\hat{y}^M(x, u^*)$ can be
+obtained by retracing steps in Algorithm
+\ref{alg:obj} to extract a local design and correlation parameter (via
+\code{aGP.seq}), parallelized for many $x$.  Finally, using saved
+$D^{\hat{b}}_{N_F}$ and $\hat{\theta}$ from the optimization, or quickly
+re-computing them via \code{discrep.est}, it builds a predictor for the field
+at new $x$ locations. Emulations and biases are thus combined into
+distribution for the $y^F(x)|u^*$, a sum of Student-$t$ random variables for
+$\hat{y}^M(x,u)$ and $\hat{b}(x)$ comprising $y^F(x)|u^*$. However, if $N_F,
+n_M \geq 30$ summing normals suffices.
+
+\subsection{An illustrative example}
+\label{sec:calibex} 
+
+Consider the following computer model test function used by
+\citet{goh:etal:2013}, which is an elaboration of one first described by 
+\citet{bastos:ohagan:2009}.
+<<>>=
+M <- function(x,u) 
+  {
+    x <- as.matrix(x)
+    u <- as.matrix(u)
+    out <- (1-exp(-1/(2*x[,2]))) 
+    out <- out * (1000*u[,1]*x[,1]^3+1900*x[,1]^2+2092*x[,1]+60) 
+    out <- out / (100*u[,2]*x[,1]^3+500*x[,1]^2+4*x[,1]+20)  
+    return(out)
+  }
+@
+\citeauthor{goh:etal:2013} paired this with the following discrepancy
+function to simulate real data under a process like (\ref{eq:kohmodel}).
+<<>>=
+bias <- function(x) 
+  {
+    x<-as.matrix(x)   
+    out<- 2*(10*x[,1]^2+4*x[,2]^2) / (50*x[,1]*x[,2]+10)
+    return(out)
+  }
+@
+Data coming from the ``real'' process is simulated under
+ a true (but unknown) $u$-value, and then
+augmented with bias and noise processes as follows.
+<<cache=TRUE>>=
+library(tgp)  ## for lhs sampling in non-unit rectangle
+rect <- matrix(rep(0:1, 4), ncol=2, byrow=2)
+ny <- 50
+X <- lhs(ny, rect[1:2,])
+u <- c(0.2, 0.1)
+Zu <- M(X, matrix(u, nrow=1)) 
+sd <- 0.5
+## Y <- computer output + bias + noise
+reps <- 2
+Y <- rep(Zu,reps) + rep(bias(X),reps) + rnorm(reps*length(Zu), sd=sd) 
+@
+The code uses \code{Y} denote field data observations $Y_{N_F}^F$ with
+$N_M =$~\code{ny}~$=$~\Sexpr{ny}, which stores two replicates at
+each $X^F_{N_F} =$ \code{X} location.  \citet{gramacy:bingham:etal:2014}
+illustrated this example with ten replicates.  We keep it smaller here
+for faster execution in live demonstration.
+
+The computer model runs are generated as follows
+<<cache=TRUE>>=
+nz <- 10000
+XU <- lhs(nz, rect)
+XU2 <- matrix(NA, nrow=10*ny, ncol=4)
+for(i in 1:10) {
+  I <- ((i-1)*ny+1):(ny*i)
+  XU2[I,1:2] <- X
+}
+XU2[,3:4] <- lhs(10*ny, rect[3:4,])
+XU <- rbind(XU, XU2)
+Z <- M(XU[,1:2], XU[,3:4])
+@
+Observe that the design $X_{N_M}^M =$~\code{XU} is a large LHS in four
+dimensions, i.e., over design and calibration parameters jointly,
+augmented with ten-fold replicated field design inputs paired with LHS
+$u$-values.  This recognizes that it is sensible to run the computer model
+at inputs where field runs have been observed.  \code{Z} is used to 
+denote $Y^M_{N_M}$.
+
+The following block sets priors and specifies details of
+the model(s) to be estimated.
+<<>>=
+bias.est <- TRUE
+methods <- rep("alc", 2)
+da <- d <- darg(NULL, XU)
+g <- garg(list(mle=TRUE), Y) 
+@
+Changing \code{bias.est = FALSE} will cause estimation of bias
+$\hat{b}({\cdot})$ to be skipped, and instead only the level
+of noise between computer model and field data is estimated.  The \code{methods} vector
+specifies the nature of search and number of passes through the data
+for local design and inference.  Finally \code{da}, \code{d} and \code{g}
+contain default priors for the lengthscale of the computer model emulator,
+the and the bias parameters respectively.  The prior is completed with
+a (log) prior density on the calibration parameter, $u$, which we choose
+to be independent Beta with a mode in the middle of the space.
+<<>>=
+beta.prior <- function(u, a=2, b=2, log=TRUE)
+{
+  if(length(a) == 1) a <- rep(a, length(u))
+  else if(length(a) != length(u)) stop("length(a) must be 1 or length(u)")
+  if(length(b) == 1) b <- rep(b, length(u))
+  else if(length(b) != length(u)) stop("length(b) must be 1 or length(u)")
+  if(log) return(sum(dbeta(u, a, b, log=TRUE)))
+  else return(prod(dbeta(u, a, b, log=FALSE)))
+}
+@
+
+Now we are ready to evaluate the objective function on a ``grid'' 
+to search for a good initialization for a more penetrating search by 
+\pkg{NOMAD}.  The following code builds the ``grid'' via a space-filling
+design on a slightly smaller domain than the input space allows.  Experience
+suggests that initializing too close to the boundary of the input space leads
+to poor performance in \pkg{NOMAD} searches.
+<<cache=TRUE>>=
+initsize <- 10*ncol(X)
+imesh <- 0.1
+irect <- rect[1:2,]
+irect[,1] <- irect[,1] + imesh/2
+irect[,2] <- irect[,2] - imesh/2
+uinit.cand <- lhs(10*initsize, irect) 
+uinit <- dopt.gp(initsize, Xcand=lhs(10*initsize, irect))$XX
+llinit <- rep(NA, nrow(uinit))
+for(i in 1:nrow(uinit)) {
+  llinit[i] <- fcalib(uinit[i,], XU, Z, X, Y, da, d, g, beta.prior, 
+                  methods, M, bias.est, nth, verb=0)
+}
+@
+By default, \code{fcalib} echoes the input and calculated objective value
+(log likelihood or posterior probability) to the screen.  This can be useful
+for tracking progress for an optimization, say via \pkg{NOMAD}, however
+we suppress this prevent clutter.  The \code{fcalib} function
+has an argument called \code{save.global} which (when not \code{FALSE}) 
+causes the information
+which would be printed to the screen to be saved in a global variable called 
+\code{fcalib.save} in the environment indicated (e.g., \code{save.global = .GlobalEnv}), 
+which can be useful for visualization once the optimization
+has completed.  That flag isn't engaged above, since the required quantities,
+\code{uinit} and \code{llinit} respectively, are already in hand. We will,
+however, utilize this feature below as \code{snomadr} does not provide an
+alternative mechanism for saving progress information for later inspection.
+
+The next code chunk loads the \pkg{crs} library which contains \code{snomadr},
+the \proglang{R} interface to \pkg{NOMAD}, and then creates a list of options
+that are passed to \pkg{NOMAD} via \code{snomadr}.  
+<<>>=
+library(crs)
+opts <- list("MAX_BB_EVAL"=1000, "INITIAL_MESH_SIZE"=imesh, 
+  "MIN_POLL_SIZE"="r0.001", "DISPLAY_DEGREE"=0)
+@
+We have found that these options work well when the input space is
+scaled to the unit cube.  They are derived from defaults recommended in the
+\pkg{NOMAD} documentation.
+
+Now we are ready to invoke \code{snomadr} on the best input(s) found on grid
+established above.  The code below orders those inputs by their objective
+value, and then loops over them until a minimum number of \pkg{NOMAD}
+iterations has been reached.  Usually, this threshold results in just one pass
+through the \code{while} loop, however it offers some robustness in the face
+of occasional pre-mature convergence.  In practice it may be sensible to
+perform a more exhaustive search if computational resources are abundant.
+
+<<cache=TRUE>>=
+its <- 0
+o <- order(llinit)
+i <- 1
+out <- NULL
+while(its < 10) {
+  outi <- snomadr(fcalib, 2, c(0,0), 0, x0=uinit[o[i],],
+            lb=c(0,0), ub=c(1,1), opts=opts, XU=XU, 
+            Z=Z, X=X, Y=Y, da=da, d=d, g=g, methods=methods, M=M, 
+            bias=bias.est, omp.threads=nth, uprior=beta.prior, 
+            save.global=.GlobalEnv, verb=0)
+  its <- its + outi$iterations
+  if(is.null(out) || outi$objective < out$objective) out <- outi
+  i <- i + 1;
+}
+@
+
+From the two major chunks of code above, we collect
+ evaluations of \code{fcalib}, combining a space-filling set
+of \code{u}-values and onces placed along stencils in search of the
+\code{u}-value which maximizes the likelihood (or posterior probability).
+In this 2-d problem, that's enough to get good resolution on the
+log likelihood/posterior surface in \code{u}.  The code below discards 
+any input pairs that are not finite.  Infinite values result
+when \pkg{NOMAD} tries input settings that lie exactly on
+the bounding box.
+<<>>=
+Xp <- rbind(uinit, as.matrix(fcalib.save[,1:2]))
+Zp <- c(-llinit, fcalib.save[,3])
+wi <- which(!is.finite(Zp))
+if(length(wi) > 0) { Xp <- Xp[-wi,]; Zp <- Zp[-wi]}
+surf <- interp(Xp[,1], Xp[,2], Zp, duplicate="mean")
+@
+\begin{figure}[ht!]
+\centering
+<<label=usurf,fig=TRUE,echo=TRUE,width=6,height=5>>=
+image(surf, xlab="u1", ylab="u2", main="posterior surface",
+  col=heat.colors(128), xlim=c(0,1), ylim=c(0,1))
+points(uinit)
+points(fcalib.save[,1:2], col=3, pch=18)
+u.hat <- outi$solution
+points(u.hat[1], u.hat[2], col=4, pch=18)
+abline(v=u[2], lty=2)
+abline(h=u[1], lty=2)
+@
+\caption{A view of the log likelihood/posterior surface as a function
+of the calibration inputs, with the optimal \code{u.hat} value (green dot),
+the initial grid (open circles) and points of evaluation along the \pkg{NOMAD}
+search (black dots), and the true \code{u}-value (cross-hairs) shown.}
+\label{f:usurf}
+\end{figure}
+Figure \ref{f:usurf} shows an image plot of the surface, with lighter-
+colored values indicating a larger value of likelihood/posterior probability.
+The initialization points (open circles), evaluations along the \pkg{NOMAD}
+search (black dots), and the ultimate value found in optimization (green dot)
+are also shown.
+
+Observe, by comparing to the true \code{u}-value
+(cross-hairs), that the \code{u.hat} value we found is far from the value that
+generated the data.  In fact, while the surface is fairly peaked around the
+best \code{u.hat}-value that we found, it gives very little support to the true
+value.  Since there are were far fewer evaluations made near the true
+value, it is worth checking if the solver missed an area of high 
+likelihood/probability.
+<<cache=TRUE>>=
+Xu <- cbind(X, matrix(rep(u, ny), ncol=2, byrow=TRUE))
+Mhat.u <- aGP.seq(XU, Z, Xu, da, methods, ncalib=2, omp.threads=nth, verb=0)
+cmle.u <- discrep.est(X, Y, Mhat.u$mean, d, g, bias.est, FALSE)
+cmle.u$ll <- cmle.u$ll + beta.prior(u)
+@
+Comparing log likelihood/posterior probabilities yields:
+<<>>=
+data.frame(u.hat=-outi$objective, u=cmle.u$ll)
+@
+Well that's reassuring in some ways---the optimization part is performing
+well---but not in others.  Perhaps modeling apparatus introduces some
+identification issues that prevent recovering the data-generating
+\code{u}-value by maximizing likelihood/posterior probability.
+
+Before searching for an explanation, lets check predictive accuracy
+in the field on 
+a holdout set, again pitting the true \code{u}-value against our \code{u.hat}.
+We first create a random testing design and set aside the true predicted values 
+on those inputs for later comparison.
+<<cache=TRUE>>=
+nny <- 1000  
+XX <- lhs(nny, rect[1:2,],)
+ZZu <- M(XX, matrix(u, nrow=1)) 
+YYtrue <- ZZu + bias(XX) 
+@
+Now we can calculate an out-of-sample RMSE value, first based
+on the true \code{u}-value.
+<<cache=TRUE>>=
+XXu <- cbind(XX, matrix(rep(u, nny), ncol=2, byrow=TRUE))
+Mhat.oos.u <- aGP.seq(XU, Z, XXu, da, methods, ncalib=2, 
+  omp.threads=nth, verb=0)
+YYm.pred.u <- predGP(cmle.u$gp, XX)
+YY.pred.u <- YYm.pred.u$mean + Mhat.oos.u$mean
+rmse.u <- sqrt(mean((YY.pred.u - YYtrue)^2))
+deleteGP(cmle.u$gp)
+@
+
+Turning to an RMSE calculation using the estimated \code{u.hat}
+value, we must re-build some key objects under
+that value as those objects are not returned to us via either
+\code{fcalib} or \code{snomadr}.
+<<cache=TRUE>>=
+Xu <- cbind(X, matrix(rep(u.hat, ny), ncol=2, byrow=TRUE))
+Mhat <- aGP.seq(XU, Z, Xu, da, methods, ncalib=2, omp.threads=nth, verb=0)
+cmle <- discrep.est(X, Y, Mhat$mean, d, g, bias.est, FALSE)
+cmle$ll <- cmle$ll + beta.prior(u.hat)
+@
+As a sanity check, it is nice to see that the value of the log
+likelihood/posterior probability matches with the one we obtained
+from \code{snomadr}:
+<<>>=
+print(c(cmle$ll, -outi$objective))
+@
+Now we can repeat what we did with the true \code{u}-value with
+our estimated one \code{u.hat}.
+<<cache=TRUE>>=
+XXu <- cbind(XX, matrix(rep(u.hat, nny), ncol=2, byrow=TRUE))
+Mhat.oos <- aGP.seq(XU, Z, XXu, da, methods, ncalib=2, omp.threads=nth, verb=0)
+YYm.pred <- predGP(cmle$gp, XX)
+YY.pred <- YYm.pred$mean + Mhat.oos$mean
+rmse <- sqrt(mean((YY.pred - YYtrue)^2))
+@
+Wrapping up the comparison, we obtain the following:
+<<>>=
+data.frame(u.hat=rmse, u=rmse.u)
+@
+Indeed, our estimated \code{u.hat}-value leads to better predictions of
+the field data out-of-sample.
+\citet{gramacy:bingham:etal:2014} offer an explanation.  The KOH
+model is, with GPs for emulation and bias, overly flexible and consequently 
+challenges  identification of the unknown parameters.  Authors have
+commented on this before, including KOH to a limited extent.  Interlocking GP
+predictors \citep{bah:joseph:2012} and the introduction of auxiliary inputs
+\citep{bornn:shaddick:zidek:2012}, of which the $u$-values are an example,
+have recently been proposed as deliberate mechanisms for handling
+non-stationary features in response surface models, particularly for computer
+experiments.  The KOH framework combines both, and predates those works by
+more than a decade, so in some sense the model being fit is leveraging tools
+designed for flexibility in response surface modeling, possibly at the expense
+of being faithful to the underlying meanings of parameters like $u$ and bias
+processes $b(\cdot)$.  In any event, we draw comfort from evidence that the
+method yields accurate predictions, which in most calibration applications is
+the primary aim.
+
+\section{Ongoing development and extensions}
+\label{sec:hooks}
+
+The \pkg{laGP} package is under active development, and the corpus of code
+was developed with ease of extension in mind.  The calibration application from
+Section \ref{sec:calib} is a perfect example: simple functions
+tap into local GP emulators and full GP discrepancies alike,
+and are paired with existing direct optimizing subroutines from other packages
+for a powerful solution to large scale calibration problems that are becoming
+commonplace in the recent literature.  
+
+The library comprises of roughly fifty \proglang{R} functions, although barely
+a fraction of those are elevated to the user's namespace for use in a typical
+\proglang{R} session.  Many of the inaccesible/undocumented functions have a
+purpose which, at this time, seem less directly useful outside their calling
+environment, but may eventually be promoted.  Many higher level functions,
+like \code{laGP} and \code{aGP} which access \proglang{C} subroutines, have a
+development-analog (\code{laGP.R} and
+\code{aGP.R}) which implement similar (usually with identical output, our a
+superset of output) subroutines entirely in \proglang{R}. These were 
+used as stepping stones in the development of the \proglang{C} versions,
+however they remain as a window into the inner-workings of the package and as
+a skeleton for curious users development of new extensions.  The local
+approximate GP methodology is, in a nutshell, just a judicious combination of
+established subroutines from the recent spatial statistics and computer
+experiments literature.  We hope that exposing those combinations in
+well-organized code will spur others to take a similar tack in developing
+their own solutions in novel contexts.
+
+As one example we provide a final illustration, here, of how some of the basic
+functionality in the package---only utilizing full (non local) GP
+subroutines---was useful in solving hard blackbox optimization problems under
+constraints.
+\citet{gramacy:etal:2014} showed how the augmented Lagrangian, an apparatus
+popular for solving similar constrained optimization problems in the recent
+literature \citep[see, e.g.,][]{kannan:wild:2012}, could be combined with the
+method of expected improvement \citep[EI;][]{jones:schonlau:welch:1998} to
+solve a particular type of optimization where the objective was known (and in
+particular was linear), but where the constraints required (potentially expensive)
+simulation.  Searching for an optimal valid setting of the inputs to the blackbox 
+function could be substantially complicated by a difficult-to-map
+constraint satisfaction boundary.
+
+Consider the following objective and constraint function meeting that description.
+<<cache=TRUE>>=
+blackbox <- function(x)
+{
+  f <- sum(x)
+  c1 <- 1.5-x[1]-2*x[2]-0.5*sin(2*pi*(x[1]^2-2*x[2]))
+  c2 <- x[1]^2+x[2]^2-1.5
+  return(list(obj=f, c=c(c1,c2)))
+}
+@
+The input space is two-dimensional, and the goal is to find a solution \code{xstar}
+in the bounding box, \code{B}
+<<cache=TRUE>>=
+B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
+B
+@
+for which \verb!all(blackbox(xstar)$c <= 0!, meeting the constraint, yet
+\verb!blackbox(xstar)$obj! minimized.  There are three local minima which satisfy
+the constraints; for more details see \citet{gramacy:etal:2014}.
+
+The \pkg{laGP} package implements a hybrid EI--augmented Lagrangian method, which is described in detail by 
+the above reference, in the function \code{optim.auglag}.
+<<cache=TRUE>>=
+out.aug <- optim.auglag(blackbox, B, ab=c(3/2,8), end=100, verb=0)
+@
+The output object contains information about the inputs that were sent to
+the blackbox for evaluation, the corresponding outputs obtained in terms of objective and
+constraints, and also tracks the best value of the objective with a valid input 
+(i.e., the progress).
+<<>>=
+out.aug$prog[100]
+valid <- apply(out.aug$C, 1, function(x) { all(x <= 0) })
+m <- which.min(out.aug$obj[valid])
+(out.aug$obj[valid])[m]
+(out.aug$X[valid,])[m,]
+@
+The algorithm is initialized stochastically, and in 99\% of restarts it finds
+the correct global (valid) minimum (0.6) by the end of the budget of 100
+blackbox evaluations.  Inspecting the code in \code{optim.auglag} reveals
+several useful GP-related functions provided in the package, such as
+\code{updateGP},
+\code{rbetter}, \code{alGP}.
+
+By way of comparison, consider deploying the method of simulated annealing
+\citep[SA;][]{kirk:1983} as implemented by \code{method="SANN"} in the
+\code{optim} function for \proglang{R}.  The \code{optim} function only supports
+box constraints, so we cannot provide the \code{blackbox} function directly.
+To convert a mixed objective and constraint function into a workable hybrid objective,
+we deploy the additive penalty method (APM).
+<<cache=TRUE>>=
+blackbox.apm <- function(x, B=matrix(c(rep(0,2),rep(1,2)),ncol=2))
+{ 
+  ## check bounding box
+  for(i in 1:length(x)) {
+    if(x[i] < B[i,1] || x[i] > B[i,2]) return(Inf)
+  }
+
+  ## evaluate objective and constraints
+  f <- sum(x)
+  c1 <- 1.5-x[1]-2*x[2]-0.5*sin(2*pi*(x[1]^2-2*x[2]))
+  c2 <- x[1]^2+x[2]^2-1.5
+
+  ## return APM composite
+  return(f + abs(c1) + abs(c2))
+}
+@
+Now we are ready to optimize with SA.
+<<cache=TRUE>>=
+out.sann <- optim(runif(2), blackbox.apm, method="SANN") 
+@
+The solution returned is:
+<<>>=
+out.sann
+@
+Note that the final value typically does not satisfy the constraints as
+the search typically approaches local optima from the invalid side
+of the boundary.  If the final solution isn't valid, it is usually very
+close to the boundary.
+<<>>=
+blackbox(out.sann$par)
+@
+The objective value found is near 0.6 only about 60\% of the time in
+repeated random restarts despite performing hundreds of blackbox evaluations.
+
+
+\appendix
+
+\section{Custom compilation}
+
+Here we provide hints for enabling the parallelization hooks, via \pkg{OpenMP}
+for multi-core machines and \proglang{CUDA} for graphics cards.  The package
+also includes some wrapper functions, like \code{aGP.parallel}, which allow a
+large predictive set to be divvied up amongst multiple nodes in a cluster
+established via the \pkg{parallel} or \pkg{snow} packages.
+
+\subsection[With OpenMP support for parallelization]{With \pkg{OpenMP} for SMP parallelization}
+\label{sec:omp}
+
+Several routines in the \pkg{laGP} package include support for parallelization
+on multi-core machines.  The most important one is \code{aGP} which allows
+large prediction problems to be divvied up and distributed across multiple
+threads to be run in parallel.  The speedups are roughly linear as long as the
+numbers of threads is less than or equal to the number of cores.  This is controlled
+through the \code{omp.threads} argument.
+
+If \proglang{R} is compiled with \pkg{OpenMP} support enabled---which at
+the time of writing is not the default in any of the standard builds----then
+no special action is needed in order to extend that functionality to
+\pkg{laGP}.  It will just work.  One way to check if this is the case on your
+machine is to provide an \code{omp.threads} argument, say to \code{aGP}, which
+is bigger than one.  If \code{OpenMP} support is not enabled then you will get
+a warning.  If you are working within a well-managed supercomputing facility,
+then it may be that \proglang{R} has already been compiled with \pkg{OpenMP}
+support. If not, perhaps it is worth requesting that it be re-compiled as
+there are many benefits to doing so, beyond those which extend to the
+\pkg{laGP} package.  For example, many linear algebra intensive packages,
+of which \pkg{laGP} is one, benefit from liking to MKL libraries from Intel,
+in addition to \pkg{OpenMP}.
+ 
+In the case where you are using a standard \proglang{R} binary, it is still
+possible to compile \pkg{laGP} from source with
+\pkg{OpenMP} features assuming your compiler (e.g., GCC) supports them.  This is a
+worthwhile step if you are working on a multi-core machine, which is rapidly
+becoming the standard setup for desktops and laptops alike. For those with
+experience compiling \proglang{R} packages from source, the procedure is quite
+straightforward and does not require compiling or installing a bespoke version
+of
+\proglang{R}.  Obtain the package source (e.g., from CRAN) and, before compiling,
+open up the package and make two small edits to laGP/src/Makevars.  These instructions
+assume a GCC compiler.  For other compilers, please consult documentation for appropriate
+flags.
+
+\begin{enumerate}
+\item Replace \verb!$(SHLIB_OPENMP_CFLAGS)! in the \verb!PKG_CFLAGS! line with \verb!-fopenmp!.  
+\item Replace \verb!$(SHLIB_OPENMP_CFLAGS)! in the \verb!PKG_LIBS! line with \verb!-lgomp!
+\end{enumerate}
+
+The laGP/src/Makevars file contains commented out lines which implement these
+changes.  Once   made, simply install the package as usual,
+either doing ``R CMD INSTALL'' on the modified directory our, or after re-tarring
+it up.  Note that for Apple machines as of Xcode v5, with OSX Mavericks,
+the \code{Clang} compiler provided by Apple does not include OpenMP support.  We
+suggest downloading GCC v9 or later, for example from
+\url{http://hpc.sourceforge.net}, and following the instructions therein.
+
+
+\subsection[With NVIDIA CUDA GPU support]{With NVIDIA \proglang{CUDA} GPU support}
+\label{sec:gpu}
+
+The package supports graphics card acceleration of a key subroutine:
+searching for the next local design sight $x_{j+1}$ over a potentially vast
+number of candidates $X_N \setminus X_n(x)$---Step 2(b) in Figure
+\ref{f:alg}.  Custom complication is required to enable this feature, the
+details of which are described here, and also requires a properly configured Nvidia
+Graphics card, drivers, and compilation programs (e.g., the Nvidia \proglang{CUDA}
+compiler \code{nvcc}).  Compiling and linking to \proglang{CUDA} libraries can
+be highly archictecture and operating system specific, therefore the very
+basic instructures here may not work widely.  They have been tested on a
+varity of Unix-alikes including Intel-based Ubuntu Linux and OSX systems. 
+
+First compule the \code{alc_gpu.cu} file into an object using the Nvidia 
+\proglang{CUDA} compler.  E.g., after untarring the packge change into \code{laGP/src}
+and do
+\begin{verbatim}
+% nvcc -arch=sm_20 -c -Xcompiler -fPIC alc_gpu.cu -o alc_gpu.o
+\end{verbatim}
+Alternatively, you can use/edit the ``\code{alc_gpu.o:}'' definition in the \code{Makefile}
+provided.  
+
+Then, make the following changes to \code{laGP/src/Makevars}, possibly
+augmenting changes made above to accommodate \pkg{OpenMP} support, as
+described above.  \pkg{OpenMP} (i.e., using multiple CPU threads) brings out
+the best in our GPU implementation.
+
+\begin{enumerate}
+\item Add \verb!-D_GPU! to the \verb!PKG_FLAGS!
+\item Add \verb!alc_gpu.o -L /software/cuda-5.0-el6-x86_64/lib64 -lcudart! to the
+\verb!PKG_LIBS!. Please replace ``\verb!/software/cuda-5.0-el6-x86_64/lib64!''
+with the path to the CUDA libs on your machine.  CUDA 4.x has also been
+tested.
+\end{enumerate}
+
+The \verb!laGP/src/Makvars! file contains commented out lines which implement
+these changes.  Once made, simply install the package as
+usual.  Alternatively, use \verb!make allgpu! to via the definitions in the
+\code{Makefile} to compile a standalone shared object.
+
+The four functions in the package with GPU support are \code{alcGP},
+\code{laGP}, \code{aGP}, and \code{aGP.parallel}. The first two have a simple
+switch which allows a single search (Step 2(b)) to be off-loaded to a single
+GPU.  Both also support off-loading the same calculations to multiple cores in
+a CPU, via \code{OpenMP} if enabled.  The latter \code{aGP} variations
+control the GPU interface via two arguments:
+\code{num.gpus} and \code{gpu.threads}.  The former specifies how many GPUs
+you wish to use, and indicating more you actually have will trip an
+error.  The latter, which defaults to \code{gpu.threads = num.gpus}, specifies
+how many CPU threads should be used to queue GPU jobs.  Having \code{gpu.threads < num.gpus}
+is an inefficient use of resources, whereas \code{gpu.threads > num.gpus}, up to 
+\code{2*num.gpus} will give modest speedups.  Having multiple threads queue onto the
+same GPU reduces the amount of time the GPU is idle.  \code{OpenMP} support must
+be included in the package to have more than one \code{gpu.thread}.
+
+By default, \code{omp.threads} is set to zero when \code{num.gpus > 1} since
+divvying the work amongst GPU and CPU threads can present load balancing
+challenges.  However, if you get the load balancing right you can observe
+substantial speedups.  \citet{gramacy:niemi:weiss:2014} observe up to 50\%
+speedups, and recommend a scheme for allocating \code{omp.threads=10} with a
+setting of \code{nn.gpu} that allocates about 90\% of the work to GPUs
+(\code{nn.gpu = floor(0.9*nrow(XX))}) and 10\% to the ten \pkg{OpenMP}
+threads.
+
+\bibliography{laGP}
+
+\end{document}

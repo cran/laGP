@@ -1,6 +1,7 @@
 \name{newGP}
 \alias{newGP}
 \alias{updateGP}
+\alias{newGPsep}
 
 \title{
 Create A New GP Object
@@ -12,6 +13,7 @@ Create A New GP Object
 }
 \usage{
 newGP(X, Z, d, g, dK = FALSE)
+newGPsep(X, Z, d, g)
 updateGP(gpi, X, Z, verb = 0)
 }
 
@@ -25,7 +27,8 @@ updateGP(gpi, X, Z, verb = 0)
 }
   \item{d}{
     a positive scalar lengthscale parameter for an isotropic Gaussian
-    correlation function
+    correlation function (\code{newGP}); or a vector for a separable
+    version (\code{newGPsep}) with limited capibility
 }
   \item{g}{
     a positive scalar nugget parameter
@@ -33,7 +36,9 @@ updateGP(gpi, X, Z, verb = 0)
   \item{dK}{
     a scalar logical indicating whether or not derivative information
   should be maintained by the GP object; this is required for
-  calculating MLEs/MAPs via \code{\link{mleGP}}, \code{\link{jmleGP}}
+  calculating MLEs/MAPs via \code{\link{mleGP}}, \code{\link{jmleGP}};
+  \code{newGPsep} does not have a \code{dK} argument since the required
+  derivatives are maintained automatically
 }
 \item{gpi}{
   a C-side GP object identifier (positive integer); e.g., as returned by \code{newGP}
@@ -46,20 +51,26 @@ updateGP(gpi, X, Z, verb = 0)
 }
 \details{
   \code{newGP} allocates a new GP object on the C-side and returns its
-  unique integer identifier, taking time which is cubic on
+  unique integer identifier (\code{gpi}), taking time which is cubic on
   \code{nrow(X)};  allocated GP objects must (eventually) be destroyed
   with \code{\link{deleteGP}} or \code{\link{deleteGPs}} or memory will leak.
+  The same applies for \code{newGPsep}, except deploying a separable 
+  correlation with limited feature set; see \code{\link{deleteGPsep}} and
+  \code{\link{deleteGPseps}}
 
-  \code{updateGP} takes such an identifier as
+  \code{updateGP} takes \code{gpi} identifier as
   input and augments that GP with new data.  A sequence of updates is
   performed, for each \code{i in 1:nrow(X)}, each taking time which is
-  quadratic in the number of data points.
-
+  quadratic in the number of data points. 
   \code{updateGP} also updates any statistics needed in order to quickly
-  search for new local design candidates via \code{\link{laGP}}
+  search for new local design candidates via \code{\link{laGP}}.
+
+  \code{updateGP} is not supported for separable GP objects created
+  by \code{newGPsep}
 }
 \value{
- \code{newGP} returns a unique GP indicator (\code{gpi}) referencing a C-side object;
+ \code{newGP} and \code{newGPsep} create 
+ a unique GP indicator (\code{gpi}) referencing a C-side object;
   \code{updateGP} does not return anything, but yields a modified C-side object as a 
   side effect
 }
@@ -81,8 +92,8 @@ updateGP(gpi, X, Z, verb = 0)
 }
 
 \seealso{
-\code{\link{deleteGP}}, \code{\link{mleGP}},
-\code{\link{jmleGP}}, \code{\link{predGP}}, \code{\link{laGP}}, \code{\link{laGP}}
+\code{\link{deleteGP}}, \code{\link{deleteGPsep}}, \code{\link{mleGP}},
+\code{\link{mleGPsep}}, \code{\link{predGP}}, \code{\link{laGP}}, \code{\link{laGP}}
 }
 
 \examples{

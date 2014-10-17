@@ -1,23 +1,30 @@
 \name{mleGP}
 \alias{mleGP}
+\alias{mleGPsep}
 \alias{jmleGP}
 \alias{jmleGP.R}
+\alias{jmleGPsep}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
   Inference for GP correlation parameters
 }
 \description{
-  Maximum likelihood/a posteriori inference for (isotropic Gaussian) 
-  lengthscale and nugget parameters, marginally or jointly, for 
+  Maximum likelihood/a posteriori inference for (isotropic and separable)
+   Gaussian lengthscale and nugget parameters, marginally or jointly, for 
   Gaussian process regression
 }
 \usage{
-mleGP(gpi, param = c("d", "g"), tmin = 0, tmax = -1, ab = c(0, 0),
-      verb = 0)
-jmleGP(gpi, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
-      dab=c(0,0), gab=c(0,0), verb=0)
-jmleGP.R(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
-      dab=c(0,0), gab=c(0,0), verb=0)
+mleGP(gpi, param = c("d", "g"), tmin=sqrt(.Machine$double.eps), 
+  tmax = -1, ab = c(0, 0), verb = 0)
+mleGPsep(gpsepi, param=c("d", "g"), tmin=sqrt(.Machine$double.eps), 
+  tmax=-1, ab=c(0,0), maxit=100, verb=0)
+jmleGP(gpi, drange=c(sqrt(.Machine$double.eps),10), 
+  grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), verb=0)
+jmleGP.R(gpi, N=100, drange=c(sqrt(.Machine$double.eps),10), 
+  grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), verb=0)
+jmleGPsep(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10), 
+  grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), 
+  maxit=100, verb=0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -25,6 +32,7 @@ jmleGP.R(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
     a C-side GP object identifier (positive integer);
     e.g., as returned by \code{\link{newGP}}
   }
+  \item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object}
   \item{N}{ for \code{jmleGP.R}, the maximum number of times the pair of margins
     should be iterated over before determining failed convergence; note
     that (at this time) \code{jmleGP} uses a hard-coded \code{N=100} in
@@ -51,6 +59,10 @@ jmleGP.R(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
   either value results in no-prior being used (MLE inference); otherwise
   MAP inference is performed
 }
+\item{maxit}{ for \code{mleGPsep} this is passed as \code{control=list(trace=maxit)}
+  to \code{\link{optim}} implemented the L-BFGS-B method for optimizing
+  the likelihood/posterior of a separable GP representation; this argument is
+  not used for isotropic GP versions, and nor for optimizing the nugget }
 \item{dab}{ for \code{jmleGP}, this is \code{ab} for the lengthscale
   parameter }
 \item{gab}{ for \code{jmleGP}, this is \code{ab} for the nugget
@@ -62,22 +74,44 @@ jmleGP.R(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
 }
 }
 \details{
-  \code{mleGP} performs marginal (or profile) inference for the
-  specified \code{param}, either the lengthscale or the nugget;  it has
-  a hard-coded 100-max iterations threshold and a
-  \code{sqrt(.Machine$double.eps)} tolerance for determining convergence.
+  \code{mleGP} and \code{mleGPsep} performs marginal (or profile) inference
+  for the specified \code{param}, either the lengthscale or the nugget. 
 
-  \code{jmleGP} provides joint inference by iterating over the
-  marginals.  The \code{jmleGP.R} function is an \R-only wrapper around
+  For the lengthscale, \code{mleGP} uses a Newton-like scheme with analytic first 
+  and second derivatives (more below) to find the single scalar parameter for the isotropic
+  Gaussian correlation function, with hard-coded 100-max iterations threshold and a
+  \code{sqrt(.Machine$double.eps)} tolerance for determining convergence;
+  \code{mleGPsep} uses L-BFGS-B via \code{\link{optim}} for the 
+  vectorized parameter of the separable Gaussian correlation, with a user-supplied
+  maximum number of iterations (\code{maxit}) passed to \code{\link{optim}}.  
+  When \code{maxit} is reached the output \code{conv = 1} is returned, whereby
+  subsequent identical calls to \code{mleGPsep} can be used to continue with
+  further iterations.
+
+  For the nugget, both \code{mleGP} and \code{mleGPsep} utilize a (nearly 
+  identical) Newton-like scheme leveraging derivatives.
+
+  \code{jmleGP} and \code{jmleGPsep} provides joint inference by iterating
+  over the marginals of lengthscale and nugget.  The \code{jmleGP.R} function
+  is an \R-only wrapper around
   \code{mleGP} (which is primarily in C), whereas \code{jmleGP} is
-  primarily in C but should give the same output. 
+  primarily in C but should give the same output. No such variation is
+  provided for \code{jmleGPsep}.
 
-  By default, the algorithm is a modified Newton method initialized at
-  the previous setting of the parameter(s).  Convergence is usually very
-  fast.  Sometimes the Newton method fails however (for any of the usual
-  reasons). The \code{mleGP} method can detect this, and in such cases
-  it invokes a \code{Brent_fmin} call instead - this is the method behind
-  the \code{\link{optimize}} function.
+  All methods are initialized at the value of the parameter(s) currently
+  stored by the C-side referenced by \code{gpi} or \code{gpsepi}.  It is
+  \emph{highly recommended} that sensible range values (\code{tmin}, \code{tmax}
+  or \code{drange}, \code{grange}) be provided.  The defauls provided are
+  too loose for most applications.  As illustrated in the examples below,
+  the \code{\link{darg}} and \code{\link{garg}} functions can be used
+  to set appropriate ranges from the distributions of inputs and output
+  data respectively.
+
+  The Newton-like method implemented for the isotropic lengthscale and for the
+  nugget offers very fast convergence to local maxima, but sometimes it fails
+  to converge (for any of the usual reasons).  The implementation
+  detect this, and in such cases it invokes a \code{Brent_fmin} call instead -
+  this is the method behind the \code{\link{optimize}} function.
 
   Note that the \code{gpi} object must have been allocated with
   \code{dK=TRUE}; alternatively, one can call \code{buildKGP} - however,
@@ -91,7 +125,11 @@ jmleGP.R(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
 
   However, the most important \dQuote{output} is the modified GP object
   which retains the setting of the parameters reported on output as a 
-  side effect
+  side effect.
+
+  Code for \code{mleGPsep} and \code{jmleGPsep} an output field/column
+  called \code{conv} indicates convergence (when 0), or provides
+  the non-convergence code output by \code{\link{optim}}
 }
 \references{
   For standard GP inference, refer to any graduate text, e.g., Rasmussen
@@ -125,7 +163,7 @@ print(mleGP(gpi, "d", d$min, d$max))
 print(mleGP(gpi, "g", g$min, g$max))
 
 ## joint inference (could skip straight to here)
-print(jmleGP(gpi, c(d$min, d$max), c(g$min, g$max)))
+print(jmleGP(gpi, drange=c(d$min, d$max), grange=c(g$min, g$max)))
 
 ## plot the resulting predictive surface
 N <- 100
@@ -135,6 +173,37 @@ plot(X, Z, main="stationary GP fit to motorcycle data")
 lines(XX, p$mean, lwd=2)
 lines(XX, p$mean+1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
 lines(XX, p$mean-1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
+
+## 
+## with a separable correlation function 
+##
+
+## 2D Example: GoldPrice Function, mimixing GP_fit package
+f <- function(x) 
+{
+  x1 <- 4*x[,1] - 2
+  x2 <- 4*x[,2] - 2;
+  t1 <- 1 + (x1 + x2 + 1)^2*(19 - 14*x1 + 3*x1^2 - 14*x2 + 6*x1*x2 + 3*x2^2);
+  t2 <- 30 + (2*x1 -3*x2)^2*(18 - 32*x1 + 12*x1^2 + 48*x2 - 36*x1*x2 + 27*x2^2);
+  y <- t1*t2;
+  return(y)
+}
+
+## build design
+library(tgp)
+n <- 50 ## change to 100 or 1000 for more interesting demo
+B <- rbind(c(0,1), c(0,1))
+X <- dopt.gp(n, Xcand=lhs(10*n, B))$XX
+## this differes from GP_fit in that we use the log response
+Y <- log(f(X))
+
+## get sensible ranges
+d <- darg(NULL, X)
+g <- garg(list(mle=TRUE), Y)
+
+## build GP and optimize
+gpisep <- newGPsep(X, Y, d=rep(d$start, 2), g=g$start)
+jmleGPsep(gpisep, drange=c(d$min, d$max), grange=c(g$min, g$max))
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

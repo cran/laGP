@@ -1,5 +1,19 @@
+1.1-2 (16 Oct 2014)
+
+added separable GP (GPsep) for finding MLE separable
+lengthscale parameters for scaling isotropic versions
+
+ported calib functions over to package with documentation
+and examples
+
+added first pass at vignette
+
+
 1.1-1 (02 Sept 2014)
 -----
+
+avoid re-calulating derivative info when optimizing over
+the nugget
 
 moved several Suggests to Depends for R CHECK
 

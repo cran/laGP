@@ -25,11 +25,13 @@ enabled.  Nevertheless, it is still possible to compile laGP from source with
 OpenMP features assuming your compiler supports them.  Doing that requires two
 small edits to laGP/src/Makevars.
 
-1.) Replace "$(SHLIB_OPENMP_CFLAGS)" with "-fopenmp".  This works for GCC
-compilers.  For other compilers, consult docs for appropriate flags.
+1.) Replace "$(SHLIB_OPENMP_CFLAGS)" in the PKG_CFLAGS line with "-fopenmp".  
+    This works for GCC compilers.  For other compilers, consult docs for 
+    appropriate flags.
 
-2.) Replace "$(SHLIB_OPENMP_CFLAGS)" with "-lgomp".  This works for GCC
-compilers.  For other compilers, consult docs for appropriate flags.
+2.) Replace "$(SHLIB_OPENMP_CFLAGS)" in the PJG_LIBS line with "-lgomp".  
+    This works for GCC compilers.  For other compilers, consult docs for 
+    appropriate flags.
 
 The laGP/src/Makevars file contains commented out lines which implement these
 changes.  After these changes are made, simply install the package as usual

@@ -1,5 +1,6 @@
 \name{llikGP}
 \alias{llikGP}
+\alias{llikGPsep}
 
 \title{
 	Calculate a GP log likelihood
@@ -10,13 +11,15 @@
 }
 \usage{
 llikGP(gpi, dab = c(0, 0), gab = c(0, 0))
+llikGPsep(gpsepi, dab = c(0, 0), gab = c(0, 0))
 }
 
 \arguments{
 \item{gpi}{
    a C-side GP object identifier (positive integer);
-    e.g., as returned by \code{\link{newGP}}
-}
+    e.g., as returned by \code{\link{newGP}}}
+\item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object}
+
 \item{dab}{
   \code{ab} for the lengthscale parameter, see Details
 }
@@ -43,7 +46,7 @@ llikGP(gpi, dab = c(0, 0), gab = c(0, 0))
 }
 
 \seealso{
-	\code{\link{mleGP}}, \code{\link{jmleGP}}, \code{\link{darg}}
+	\code{\link{mleGP}}, \code{\link{mleGPsep}}, \code{\link{darg}}
 }
 \examples{
 ## partly following the example in mleGP

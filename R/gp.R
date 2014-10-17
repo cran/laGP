@@ -136,7 +136,6 @@ newparamsGP <- function(gpi, d=-1, g=-1)
 ## llikGP:
 ##
 ## calculate the log likelihood of the GP
-
 llikGP <- function(gpi, dab=c(0,0), gab=c(0,0))
   {
     r <- .C("llikGP_R",
@@ -156,8 +155,8 @@ llikGP <- function(gpi, dab=c(0,0), gab=c(0,0))
 ## updates the internal GP parameterization (since mleGP does);
 ## R-only version
 
-jmleGP.R <- function(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
-                     dab=c(0,0), gab=c(0,0), verb=0)
+jmleGP.R <- function(gpi, N=100, drange=c(sqrt(.Machine$double.eps), 10), 
+  grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), verb=0)
   {
     ## sanity check N
     if(length(N) != 1 && N > 0) 
@@ -202,8 +201,8 @@ jmleGP.R <- function(gpi, N=100, drange=c(0,10), grange=c(sqrt(.Machine$double.e
 ## right now doesn't take an N argument -- the C-side hard-codes
 ## N=100
 
-jmleGP <- function(gpi, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
-                   dab=c(0,0), gab=c(0,0), verb=0)
+jmleGP <- function(gpi, drange=c(sqrt(.Machine$double.eps), 10), 
+  grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), verb=0)
   {
     ## sanity check tmin and tmax
     if(length(drange) != 2) stop("drange should be a 2-vector for c(d,g)")
@@ -239,7 +238,8 @@ jmleGP <- function(gpi, drange=c(0,10), grange=c(sqrt(.Machine$double.eps), 1),
 ## parameterization using the current data
 
 mleGP <- function(gpi, param=c("d", "g"), 
-                  tmin=0, tmax=-1, ab=c(0,0), verb=0)
+                  tmin=sqrt(.Machine$double.eps), 
+                  tmax=-1, ab=c(0,0), verb=0)
   {
     param <- match.arg(param)
     if(param == "d") param <- 1

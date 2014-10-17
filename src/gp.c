@@ -25,6 +25,7 @@
 
 #include "matrix.h"
 #include "gp.h"
+#include "util.h"
 #include "linalg.h"
 #include "rhelp.h"
 #include "covar.h"
@@ -39,8 +40,6 @@
 #ifdef _OPENMP
   #include <omp.h>
 #endif
-
-#define SDEPS sqrt(DOUBLE_EPS)
 
 
 /*
@@ -88,8 +87,8 @@ unsigned int get_gp(void)
 
 void deletedKGP(GP *gp)
 {
-  if(gp->dK) delete_matrix(gp->dK);
-  if(gp->d2K) delete_matrix(gp->d2K);
+  if(gp->dK) { delete_matrix(gp->dK); gp->dK = NULL; }
+  if(gp->d2K) { delete_matrix(gp->d2K); gp->d2K = NULL; }
   gp->F = 0.0;
 }
 
@@ -198,27 +197,6 @@ void deleteGPs(void)
 void deleteGPs_R(void)
 { 
   if(gps) deleteGPs();
-}
-
-
-/*
- * log_determinant_chol:
- *
- * returns the log determinant of the n x n
- * choleski decomposition of a matrix M
- */
-
-double log_determinant_chol(double **M, const unsigned int n)
-{
-  double log_det;
-  unsigned int i;
-
-  /* det = prod(diag(R)) .^ 2 */
-  log_det = 0;
-  for(i=0; i<n; i++) log_det += log(M[i][i]);
-  log_det = 2*log_det;
-
-  return log_det;
 }
 
 
@@ -337,7 +315,7 @@ void dllikGP_nug(GP *gp, double *ab, double *dllik, double *d2llik)
   if(d2llik) {
     two = new_matrix(n, n);
     dKKidK = gp->Ki; 
-  } else two = NULL;
+  } else two = dKKidK = NULL;
 
   /* d2llik = - 0.5 * tr(Ki %*% [0.0 - Ki]); the first expression */
   /* dllik = - 0.5 * tr(Ki) */
@@ -345,8 +323,8 @@ void dllikGP_nug(GP *gp, double *ab, double *dllik, double *d2llik)
   if(dllik) *dllik = dlp; 
   /* two = second expresion: 2*dKKidK - dKKidK, re-using dKKidK */
   for(i=0; i<n; i++) {
-    for(j=0; j<i; j++) { /* off diagonal */
-      if(d2llik) {
+    if(d2llik) {
+      for(j=0; j<i; j++) { /* off diagonal */
         *d2llik += gp->Ki[i][j] * dKKidK[i][j];
         two[i][j] = two[j][i] = 2.0*dKKidK[i][j];
       }
@@ -361,20 +339,20 @@ void dllikGP_nug(GP *gp, double *ab, double *dllik, double *d2llik)
 
   /* now the second part of the expression: */
   /* d2llik -= 0.5 * KiZ %*% two %*% KiZ */
-  KiZtwo = new_vector(n);
   if(d2llik) {
+    KiZtwo = new_vector(n);
     linalg_dsymv(n,1.0,two,n,gp->KiZ,1,0.0,KiZtwo,1);
     *d2llik -= 0.5*dn*linalg_ddot(n, gp->KiZ, 1, KiZtwo, 1) / gp->phi;
+    free(KiZtwo);
   }
 
-  /* now third part of the expression, re-using KiZtwo */
+  /* now third part of the expression */
   /* now t(KiZ) %*% dK %*% KiZ */
   phirat = linalg_ddot(n, gp->KiZ, 1, gp->KiZ, 1) / gp->phi;
   if(d2llik) *d2llik += 0.5*dn*sq(phirat);
   if(dllik) *dllik += 0.5*dn*phirat;
 
   /* clean up */
-  free(KiZtwo);
   if(two) delete_matrix(two);
 }
 
@@ -840,121 +818,10 @@ static double fcnnllik(double x, struct callinfo *info)
 } 
 
 
-/* the C-function behind uniroot from R */
-#ifdef BRENT_FROM_R
-extern double Brent_fmin(double ax, double bx, 
-          double (*f)(double x, void *info), void *info,
-          double tol);
-#else
-static
-double Brent_fmin(double ax, double bx, double (*f)(double, void *),
-      void *info, double tol)
-{
-    /*  c is the squared inverse of the golden ratio */
-    const double c = (3. - sqrt(5.)) * .5;
-
-    /* Local variables */
-    double a, b, d, e, p, q, r, u, v, w, x;
-    double t2, fu, fv, fw, fx, xm, eps, tol1, tol3;
-
-/*  eps is approximately the square root of the relative machine precision. */
-    eps = DBL_EPSILON;
-    tol1 = eps + 1.;/* the smallest 1.000... > 1 */
-    eps = sqrt(eps);
-
-    a = ax;
-    b = bx;
-    v = a + c * (b - a);
-    w = v;
-    x = v;
-
-    d = 0.;/* -Wall */
-    e = 0.;
-    fx = (*f)(x, info);
-    fv = fx;
-    fw = fx;
-    tol3 = tol / 3.;
-
-/*  main loop starts here ----------------------------------- */
-
-    for(;;) {
-  xm = (a + b) * .5;
-  tol1 = eps * fabs(x) + tol3;
-  t2 = tol1 * 2.;
-
-  /* check stopping criterion */
-
-  if (fabs(x - xm) <= t2 - (b - a) * .5) break;
-  p = 0.;
-  q = 0.;
-  r = 0.;
-  if (fabs(e) > tol1) { /* fit parabola */
-
-      r = (x - w) * (fx - fv);
-      q = (x - v) * (fx - fw);
-      p = (x - v) * q - (x - w) * r;
-      q = (q - r) * 2.;
-      if (q > 0.) p = -p; else q = -q;
-      r = e;
-      e = d;
-  }
-
-  if (fabs(p) >= fabs(q * .5 * r) ||
-      p <= q * (a - x) || p >= q * (b - x)) { /* a golden-section step */
-
-      if (x < xm) e = b - x; else e = a - x;
-      d = c * e;
-  }
-  else { /* a parabolic-interpolation step */
-
-      d = p / q;
-      u = x + d;
-
-      /* f must not be evaluated too close to ax or bx */
-
-      if (u - a < t2 || b - u < t2) {
-    d = tol1;
-    if (x >= xm) d = -d;
-      }
-  }
-
-  /* f must not be evaluated too close to x */
-
-  if (fabs(d) >= tol1)
-      u = x + d;
-  else if (d > 0.)
-      u = x + tol1;
-  else
-      u = x - tol1;
-
-  fu = (*f)(u, info);
-
-  /*  update  a, b, v, w, and x */
-
-  if (fu <= fx) {
-      if (u < x) b = x; else a = x;
-      v = w;    w = x;   x = u;
-      fv = fw; fw = fx; fx = fu;
-  } else {
-      if (u < x) a = u; else b = u;
-      if (fu <= fw || w == x) {
-    v = w; fv = fw;
-    w = u; fw = fu;
-      } else if (fu <= fv || v == x || v == w) {
-    v = u; fv = fu;
-      }
-  }
-    }
-    /* end of main loop */
-
-    return x;
-}
-#endif
-
 /*
- * restartNewton:
+ * Ropt:
  *
- * restart the search based on a grid of 100 starting locations
+ * use R's Brent Fmin routine (from optimize) to optimize
  */
 
 double Ropt(GP* gp, Theta theta, double tmin, double tmax, 
@@ -1025,14 +892,27 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
   double tnew, dllik, d2llik, llik_init, llik_new, adj, rat;
   double th;
   double *gab, *dab;
+  int restoredKGP;
 
   /* set priors based on Theta */
   dab = gab = NULL;
   if(theta == LENGTHSCALE) dab = ab;
   else gab = ab;
-
+  
   /* initialization */
   *its = 0;
+  restoredKGP = 0;
+  /* theta parameter is d or g */
+  if(theta == LENGTHSCALE) th = gp->d;
+  else th = gp->g;
+
+  /* check how close we are to tmin */
+  if(theta == NUGGET && fabs(th - tmin) < SDEPS) {
+    if(verb > 0) myprintf(mystdout, "(g=%g) -- starting too close to min (%g)\n", th, tmin);
+    goto alldone;
+  }
+
+  /* initial likelihood calculation */
   llik_init = llikGP(gp, dab, gab);
 
   /* initial printing */
@@ -1043,10 +923,6 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
       myprintf(mystdout, "(g=%g, llik=%g) ", gp->g, llik_init);
   } if(verb > 1) myprintf(mystdout, "\n");
 
-  /* theta parameter is d or g */
-  if(theta == LENGTHSCALE) th = gp->d;
-  else th = gp->g;
-  
   while(1) { /* checking for improved llik */
     while(1) {  /* Newton step(s) */
       llik_new = 0.0-1e300*1e300;
@@ -1060,7 +936,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
         if(fabs(dllik) < SDEPS) {
           if(*its == 0) {
             if(verb > 0) myprintf(mystdout, "-- Newton not needed\n");
-            return th;
+            goto alldone;
           } else goto newtondone;
         }
 
@@ -1069,6 +945,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
 
         /* check if we're going the right way */
         if((dllik < 0 && rat < 0) || (dllik > 0 && rat > 0)) {
+          if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
           th = Ropt(gp, theta, tmin, tmax, ab, "[slip]", its, verb); goto mledone; 
         } else tnew = th - adj*rat;  /* right way: Newton: */
 
@@ -1079,6 +956,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
 
 	      /* if still out of range, restart? */
 	      if(tnew <= tmin || tnew >= tmax) { 
+          if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
 	        th = Ropt(gp, theta, tmin, tmax, ab, "[range]", its, verb);
           goto mledone;
 	      } else break;
@@ -1086,7 +964,10 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
 
       /* else, resets gp->d = tnew */
       if(theta == LENGTHSCALE) newparamsGP(gp, tnew, gp->g);
-      else newparamsGP(gp, gp->d, tnew);
+      else { /* NUGGET; possibly deleted derivatives */
+        if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
+        newparamsGP(gp, gp->d, tnew);
+      }
 
       /* print progress */
       if(verb > 1) myprintf(mystdout, "\ti=%d theta=%g, c(a,b)=(%g,%g)\n", 
@@ -1100,7 +981,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
       if(*its >= 100) {
 	      if(verb > 0) warning("Newton 100/max iterations");
         /* could also call Ropt here as last resort */
-	     return th;
+	     goto alldone;
       }
     } /* end middle while -- Newton step */
 
@@ -1110,6 +991,7 @@ newtondone:
     if(llik_new < llik_init-SDEPS) { 
       if(verb > 0) myprintf(mystdout, "llik_new = %g\n", llik_new);
       llik_new = 0.0-1e300*1e300;
+      if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
       th = Ropt(gp, theta, tmin, tmax, ab, "[dir]", its, verb); 
       goto mledone;
     } else break;
@@ -1126,7 +1008,9 @@ mledone:
                *its, gp->g, llik_new);
   }
 
-  /* return d-value found */
+  /* return theta-value found */
+alldone:
+  if(restoredKGP) newdKGP(gp);
   return th;
 }
 

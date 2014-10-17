@@ -1,6 +1,8 @@
 \name{deleteGP}
 \alias{deleteGP}
 \alias{deleteGPs}
+\alias{deleteGPsep}
+\alias{deleteGPseps}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 Delete C-side Gaussian Process Objects
@@ -11,16 +13,20 @@ Delete C-side Gaussian Process Objects
 }
 \usage{
 deleteGP(gpi)
+deleteGPsep(gpsepi)
 deleteGPs()
+deleteGPseps()
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{gpi}{
-    a scalar positive integer specifying an allocated GP object
-}
+    a scalar positive integer specifying an allocated isotropic GP object
+  }
+  \item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object}
 }
 \details{
-  Any function calling \code{\link{newGP}} will require destruction
+  Any function calling \code{\link{newGP}} or \code{\link{newGPsep}}
+  will require destruction
   via these functions or there will be a memory leak.
 }
 \value{
@@ -32,7 +38,8 @@ deleteGPs()
 }
 
 \seealso{
-  \code{\link{newGP}}, \code{\link{predGP}}, \code{\link{mleGP}}
+  \code{\link{newGP}}, \code{\link{newGPsep}},
+  \code{\link{predGP}}, \code{\link{mleGP}}
 }
 \examples{
 ## see examples for newGP, predGP, or mleGP

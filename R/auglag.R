@@ -165,5 +165,5 @@ optim.auglag <- function(fn, B, start=10, end=100, Xstart=NULL, ab=c(3/2,4),
   for(j in 1:nc) deleteGP(Cgpi[j])
 
   ## return output objects
-  return(list(prog=prog, obj=obj, C=C, d=d))
+  return(list(prog=prog, obj=obj, X=X, C=C, d=d))
 }
