@@ -600,12 +600,24 @@ xx <- seq(-1.97, 1.95, by=0.04)
 XX <- as.matrix(expand.grid(xx, xx))
 YY <- f2d(XX)
 @
-Now, we use the \code{aGP} function to iterate over the elements of $\tilde{X}
+The \code{aGP} function iterates over the elements of $\tilde{X}
 \equiv$\ \code{XX}.  The package used in this illustration is compiled for
-\code{OpenMP} support, and executed on a 4-core hyperthreaded 2010 iMac.  Therefore
-any timings are 7-8x faster than on a similar one-core run. 
+\code{OpenMP} support, and the \code{omp.threads} argument controls the number
+of threads used by \code{aGP}, divvying up \code{XX}.  You can specify any positive
+integer for \code{omp.threads}, however
+a good rule-of-thumb is to match the number of cores.  Here
+we set the default to two, since nearly all machines these days have at least one
+hyperthreaded core (meaning it behaves like two cores).  However, this can
+be overwritten by the \code{OMP_NUM_THREADS} environment variable.
 <<cache=TRUE>>=
-nth <- 8
+nth <- as.numeric(Sys.getenv("OMP_NUM_THREADS"))
+if(is.na(nth)) nth <- 2
+print(nth)
+@
+If your machine has fewer cores, is not compiled with \code{OpenMP} or caps the
+number of \code{OpenMP} threads to a lower value (see Appendix \ref{sec:omp}),
+then it will take longer to run the examples here.
+<<cache=TRUE>>=
 P.alc <- aGP(X, Y, XX, omp.threads=nth, verb=0)
 @
 Note that the default method is ALC.  The results obtained with \code{method = "mspe"}
@@ -686,7 +698,6 @@ by maximizing the local likelihood (or posterior probabilities).
 \begin{figure}[ht!]
 \centering
 <<label=aggp-slice-d,fig=TRUE,echo=TRUE,width=6,height=5>>=
-diff <- P.alc$mean - YY
 plot(XX[zs,1], P.alc$mle$d[zs], type="l", lwd=2, 
      main="spatially varying lengthscale", 
      xlab="x1", ylab="theta-hat(x)", bty="n")
@@ -1978,17 +1989,18 @@ on multi-core machines.  The most important one is \code{aGP} which allows
 large prediction problems to be divvied up and distributed across multiple
 threads to be run in parallel.  The speedups are roughly linear as long as the
 numbers of threads is less than or equal to the number of cores.  This is controlled
-through the \code{omp.threads} argument.
+through the \code{omp.threads} argument.  
 
 If \proglang{R} is compiled with \pkg{OpenMP} support enabled---which at
-the time of writing is not the default in any of the standard builds----then
+the time of writing standard in most builds----then
 no special action is needed in order to extend that functionality to
 \pkg{laGP}.  It will just work.  One way to check if this is the case on your
 machine is to provide an \code{omp.threads} argument, say to \code{aGP}, which
-is bigger than one.  If \code{OpenMP} support is not enabled then you will get
-a warning.  If you are working within a well-managed supercomputing facility,
-then it may be that \proglang{R} has already been compiled with \pkg{OpenMP}
-support. If not, perhaps it is worth requesting that it be re-compiled as
+is bigger than one.  If \pkg{OpenMP} support is not enabled then you will get
+a warning.  If you are working within a well-managed supercomputing facility, with
+a custom \proglang{R} compilation, it is likely that \proglang{R} has been
+properly compiled with \pkg{OpenMP} support. 
+If not, perhaps it is worth requesting that it be re-compiled as
 there are many benefits to doing so, beyond those which extend to the
 \pkg{laGP} package.  For example, many linear algebra intensive packages,
 of which \pkg{laGP} is one, benefit from liking to MKL libraries from Intel,
@@ -2020,6 +2032,11 @@ the \code{Clang} compiler provided by Apple does not include OpenMP support.  We
 suggest downloading GCC v9 or later, for example from
 \url{http://hpc.sourceforge.net}, and following the instructions therein.
 
+If hyperthreading is enabled, then
+a good default for \code{omp.threads} is two-times the number of cores.  Choosing
+a \code{omp.threads} value which is greater than the max allowed by the
+\pkg{OpenMP} configuration on your machine leads to a notice being printed indicating
+that the max-value will be used instead.
 
 \subsection[With NVIDIA CUDA GPU support]{With NVIDIA \proglang{CUDA} GPU support}
 \label{sec:gpu}
@@ -2075,7 +2092,7 @@ how many CPU threads should be used to queue GPU jobs.  Having \code{gpu.threads
 is an inefficient use of resources, whereas \code{gpu.threads > num.gpus}, up to 
 \code{2*num.gpus} will give modest speedups.  Having multiple threads queue onto the
 same GPU reduces the amount of time the GPU is idle.  \code{OpenMP} support must
-be included in the package to have more than one \code{gpu.thread}.
+be included in the package to have more than one GPU thread.
 
 By default, \code{omp.threads} is set to zero when \code{num.gpus > 1} since
 divvying the work amongst GPU and CPU threads can present load balancing
@@ -2084,7 +2101,11 @@ substantial speedups.  \citet{gramacy:niemi:weiss:2014} observe up to 50\%
 speedups, and recommend a scheme for allocating \code{omp.threads=10} with a
 setting of \code{nn.gpu} that allocates about 90\% of the work to GPUs
 (\code{nn.gpu = floor(0.9*nrow(XX))}) and 10\% to the ten \pkg{OpenMP}
-threads.
+threads.  As with \code{omp.threads}, \code{gpu.threads} maxes out at
+the maximum number of threads indicated by your \pkg{OpenMP} configuration.
+Moreover, \code{omp.threads + gpu.threads} must not exceed that value.  When
+that happens both are first thresholded independently, then \code{omp.threads}
+may be further reduced to stay within the limit.
 
 \bibliography{laGP}
 

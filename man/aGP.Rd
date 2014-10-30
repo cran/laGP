@@ -135,16 +135,22 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
   be compiled for OpenMP support; see README/INSTALL in the package source for
   more details.  We recommend setting \code{gpu.threads} to up to two-times
   the number the sum of the number of GPU devices and CPU cores.
-  Only \code{method = "alc"} is supported when using CUDA
+  Only \code{method = "alc"} is supported when using CUDA.   If the
+   sum of \code{omp.threads} and \code{gpu.threads} is bigger than the
+   max allowed by your system, then that max is used instead (giving 
+   \code{gpu.threads} preference) 
 }
 \item{omp.threads}{ applicable only to the C-version \code{aGP},
    this is a scalar positive integer indicating the number
    of threads to use for SMP parallel processing; the package must be 
    compiled for OpenMP support; see README/INSTALL in the package source for
    more details.  For most Intel-based machines, we recommend setting
-   \code{omp.threads} to up to two-times the number of cores.  When
+   \code{omp.threads} to up to two-times the number of hyperthreaded cores.  When
    using GPUs (\code{num.gpu > 0}), a good default is \code{omp.threads=0},
-   otherwise load balancing could be required; see \code{nn.gpu} below }
+   otherwise load balancing could be required; see \code{nn.gpu} below. If the
+   sum of \code{omp.threads} and \code{gpu.threads} is bigger than the
+   max allowed by your system, then that max is used instead (giving 
+   \code{gpu.threads} preference)  }
 \item{nn.gpu}{ a scalar non-negative integer between \code{0} and 
     \code{nrow(XX)} indicating the number of predictive locations 
     utilizing GPU ALC calculations.  Note this argument is only useful when

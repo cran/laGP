@@ -1,5 +1,5 @@
-d1f2d9946299919de7716e9cec41b103 *ChangeLog
-9b41323c73b497b16e9ce4a3f18a02e8 *DESCRIPTION
+957fe0668cccace0d5d254940c21d402 *ChangeLog
+d31fb288aa404783f0f6f644299c620e *DESCRIPTION
 dc97e9ef006e091f48d03a01457b0c5e *INSTALL
 1f6bcd087af30a338a7a01d210aecf8f *NAMESPACE
 99fdd211a9cc3b59b02b3dc7b716246a *R/auglag.R
@@ -14,10 +14,10 @@ cbee7a86a3f00626ee8922e1f26f0ce5 *R/prior.R
 22f1455cc0ca1073390e764020e95214 *build/vignette.rds
 788a1965cc9dfd4b80abd0903bae009a *demo/00Index
 ca8e2436107a309e9fc812fe930fb1cd *demo/calib.R
-c729b9ba1762b4e36a311c89ece55317 *inst/doc/laGP.R
-ede9b14dc98e726f28607cbe4e708927 *inst/doc/laGP.Rnw
-1a1c6c872ad2cb61e557d3d2a6425a55 *inst/doc/laGP.pdf
-89682975fa3af52e734eef9e66391caf *man/aGP.Rd
+74e5ae97c952ae354607719baf2203ea *inst/doc/laGP.R
+e61d53caf38a472feb9986808d5d7874 *inst/doc/laGP.Rnw
+dfa8c0f79332317b16da0216e10b6916 *inst/doc/laGP.pdf
+af251305ab57d7205183ef463234d59b *man/aGP.Rd
 5cbd6f1a2c0421494c25a11fb9d8d40a *man/alcGP.Rd
 dbcfcdd016c157a6de9bf971be9909d5 *man/darg.Rd
 e4302f71e42831abaac11d4201b24910 *man/deleteGP.Rd
@@ -42,11 +42,11 @@ bf61a70783568d5c2817df09de6d7d55 *src/gamma.c
 2eb0ab4444dbba030a7eb7a1b5c0a927 *src/gamma.h
 4bd35b854f6ccbd65516f4b6e4f2eca0 *src/gp.c
 d18d8c2a86677e0d82433821d22db32f *src/gp.h
-07ef0d51d2d9a7ab62db61d14a7d1995 *src/gp_sep.c
+dc672a5b50ca650d7a6dcebd7b567a51 *src/gp_sep.c
 9bfcc3256f9eeb6fadf3a00e0ad0cb75 *src/gp_sep.h
 4eb6d431c2a9c887c02132753c970346 *src/ieci.c
 9318d001832af95bf0dbda01fe836846 *src/ieci.h
-d47f6b9dc47dbbe8fe8448494ebca1e8 *src/laGP.c
+2527588a11ef828484e8134bb6837ca5 *src/laGP.c
 f1b43005fd818234fb5c3654bc90a528 *src/laGP.h
 42216acf82b4839ce40fc37e4aa128b1 *src/linalg.c
 0e05867d7326a02f9ec69293d7a675b5 *src/linalg.h
@@ -59,5 +59,5 @@ a48c7ee3d77a19b66f8f6277216c901d *src/rbetter.c
 0bd89c81b6d57d84be2aee9663e0390c *src/rhelp.h
 3facec0c8b4b37bb6dccfcc7bae394b3 *src/util.c
 17362d5645eaa847cb9454172298b542 *src/util.h
-ede9b14dc98e726f28607cbe4e708927 *vignettes/laGP.Rnw
-a85b2ecac71349287dc7c38d9d174877 *vignettes/laGP.bib
+e61d53caf38a472feb9986808d5d7874 *vignettes/laGP.Rnw
+262c5e3a74ae9c4b9a8e1e3c87609ad8 *vignettes/laGP.bib

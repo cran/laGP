@@ -122,21 +122,28 @@ YY <- f2d(XX)
 
 
 ###################################################
-### code chunk number 15: laGP.Rnw:607-609
+### code chunk number 15: laGP.Rnw:612-615
 ###################################################
-nth <- 8
+nth <- as.numeric(Sys.getenv("OMP_NUM_THREADS"))
+if(is.na(nth)) nth <- 2
+print(nth)
+
+
+###################################################
+### code chunk number 16: laGP.Rnw:620-621
+###################################################
 P.alc <- aGP(X, Y, XX, omp.threads=nth, verb=0)
 
 
 ###################################################
-### code chunk number 16: aggp
+### code chunk number 17: aggp
 ###################################################
 persp(xx, xx, -matrix(P.alc$mean, ncol=length(xx)), phi=45, theta=45,
       main="", xlab="x1", ylab="x2", zlab="y-hat(x)")
 
 
 ###################################################
-### code chunk number 17: aggp-slice
+### code chunk number 18: aggp-slice
 ###################################################
 med <- 0.51
 zs <- XX[,2] == med
@@ -151,7 +158,7 @@ lines(XX[zs,1], YY[zs], col=3, lwd=2, lty=3)
 
 
 ###################################################
-### code chunk number 18: aggp-slice-ydiff
+### code chunk number 19: aggp-slice-ydiff
 ###################################################
 diff <- P.alc$mean - YY
 plot(XX[zs,1], diff[zs], type="l", lwd=2, 
@@ -160,16 +167,15 @@ plot(XX[zs,1], diff[zs], type="l", lwd=2,
 
 
 ###################################################
-### code chunk number 19: aggp-slice-d
+### code chunk number 20: aggp-slice-d
 ###################################################
-diff <- P.alc$mean - YY
 plot(XX[zs,1], P.alc$mle$d[zs], type="l", lwd=2, 
      main="spatially varying lengthscale", 
      xlab="x1", ylab="theta-hat(x)", bty="n")
 
 
 ###################################################
-### code chunk number 20: laGP.Rnw:752-755
+### code chunk number 21: laGP.Rnw:763-766
 ###################################################
 df <- data.frame(y=log(P.alc$mle$d), XX)
 lo <- loess(y~., data=df, span=0.01)
@@ -177,7 +183,7 @@ P.alc2 <- aGP(X, Y, XX, d=exp(lo$fitted), omp.threads=nth, verb=0)
 
 
 ###################################################
-### code chunk number 21: laGP.Rnw:762-765
+### code chunk number 22: laGP.Rnw:773-776
 ###################################################
 rmse <- data.frame(alc=sqrt(mean((P.alc$mean - YY)^2)), 
   alc2=sqrt(mean((P.alc2$mean - YY)^2)))
@@ -185,13 +191,13 @@ rmse
 
 
 ###################################################
-### code chunk number 22: laGP.Rnw:837-838
+### code chunk number 23: laGP.Rnw:848-849
 ###################################################
 p.alcray <- laGP(Xref, 6, 50, X, Y, d=0.1, method="alcray")
 
 
 ###################################################
-### code chunk number 23: lagp
+### code chunk number 24: lagp
 ###################################################
 plot(X[p.alc$Xi,], xlab="x1", ylab="x2", type="n", 
   main="comparing local designs")
@@ -202,13 +208,13 @@ legend("topright", c("alc", "alcray"), text.col=c(2,3), bty="n")
 
 
 ###################################################
-### code chunk number 24: laGP.Rnw:860-861
+### code chunk number 25: laGP.Rnw:871-872
 ###################################################
 p.alcray$time
 
 
 ###################################################
-### code chunk number 25: laGP.Rnw:865-868
+### code chunk number 26: laGP.Rnw:876-879
 ###################################################
 p <- rbind(p, c(p.alcray$mean, p.alcray$s2, p.alcray$df))
 rownames(p)[3] <- c("alcray")
@@ -216,7 +222,7 @@ p
 
 
 ###################################################
-### code chunk number 26: laGP.Rnw:877-882
+### code chunk number 27: laGP.Rnw:888-893
 ###################################################
 P.alcray <- aGP(X, Y, XX, method="alcray", omp.threads=nth, verb=0)
 dfray <- data.frame(y=log(P.alcray$mle$d), XX)
@@ -226,13 +232,13 @@ P.alcray2 <- aGP(X, Y, XX, method="alcray", d=exp(loray$fitted),
 
 
 ###################################################
-### code chunk number 27: laGP.Rnw:887-888
+### code chunk number 28: laGP.Rnw:898-899
 ###################################################
 c(P.alcray$time, P.alcray2$time)
 
 
 ###################################################
-### code chunk number 28: laGP.Rnw:891-895
+### code chunk number 29: laGP.Rnw:902-906
 ###################################################
 rmse <- cbind(rmse, 
   data.frame(alcray=sqrt(mean((P.alcray$mean - YY)^2)), 
@@ -241,7 +247,7 @@ rmse
 
 
 ###################################################
-### code chunk number 29: laGP.Rnw:936-950
+### code chunk number 30: laGP.Rnw:947-961
 ###################################################
 borehole <- function(x){
   rw <- x[1] * (0.15 - 0.05) + 0.05
@@ -260,7 +266,7 @@ borehole <- function(x){
 
 
 ###################################################
-### code chunk number 30: laGP.Rnw:959-963
+### code chunk number 31: laGP.Rnw:970-974
 ###################################################
 N <- 100000
 Npred <- 1000
@@ -269,7 +275,7 @@ library(lhs)
 
 
 ###################################################
-### code chunk number 31: laGP.Rnw:970-976
+### code chunk number 32: laGP.Rnw:981-987
 ###################################################
 T <- 10
 nas <- rep(NA, T)
@@ -280,7 +286,7 @@ times <- rmse <- data.frame(mspe=nas, mspe2=nas,
 
 
 ###################################################
-### code chunk number 32: laGP.Rnw:986-1050
+### code chunk number 33: laGP.Rnw:997-1061
 ###################################################
 for(t in 1:T) {
 
@@ -349,7 +355,7 @@ for(t in 1:T) {
 
 
 ###################################################
-### code chunk number 33: laGP.Rnw:1058-1070
+### code chunk number 34: laGP.Rnw:1069-1081
 ###################################################
 timev <- apply(times, 2, mean, na.rm=TRUE)
 rmsev <- apply(rmse, 2, mean)
@@ -366,7 +372,7 @@ tab[o,]
 
 
 ###################################################
-### code chunk number 34: laGP.Rnw:1126-1151
+### code chunk number 35: laGP.Rnw:1137-1162
 ###################################################
 ## allocate space
 thats <- matrix(NA, nrow=T, ncol=dim)
@@ -396,13 +402,13 @@ for(t in 1:T) {
 
 
 ###################################################
-### code chunk number 35: thetas
+### code chunk number 36: thetas
 ###################################################
 boxplot(thats, main="distribution of thetas", xlab="input", ylab="theta")
 
 
 ###################################################
-### code chunk number 36: laGP.Rnw:1193-1199
+### code chunk number 37: laGP.Rnw:1204-1210
 ###################################################
 scales <- sqrt(apply(thats, 2, median))
 xs <- x; xpreds <- xpred
@@ -413,19 +419,19 @@ for(j in 1:ncol(xs)) {
 
 
 ###################################################
-### code chunk number 37: laGP.Rnw:1203-1204
+### code chunk number 38: laGP.Rnw:1214-1215
 ###################################################
 out14 <- aGP(xs, y, xpreds, d=list(max=20), method="alcray")
 
 
 ###################################################
-### code chunk number 38: laGP.Rnw:1207-1208
+### code chunk number 39: laGP.Rnw:1218-1219
 ###################################################
 sqrt(mean((out14$mean - ypred.0)^2))
 
 
 ###################################################
-### code chunk number 39: laGP.Rnw:1233-1240
+### code chunk number 40: laGP.Rnw:1244-1251
 ###################################################
 library(MASS)
 d <- darg(NULL, mcycle[,1,drop=FALSE])
@@ -437,7 +443,7 @@ jmleGP(motogp, drange=c(d$min, d$max), grange=c(d$min, d$max),
 
 
 ###################################################
-### code chunk number 40: laGP.Rnw:1245-1249
+### code chunk number 41: laGP.Rnw:1256-1260
 ###################################################
 XX <- matrix(seq(min(mcycle[,1]), max(mcycle[,1]), length=100), ncol=1)
 motogp.p <- predGP(motogp, XX=XX, lite=TRUE)
@@ -446,7 +452,7 @@ motoagp <- aGP(mcycle[,1,drop=FALSE], mcycle[,2], XX, end=30,
 
 
 ###################################################
-### code chunk number 41: mcycle
+### code chunk number 42: mcycle
 ###################################################
 plot(mcycle, cex=0.5, main="motorcycle data")
 lines(XX, motogp.p$mean, lwd=2)
@@ -462,7 +468,7 @@ lines(XX, q2, lty=2, col=2, lwd=2)
 
 
 ###################################################
-### code chunk number 42: laGP.Rnw:1291-1295
+### code chunk number 43: laGP.Rnw:1302-1306
 ###################################################
 X <- matrix(rep(mcycle[,1], 10), ncol=1)
 X <- X + rnorm(nrow(X), sd=1)
@@ -471,7 +477,7 @@ motoagp2 <- aGP(X, Z, XX, end=30, d=d, g=g, verb=0)
 
 
 ###################################################
-### code chunk number 43: mcycle-rep
+### code chunk number 44: mcycle-rep
 ###################################################
 plot(X, Z, main="simulating a larger data setup", xlab="times", ylab="accel")
 lines(XX, motoagp2$mean, col=2, lwd=2)
@@ -482,7 +488,7 @@ lines(XX, q2, col=2, lty=2, lwd=2)
 
 
 ###################################################
-### code chunk number 44: laGP.Rnw:1541-1550
+### code chunk number 45: laGP.Rnw:1552-1561
 ###################################################
 M <- function(x,u) 
   {
@@ -496,7 +502,7 @@ M <- function(x,u)
 
 
 ###################################################
-### code chunk number 45: laGP.Rnw:1554-1560
+### code chunk number 46: laGP.Rnw:1565-1571
 ###################################################
 bias <- function(x) 
   {
@@ -507,7 +513,7 @@ bias <- function(x)
 
 
 ###################################################
-### code chunk number 46: laGP.Rnw:1565-1575
+### code chunk number 47: laGP.Rnw:1576-1586
 ###################################################
 library(tgp)  ## for lhs sampling in non-unit rectangle
 rect <- matrix(rep(0:1, 4), ncol=2, byrow=2)
@@ -522,7 +528,7 @@ Y <- rep(Zu,reps) + rep(bias(X),reps) + rnorm(reps*length(Zu), sd=sd)
 
 
 ###################################################
-### code chunk number 47: laGP.Rnw:1584-1594
+### code chunk number 48: laGP.Rnw:1595-1605
 ###################################################
 nz <- 10000
 XU <- lhs(nz, rect)
@@ -537,7 +543,7 @@ Z <- M(XU[,1:2], XU[,3:4])
 
 
 ###################################################
-### code chunk number 48: laGP.Rnw:1605-1609
+### code chunk number 49: laGP.Rnw:1616-1620
 ###################################################
 bias.est <- TRUE
 methods <- rep("alc", 2)
@@ -546,7 +552,7 @@ g <- garg(list(mle=TRUE), Y)
 
 
 ###################################################
-### code chunk number 49: laGP.Rnw:1620-1629
+### code chunk number 50: laGP.Rnw:1631-1640
 ###################################################
 beta.prior <- function(u, a=2, b=2, log=TRUE)
 {
@@ -560,7 +566,7 @@ beta.prior <- function(u, a=2, b=2, log=TRUE)
 
 
 ###################################################
-### code chunk number 50: laGP.Rnw:1638-1650
+### code chunk number 51: laGP.Rnw:1649-1661
 ###################################################
 initsize <- 10*ncol(X)
 imesh <- 0.1
@@ -577,7 +583,7 @@ for(i in 1:nrow(uinit)) {
 
 
 ###################################################
-### code chunk number 51: laGP.Rnw:1669-1672
+### code chunk number 52: laGP.Rnw:1680-1683
 ###################################################
 library(crs)
 opts <- list("MAX_BB_EVAL"=1000, "INITIAL_MESH_SIZE"=imesh, 
@@ -585,7 +591,7 @@ opts <- list("MAX_BB_EVAL"=1000, "INITIAL_MESH_SIZE"=imesh,
 
 
 ###################################################
-### code chunk number 52: laGP.Rnw:1686-1700
+### code chunk number 53: laGP.Rnw:1697-1711
 ###################################################
 its <- 0
 o <- order(llinit)
@@ -604,7 +610,7 @@ while(its < 10) {
 
 
 ###################################################
-### code chunk number 53: laGP.Rnw:1712-1717
+### code chunk number 54: laGP.Rnw:1723-1728
 ###################################################
 Xp <- rbind(uinit, as.matrix(fcalib.save[,1:2]))
 Zp <- c(-llinit, fcalib.save[,3])
@@ -614,7 +620,7 @@ surf <- interp(Xp[,1], Xp[,2], Zp, duplicate="mean")
 
 
 ###################################################
-### code chunk number 54: usurf
+### code chunk number 55: usurf
 ###################################################
 image(surf, xlab="u1", ylab="u2", main="posterior surface",
   col=heat.colors(128), xlim=c(0,1), ylim=c(0,1))
@@ -627,7 +633,7 @@ abline(h=u[1], lty=2)
 
 
 ###################################################
-### code chunk number 55: laGP.Rnw:1750-1754
+### code chunk number 56: laGP.Rnw:1761-1765
 ###################################################
 Xu <- cbind(X, matrix(rep(u, ny), ncol=2, byrow=TRUE))
 Mhat.u <- aGP.seq(XU, Z, Xu, da, methods, ncalib=2, omp.threads=nth, verb=0)
@@ -636,13 +642,13 @@ cmle.u$ll <- cmle.u$ll + beta.prior(u)
 
 
 ###################################################
-### code chunk number 56: laGP.Rnw:1757-1758
+### code chunk number 57: laGP.Rnw:1768-1769
 ###################################################
 data.frame(u.hat=-outi$objective, u=cmle.u$ll)
 
 
 ###################################################
-### code chunk number 57: laGP.Rnw:1770-1774
+### code chunk number 58: laGP.Rnw:1781-1785
 ###################################################
 nny <- 1000  
 XX <- lhs(nny, rect[1:2,],)
@@ -651,7 +657,7 @@ YYtrue <- ZZu + bias(XX)
 
 
 ###################################################
-### code chunk number 58: laGP.Rnw:1778-1785
+### code chunk number 59: laGP.Rnw:1789-1796
 ###################################################
 XXu <- cbind(XX, matrix(rep(u, nny), ncol=2, byrow=TRUE))
 Mhat.oos.u <- aGP.seq(XU, Z, XXu, da, methods, ncalib=2, 
@@ -663,7 +669,7 @@ deleteGP(cmle.u$gp)
 
 
 ###################################################
-### code chunk number 59: laGP.Rnw:1792-1796
+### code chunk number 60: laGP.Rnw:1803-1807
 ###################################################
 Xu <- cbind(X, matrix(rep(u.hat, ny), ncol=2, byrow=TRUE))
 Mhat <- aGP.seq(XU, Z, Xu, da, methods, ncalib=2, omp.threads=nth, verb=0)
@@ -672,13 +678,13 @@ cmle$ll <- cmle$ll + beta.prior(u.hat)
 
 
 ###################################################
-### code chunk number 60: laGP.Rnw:1801-1802
+### code chunk number 61: laGP.Rnw:1812-1813
 ###################################################
 print(c(cmle$ll, -outi$objective))
 
 
 ###################################################
-### code chunk number 61: laGP.Rnw:1806-1811
+### code chunk number 62: laGP.Rnw:1817-1822
 ###################################################
 XXu <- cbind(XX, matrix(rep(u.hat, nny), ncol=2, byrow=TRUE))
 Mhat.oos <- aGP.seq(XU, Z, XXu, da, methods, ncalib=2, omp.threads=nth, verb=0)
@@ -688,13 +694,13 @@ rmse <- sqrt(mean((YY.pred - YYtrue)^2))
 
 
 ###################################################
-### code chunk number 62: laGP.Rnw:1814-1815
+### code chunk number 63: laGP.Rnw:1825-1826
 ###################################################
 data.frame(u.hat=rmse, u=rmse.u)
 
 
 ###################################################
-### code chunk number 63: laGP.Rnw:1879-1886
+### code chunk number 64: laGP.Rnw:1890-1897
 ###################################################
 blackbox <- function(x)
 {
@@ -706,20 +712,20 @@ blackbox <- function(x)
 
 
 ###################################################
-### code chunk number 64: laGP.Rnw:1890-1892
+### code chunk number 65: laGP.Rnw:1901-1903
 ###################################################
 B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
 B
 
 
 ###################################################
-### code chunk number 65: laGP.Rnw:1900-1901
+### code chunk number 66: laGP.Rnw:1911-1912
 ###################################################
 out.aug <- optim.auglag(blackbox, B, ab=c(3/2,8), end=100, verb=0)
 
 
 ###################################################
-### code chunk number 66: laGP.Rnw:1907-1912
+### code chunk number 67: laGP.Rnw:1918-1923
 ###################################################
 out.aug$prog[100]
 valid <- apply(out.aug$C, 1, function(x) { all(x <= 0) })
@@ -729,7 +735,7 @@ m <- which.min(out.aug$obj[valid])
 
 
 ###################################################
-### code chunk number 67: laGP.Rnw:1927-1942
+### code chunk number 68: laGP.Rnw:1938-1953
 ###################################################
 blackbox.apm <- function(x, B=matrix(c(rep(0,2),rep(1,2)),ncol=2))
 { 
@@ -749,19 +755,19 @@ blackbox.apm <- function(x, B=matrix(c(rep(0,2),rep(1,2)),ncol=2))
 
 
 ###################################################
-### code chunk number 68: laGP.Rnw:1945-1946
+### code chunk number 69: laGP.Rnw:1956-1957
 ###################################################
 out.sann <- optim(runif(2), blackbox.apm, method="SANN") 
 
 
 ###################################################
-### code chunk number 69: laGP.Rnw:1949-1950
+### code chunk number 70: laGP.Rnw:1960-1961
 ###################################################
 out.sann
 
 
 ###################################################
-### code chunk number 70: laGP.Rnw:1956-1957
+### code chunk number 71: laGP.Rnw:1967-1968
 ###################################################
 blackbox(out.sann$par)
 

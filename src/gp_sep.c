@@ -166,7 +166,7 @@ void deleteGPseps_R(void)
 
 void calc_ZtKiZ_sep(GPsep *gpsep) 
 {
-  assert(gp);
+  assert(gpsep);
   /* phi <- t(Z) %*% Ki %*% Z */
   if(gpsep->KiZ == NULL) gpsep->KiZ = new_vector(gpsep->n);
   linalg_dsymv(gpsep->n,1.0,gpsep->Ki,gpsep->n,gpsep->Z,1,0.0,gpsep->KiZ,1);
@@ -208,7 +208,7 @@ GPsep* buildGPsep(GPsep *gpsep)
   unsigned int n, m;
   int info;
 
-  assert(gp && gp->K == NULL);
+  assert(gpsep && gpsep->K == NULL);
   n = gpsep->n;
   m = gpsep->m;
   X = gpsep->X;
@@ -325,8 +325,8 @@ double llikGPsep(GPsep *gpsep, double *dab, double *gab)
 
   /* proportional to likelihood calculation */
   llik = 0.0 - 0.5*(((double) gpsep->n) * log(0.5 * gpsep->phi) + gpsep->ldetK);
-  // myprintf(mystdout, "d=%g, g=%g, phi=%g, llik=%g\n", gp->d, gp->g, gp->phi, llik); 
-  /* llik += lgamma(0.5*((double) gp->n)) - ((double) gp->n)*M_LN_SQRT_2PI; */
+  // myprintf(mystdout, "d=%g, g=%g, phi=%g, llik=%g\n", gpsep->d, gpsep->g, gpsep->phi, llik); 
+  /* llik += lgamma(0.5*((double) gpsep->n)) - ((double) gpsep->n)*M_LN_SQRT_2PI; */
 
   /* if priors are being used; for lengthscale */
   if(dab && dab[0] > 0 && dab[1] > 0) {
@@ -680,7 +680,7 @@ void newparamsGPsep(GPsep* gpsep, double *d, const double g)
   info = linalg_dposv(n, Kchol, gpsep->Ki);
   if(info) {
 #ifdef UNDEBUG
-    printMatrix(gp->K, n, n, stdout);
+    printMatrix(gpsep->K, n, n, stdout);
 #endif
     myprintf(mystdout, "d =");
     printVector(gpsep->d, m, mystdout, HUMAN);
@@ -836,7 +836,7 @@ double Ropt_sep_nug(GPsep* gpsep, double tmin, double tmax,
  *
  * calculate the MLE with respect to the lengthscale parameter;
  * requires that derivatives be pre-calculated; uses Newton's
- * method initialized at the current gp->d value
+ * method initialized at the current gpsep->d value
  */
 
 double mleGPsep_nug(GPsep* gpsep, double tmin, double tmax, double *ab, 

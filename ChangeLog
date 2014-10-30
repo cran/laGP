@@ -1,4 +1,17 @@
+1.1-3 (30 Oct 2014)
+-----
+
+fixed assert(gp) in gp_sep.c
+
+added code to max-out omp.threads and gpu.threads at the
+OpenMP max in the system configuration
+
+changed vignette to default to two threads unless env
+specifies a different OMP_NUM_THREADS
+
+
 1.1-2 (16 Oct 2014)
+-----
 
 added separable GP (GPsep) for finding MLE separable
 lengthscale parameters for scaling isotropic versions

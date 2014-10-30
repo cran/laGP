@@ -82,13 +82,21 @@ void aGP_R(/* inputs */
 		int *gits_out,
 		double *llik_out)
 {
-  int j, verb, dmle, gmle;
+  int j, verb, dmle, gmle, mxth;
   double **X, **XX, **rect;
   Method method;
+
+#ifdef _OPENMP
+  mxth = omp_get_max_threads();
+#else
+  mxth = 1;
+#endif
 
   /* check gpu input */
 #ifndef _GPU
   if(*numgpus_in || *nngpu_in) error("laGP not compiled with GPU support");
+  if(*gputhreads_in != 0) 
+    myprintf(mystdout, "NOTE: gpu.threads(%d) > 0 but GPUs not enabled\n");
 #else
   int ngpu = num_gpus();
   if(*numgpus_in > ngpu) 
@@ -97,9 +105,14 @@ void aGP_R(/* inputs */
   if(*nngpu_in < *numgpus_in)
     warning("number of GPUs (%d) greater than nngpu (%d)", *numgpus_in, *nngpu_in);
   if(*gputhreads_in == 0 && *numgpus_in > 0)
-    error("requested %d GPU threads but indicated 0 GPUs", *gputhreads_in);
-  if(*gputhreads_in > 0 && *numgpus_in == 0)
     error("requested 0 GPU threads but indicated %d GPUs", *numgpus_in);
+  if(*gputhreads_in > 0 && *numgpus_in == 0)
+    error("requested %d GPU threads but indicated 0 GPUs", *gputhreads_in);
+  if(*gputhreads_in > mxth) {
+    myprintf(mystdout, "NOTE: GPU threads(%d) > max(%d), using %d\n", 
+      *gputhreads_in, mxth,   mxth);
+    *gputhreads = mxth;
+  }
   if(*nngpu_in < *nn_in && *ompthreads_in < 1)
     error("must have non-zero ompthreads (%d) when nngpu (%d) < nn (%d)", 
       *ompthreads_in, *nngpu_in, *nn_in);
@@ -131,11 +144,28 @@ void aGP_R(/* inputs */
 
   /* for each predictive location */
 #ifdef _OPENMP
+
+  /* check verb argument; can't print too much in OpenMP */
   if(*verb_in > 1) {
-    myprintf(mystdout, "NOTE: verb=%d but only verb=1 allowed with OpenMP\n", *verb_in);
+    myprintf(mystdout, "NOTE: verb=%d but only verb=1 allowed with OpenMP\n", 
+      *verb_in);
     verb = 1;
   } else verb = *verb_in;
 
+  /* check ompthreads_in against max */
+  if(*ompthreads_in > mxth) {
+    myprintf(mystdout, "NOTE: omp.threads(%d) > max(%d), using %d\n", 
+      *ompthreads_in, mxth, mxth);
+    *ompthreads_in = mxth;
+  }
+  /* check combined threads */
+  if(*ompthreads_in + *gputhreads_in > mxth) {
+    myprintf(mystdout, "NOTE: combined GPU/OMP threads(%d) > max(%d), reducing OMP to %d\n", 
+      *ompthreads_in + *gputhreads_in, mxth, mxth - *gputhreads_in);
+    *ompthreads_in = mxth - *gputhreads_in;
+  }
+
+  /* ready to parallelize */
   #pragma omp parallel num_threads(*ompthreads_in + *gputhreads_in)
   {
     int i, me, start, step, end, gpu;
