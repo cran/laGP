@@ -1261,6 +1261,8 @@ void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
     linalg_daxpy(n*n, 1.0, *Gmui, 1, *(gp->Ki), 1);
     
     /* now augment covariance matrices */
+    /* for nn > 1 might be better to make bigger matricies once
+       outside the for-loop */
     gp->Ki = new_bigger_matrix(gp->Ki, n, n, n+1, n+1);
     for(i=0; i<n; i++) gp->Ki[n][i] = gp->Ki[i][n] = gvec[i];
     gp->Ki[n][n] = 1.0/mui;
@@ -1311,7 +1313,7 @@ void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
 
     /* progress meter? */
     if(verb > 0)
-      myprintf(mystdout, "update j=%d, n=%d, ldetK=%g\n", j+1, n, gp->ldetK);
+      myprintf(mystdout, "update j=%d, n=%d, ldetK=%g\n", j+1, gp->n, gp->ldetK);
     n = gp->n; /* increment for next interation */
   }
 
@@ -1561,71 +1563,6 @@ void predGP_R(/* inputs */
   free(XX);
   if(Sigma) free(Sigma);
 }
-
-
-/*
- * alGP:
- *
- * calculates a Monte Carlo approximation to the expected improvement (EI)
- * and expected y-value under an augmented Lagrangian with constraint GPs 
- * (cgps) assuming a known linear objective function with savel onorm.  
- * The constraints can be scaled with the cnorms
- */
-
-void alGP(GP **cgps, unsigned int ngps, unsigned int nn, double **XX, 
-  double onorm, double *cnorms, double *lambda, double *alpha, double fmin, 
-  int nomax, unsigned int N, double *eys, double *eis)
-{
-  unsigned int m;
-  double **mu, **s;
-  double *surr;
-  double Yc, cl, c2al, ei, df, ey;
-  int i, j, k;
-
-  /* degrees of freedom */
-  m = cgps[0]->m;
-
-  /* allocate storage for means and variances */
-  mu = new_matrix(ngps, nn);
-  s = new_matrix(ngps, nn);
-  for(j=0; j<ngps; j++) {
-    predGP_lite(cgps[j], nn, XX, mu[j], s[j], &df, NULL);
-    // for(k=0; k<nn; k++) s[j][k] = sqrt(s[j][k]*df/(df-2.0));
-    for(k=0; k<nn; k++) s[j][k] = sqrt(s[j][k]);
-  }
-
-  /* allocate storage for surr */
-  surr = new_vector(nn);
-  for(k=0; k<nn; k++) surr[k] = sumv(XX[k], m)*onorm;
-  zerov(eis, nn);
-
-  /* calculate the ALC for each candidate */
-  for(i=0; i<N; i++) {
-    for(k=0; k<nn; k++) {
-      cl = c2al = 0;
-      for(j=0; j<ngps; j++) {
-        Yc = rnorm(mu[j][k], s[j][k]) * cnorms[j];
-        // Yc = (rt(df)*s[j][k] + mu[j][k]) * cnorms[j];
-        cl += Yc*lambda[j];
-        if(nomax || Yc > 0) c2al += sq(Yc)*alpha[j];
-      }
-      ey = surr[k] + cl + c2al;
-      eys[k] += ey;
-      ei = fmin - ey;
-      if(ei > 0) eis[k] += ei;
-    }
-  }
-
-  /* normalize */
-  scalev(eis, nn, 1.0/N);
-  scalev(eys, nn, 1.0/N);
-
-  /* clean up */
-  free(surr);
-  delete_matrix(mu);
-  delete_matrix(s);
-}
-
 
 
 /*
@@ -2308,20 +2245,21 @@ void alcGP_R(/* inputs */
  * R interface to C-side function that returns the a Monte Carlo approximation 
  * to the expected improvement (EI) and expected y-value (EY) under an augmented 
  * Lagrangian with constraint GPs (cgps) assuming a known linear objective 
- * function with savel onorm.  The constraints can be scaled with the cnorms
+ * function with scale bscale.  The constraints can be scaled with the cnorms
  */
 
 void alGP_R(/* inputs */
-       int *cgpis_in,
-       int *ngps_in,
        int *m_in,
        double *XX_in,
        int *nn_in,
-       double *onorm_in,
+       int *fgpi_in,
+       double *fnorm_in,
+       int *ncgps_in,
+       int *cgpis_in,
        double *cnorms_in,
        double *lambda_in,
        double *alpha_in,
-       double *fmin_in,
+       double *ymin_in,
        int *nomax_in,
        int *N_in,
        
@@ -2329,14 +2267,16 @@ void alGP_R(/* inputs */
        double *eys_out,
        double *eis_out)
 {
-  GP **cgps;
-  unsigned int gpi, ngps, i;
-  double **XX;
+  GP **cgps, *fgp;
+  unsigned int gpi, ncgps, i, j, k;
+  double **cmu, **cs, **XX;
+  double *mu, *s;
+  double df;
 
   /* get the gps */
-  ngps = *ngps_in;
-  cgps = (GP**) malloc(sizeof(GP*) * ngps);
-  for(i=0; i<ngps; i++) {
+  ncgps = *ncgps_in;
+  cgps = (GP**) malloc(sizeof(GP*) * ncgps);
+  for(i=0; i<ncgps; i++) {
     gpi = cgpis_in[i];
     if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
       error("gp %d is not allocated\n", gpi);
@@ -2348,17 +2288,46 @@ void alGP_R(/* inputs */
   /* make matrix bones */
   XX = new_matrix_bones(XX_in, *nn_in, *m_in);
 
-  GetRNGstate();
+  /* allocate storage for the (null) distribution of f */
+  mu = new_vector(*nn_in);
+  if(*fgpi_in >= 0) {
+    gpi = *fgpi_in;
+    if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+      error("gp %d is not allocated\n", gpi);
+    fgp = gps[gpi];
+    s = new_vector(*nn_in);
+    predGP_lite(fgp, *nn_in, XX, mu, s, &df, NULL);
+    for(k=0; k<*nn_in; k++) s[k] = sqrt(s[k]);
+  } else {
+    for(k=0; k<*nn_in; k++) mu[k] = sumv(XX[k], cgps[0]->m);
+    s = NULL;
+  }
 
-  /* call the C-only function */
-  alGP(cgps, ngps, *nn_in, XX, *onorm_in, cnorms_in, lambda_in, alpha_in, 
-    *fmin_in, *nomax_in, *N_in, eys_out, eis_out);
-
-  PutRNGstate();
+  /* allocate storage for means and variances under normal approx */
+  cmu = new_matrix(ncgps, *nn_in);
+  cs = new_matrix(ncgps, *nn_in);
+  for(j=0; j<ncgps; j++) {
+    predGP_lite(cgps[j], *nn_in, XX, cmu[j], cs[j], &df, NULL);
+    for(k=0; k<*nn_in; k++) cs[j][k] = sqrt(cs[j][k]);
+  }
 
   /* clean up */
   free(XX);
   free(cgps);
+
+  GetRNGstate();
+
+  /* use mu and s to calculate EI and EY */
+  calc_al_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+    lambda_in, alpha_in, *ymin_in, *nomax_in, *N_in, eys_out, eis_out);
+
+  PutRNGstate();
+
+  /* clean up */
+  delete_matrix(cmu);
+  delete_matrix(cs);
+  free(mu);
+  if(s) free(s);
 }
 
 

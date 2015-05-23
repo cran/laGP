@@ -289,7 +289,7 @@ dllikGP <- function(gpi, ab=c(0,0), param=c("d", "g"))
 
 ## mleGP.switch:
 ## 
-## switch function for mle calculaitons by localGP.R
+## switch function for mle calculaitons by localGP.R
 
 mleGP.switch <- function(gpi, d, g, verb) 
   { 
@@ -297,8 +297,8 @@ mleGP.switch <- function(gpi, d, g, verb)
     if(d$mle && g$mle) { ## joint lengthscale and nugget
       return(jmleGP(gpi, drange=c(d$min,d$max), grange=c(g$min, g$max), 
                     dab=d$ab, gab=g$ab))
-    } else { ## maybe one or the other
-      if(d$mle) { ## lengthscale only
+    } else { ## maybe one or the other
+      if(d$mle) { ## lengthscale only
         dmle <- mleGP(gpi, param="d", d$min, d$max, d$ab, verb=verb)
         return(data.frame(d=dmle$d, dits=dmle$its))
       } 
@@ -418,11 +418,11 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
 ## lalcrayGP.R:
 ##
 ## calculates a ray emiating from a random nearest (of start)
-## neighbor(s) to Xref in Xcand.  The ending point of the ray
-## is 10 times the (opposite) distance from Xstart to Xref,
+## neighbor(s) to Xref in Xcand.  The ending point of the ray
+## is 10 times the (opposite) distance from Xstart to Xref,
 ## then alcrayGP (either C or R version) is called to optimize
-## over the ray.  The candidate in Xcand which is closest
-## to the solution is returned.  This works differently than
+## over the ray.  The candidate in Xcand which is closest
+## to the solution is returned.  This works differently than
 ## lalcrayGP, since the starts of the rays are random from 
 ## 1:offset
 
@@ -469,10 +469,10 @@ lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), ve
 ##
 ## wrapper to a C-side function used to calculate a ray emiating 
 ## from a random nearest (of start) neighbor(s) to Xref in Xcand.  
-## The ending point of the ray is 10 times the (opposite) distance 
+## The ending point of the ray is 10 times the (opposite) distance 
 ## from Xstart to Xref, then alcrayGP (on the C-side) is called to 
-## optimize over the ray.  The candidate in Xcand which is closest
-## to the solution is returned
+## optimize over the ray.  The candidate in Xcand which is closest
+## to the solution is returned
 
 lalcrayGP <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), verb=0)
   {
@@ -537,7 +537,7 @@ alcrayGP <- function(gpi, Xref, Xstart, Xend, verb=0)
               s = double(1),
               r = integer(1))
     
-    ## return the convex combination
+    ## return the convex combination
     return(list(r=out$r, s=out$s))
   }
 
@@ -548,37 +548,38 @@ alcrayGP <- function(gpi, Xref, Xstart, Xend, verb=0)
 ## composite objective function with linear objective (in X)
 ## and constraint GP (gpi) predictive surfaces
 
-alGP <- function(gpis, XX, onorm, cnorms, lambda, alpha, fmin, 
-  nomax=FALSE, N=100)
+alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin, 
+                 nomax=FALSE, N=100)
   {
     ## doms
     m <- ncol(XX)
     nn <- nrow(XX)
-    ngps <- length(gpis)
+    nCgps <- length(Cgpis)
 
     ## checking lengths for number of gps
-    if(length(cnorms) != ngps) stop("length(gpis) != length(cnorms)")
-    if(length(lambda) != ngps) stop("length(gpis) != length(lambda)")
-    if(length(alpha) != ngps) stop("length(gpis) != length(alpha)")
+    if(length(Cnorms) != nCgps) stop("length(Cgpis) != length(Cnorms)")
+    if(length(lambda) != nCgps) stop("length(Cgpis) != length(lambda)")
+    if(length(alpha) != nCgps) stop("length(Cgpis) != length(alpha)")
 
     ## checking scalars
     if(!is.logical(nomax) || length(nomax) != 1) stop("nomax should be a scalar logical")
     if(length(N) != 1 || N <= 0) stop("N should be a positive integer scalar")
-    if(length(fmin) != 1) stop("fmin should be a scalar")
-    if(length(onorm) != 1) stop("onorm should be a scalar")
+    if(length(ymin) != 1) stop("ymin should be a scalar")
+    if(length(fnorm) != 1) stop("fnorm should be a scalar")
 
     ## call the C-side
     out <- .C("alGP_R",
-      gpis = as.integer(gpis),
-      ngps = as.integer(ngps),
       m = as.integer(m),
       XX = as.double(t(XX)),
       nn = as.integer(nn),
-      onorm = as.double(onorm),
-      cnorms = as.double(cnorms),
+      fgpi = as.integer(fgpi),
+      fnorm = as.double(fnorm),
+      nCgps = as.integer(nCgps),
+      Cgpis = as.integer(Cgpis),
+      Cnorms = as.double(Cnorms),
       lambda = as.double(lambda),
       alpha = as.double(alpha),
-      fmin = as.double(fmin),
+      ymin = as.double(ymin),
       nonmax = as.double(nomax),
       N = as.integer(N),
       eys = double(nn),

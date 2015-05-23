@@ -8,6 +8,7 @@
 #include <math.h>
 #include <Rmath.h>
 #include "covar_sep.h"
+#include "ieci.h"
 
 #define SDEPS sqrt(DOUBLE_EPS)
 
@@ -835,8 +836,7 @@ double Ropt_sep_nug(GPsep* gpsep, double tmin, double tmax,
  * mleGPsep_nug:
  *
  * calculate the MLE with respect to the lengthscale parameter;
- * requires that derivatives be pre-calculated; uses Newton's
- * method initialized at the current gpsep->d value
+ * derivatives for the Newton method are calculated on the fly
  */
 
 double mleGPsep_nug(GPsep* gpsep, double tmin, double tmax, double *ab, 
@@ -958,8 +958,8 @@ alldone:
 /*
  * mleGPsep_nug_R:
  *
- * R-interface to update the GP to use its MLE nugget
- * parameterization using the current data
+ * R-interface to update the separable GP to use its MLE 
+ * nugget parameterization using the current data
  *
  * SIMPLIFIED compared to mleGPsep_R since there is
  * no lengthscale option
@@ -995,4 +995,422 @@ void mleGPsep_nug_R(/* inputs */
 
   /* call C-side MLE */
   *mle_out = mleGPsep_nug(gpsep, *tmin_in, *tmax_in, ab_in, its_out, *verb_in);
+}
+
+
+/*
+ * updateGPsep:
+ *
+ * quickly augment (O(n^2)) a gp based on new X-Z pairs.  
+ * Uses the Bartlet partition inverse equations
+ */
+
+void updateGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *ZZ, 
+                 int verb)
+{
+  unsigned int i, j, l, n, m;
+  double *kx, *x, *gvec;
+  double mui, Ztg;
+  double **Gmui, **temp;
+  
+  /* allocate space */
+  n = gpsep->n; m = gpsep->m;
+  kx = new_vector(n);
+  gvec = new_vector(n);
+  Gmui = new_matrix(n, n);
+  temp = new_matrix(1, 1);
+
+  /* for each new location */
+  for(j=0; j<nn; j++) {
+
+    /* shorthand for x being updated */
+    x = XX[j];
+
+    /* calculate the Bartlet quantities */
+    calc_g_mui_kxy_sep(m, x, gpsep->X, n, gpsep->Ki, NULL, 0, gpsep->d, 
+                       gpsep->g, gvec, &mui, kx, NULL);
+
+    /* Gmui = g %*% t(g)/mu */
+    linalg_dgemm(CblasNoTrans,CblasTrans,n,n,1,
+     mui,&gvec,n,&gvec,n,0.0,Gmui,n);
+    
+    /* Ki = Ki + Gmui */
+    linalg_daxpy(n*n, 1.0, *Gmui, 1, *(gpsep->Ki), 1);
+    
+    /* now augment covariance matrices */
+    /* for nn > 1 might be better to make bigger matricies once
+       outside the for-loop */
+    gpsep->Ki = new_bigger_matrix(gpsep->Ki, n, n, n+1, n+1);
+    for(i=0; i<n; i++) gpsep->Ki[n][i] = gpsep->Ki[i][n] = gvec[i];
+    gpsep->Ki[n][n] = 1.0/mui;
+    gpsep->K = new_bigger_matrix(gpsep->K, n, n, n+1, n+1);
+    for(i=0; i<n; i++) gpsep->K[n][i] = gpsep->K[i][n] = kx[i];
+    covar_sep_symm(m, &x, 1, gpsep->d, gpsep->g, temp);
+    gpsep->K[n][n] = **temp;
+
+    /* update the determinant calculation */
+    gpsep->ldetK += log(**temp + mui * linalg_ddot(n, gvec, 1, kx, 1));
+
+    /* update KiZ and phi */
+    /* Ztg = t(Z) %*% gvec */
+    Ztg = linalg_ddot(n, gvec, 1, gpsep->Z, 1);
+    gpsep->KiZ = realloc(gpsep->KiZ, sizeof(double)*(n+1));
+    /* KiZ[1:n] += (Ztg/mu + Z*g) * gvec */
+    linalg_daxpy(n, Ztg*mui + ZZ[j], gvec, 1, gpsep->KiZ, 1);
+    /* KiZ[n+1] = Ztg + z*mu */
+    gpsep->KiZ[n] = Ztg + ZZ[j]/mui;
+    /* phi += Ztg^2/mu + 2*z*Ztg + z^2*mu */
+    gpsep->phi += sq(Ztg)*mui + 2.0*ZZ[j]*Ztg + sq(ZZ[j])/mui;    
+
+    /* now augment X and Z */
+    gpsep->X = new_bigger_matrix(gpsep->X, n, m, n+1, m);
+    dupv(gpsep->X[n], x, m);
+    gpsep->Z = (double*) realloc(gpsep->Z, sizeof(double)*(n+1));
+    gpsep->Z[n] = ZZ[j];
+    (gpsep->n)++;
+
+    /* augment derivative covariance matrices */
+    for(l=0; l<m; l++) gpsep->dK[l] = new_bigger_matrix(gpsep->dK[l], n, n, n+1, n+1);
+    double ***dKn = (double***) malloc(sizeof(double **) * m);
+    for(l=0; l<m; l++) dKn[l] = new_matrix(1, n);
+    diff_covar_sep(m, &x, 1, gpsep->X, n, gpsep->d, &(gpsep->K[n]), dKn);
+    for(l=0; l<m; l++) {
+      for(i=0; i<n; i++) gpsep->dK[l][i][n] = gpsep->dK[l][n][i] = dKn[l][0][i];
+      delete_matrix(dKn[l]);
+    }
+    free(dKn);
+    for(l=0; l<m; l++) gpsep->dK[l][n][n] = 0.0;
+
+    /* if more then re-allocate */
+    if(j < nn-1) {
+      kx = (double*) realloc(kx, sizeof(double)*(n+1));
+      gvec = (double*) realloc(gvec, sizeof(double)*(n+1));
+      Gmui = new_bigger_matrix(Gmui, n, n, n+1, n+1);
+    }
+
+    /* progress meter? */
+    if(verb > 0)
+      myprintf(mystdout, "update_sep j=%d, n=%d, ldetK=%g\n", j+1, gpsep->n, gpsep->ldetK);
+    n = gpsep->n; /* increment for next interation */
+  }
+
+  /* clean up */
+  delete_matrix(Gmui);
+  free(kx);
+  free(gvec);
+  delete_matrix(temp);
+}
+
+
+/*
+ * updateGPsep_R:
+ *
+ * R-interface allowing the internal/global GP representation
+ * to be quickly augment (O(n^2)) based on new X-Z pairs.  
+ * Uses the Bartlet partition inverse equations
+ */
+
+void updateGPsep_R(/* inputs */
+    int *gpsepi_in,
+    int *m_in,
+    int *nn_in,
+    double *XX_in,
+    double *ZZ_in,
+    int *verb_in)
+{
+  GPsep *gpsep;
+  unsigned int gpsepi;
+  double **XX;
+
+  /* get the cloud */
+  gpsepi = *gpsepi_in;
+  if(gpseps == NULL || gpsepi >= NGPsep || gpseps[gpsepi] == NULL) 
+    error("gpsep %d is not allocated\n", gpsepi);
+  gpsep = gpseps[gpsepi];
+  if((unsigned) *m_in != gpsep->m)  
+    error("ncol(X)=%d does not match GPsep/C-side (%d)", *m_in, gpsep->m);
+
+  /* check that this is not a degenerate GP: not implemented (yet) */
+  if(gpsep->d[0] <= 0) error("updating degenerate GP (d=0) not supported");
+
+  /* sanity check and XX representation */
+  XX = new_matrix_bones(XX_in, *nn_in, gpsep->m);
+
+  /* call real C routine */
+  updateGPsep(gpsep, *nn_in, XX, ZZ_in, *verb_in);
+
+  /* clean up */
+  free(XX);
+}
+
+
+/*
+ * predGPsep:
+ *
+ * return the student-t predictive equations,
+ * i.e., parameters to a multivatiate t-distribution
+ * for XX predictive locations of dimension (n*m)
+ */
+
+void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *mean, 
+      double **Sigma, double *df, double *llik)
+{
+  unsigned int i, j, m, n;
+  double **k, **ktKi, **ktKik;
+  double phidf;
+
+  /* easier referencing for dims */
+  n = gpsep->n;  m = gpsep->m;
+
+  /* variance (s2) components */
+  *df = (double) n; 
+  phidf = gpsep->phi/(*df);
+
+  /* calculate marginal likelihood (since we have the bits) */
+  *llik = 0.0 - 0.5*((*df) * log(0.5 * gpsep->phi) + gpsep->ldetK);
+  /* continuing: - ((double) n)*M_LN_SQRT_2PI;*/
+
+  /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
+  k = new_matrix(n, nn);
+  covar_sep(m, gpsep->X, n, XX, nn, gpsep->d, 0.0, k);
+  /* Sigma <- covar(X1=XX, d=Zt$d, g=Zt$g) */
+  covar_sep_symm(m, XX, nn, gpsep->d, gpsep->g, Sigma);
+  
+  /* ktKi <- t(k) %*% util$Ki */
+  ktKi = new_matrix(n, nn);
+  linalg_dsymm(CblasRight,nn,n,1.0,gpsep->Ki,n,k,nn,0.0,ktKi,nn);
+  /* ktKik <- ktKi %*% k */
+  ktKik = new_matrix(nn, nn);
+  linalg_dgemm(CblasNoTrans,CblasTrans,nn,nn,n,
+               1.0,k,nn,ktKi,nn,0.0,ktKik,nn);
+
+  /* mean <- ktKi %*% Z */
+  linalg_dgemv(CblasNoTrans,nn,n,1.0,ktKi,nn,gpsep->Z,1,0.0,mean,1);
+
+  /* Sigma <- phi*(Sigma - ktKik)/df */
+  for(i=0; i<nn; i++) {
+     Sigma[i][i] = phidf * (Sigma[i][i] - ktKik[i][i]);
+    for(j=0; j<i; j++)
+      Sigma[j][i] = Sigma[i][j] = phidf * (Sigma[i][j] - ktKik[i][j]);
+  }
+
+  /* clean up */
+  delete_matrix(k);
+  delete_matrix(ktKi);
+  delete_matrix(ktKik);
+}
+
+
+/*
+ * new_predutilGPsep_lite:
+ *
+ * utility function that allocates and calculate useful vectors 
+ * and matrices for prediction; used by predGP_lite and dmus2GP
+ */
+
+void new_predutilGPsep_lite(GPsep *gpsep, unsigned int nn, double **XX, 
+  double ***k, double ***ktKi, double **ktKik)
+{
+  unsigned int i, j, m, n;
+
+  /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
+  n = gpsep->n;  m = gpsep->m;
+  *k = new_matrix(n, nn);
+  covar_sep(m, gpsep->X, n, XX, nn, gpsep->d, 0.0, *k);
+  
+  /* ktKi <- t(k) %*% util$Ki */
+  *ktKi = new_matrix(n, nn);
+  linalg_dsymm(CblasRight,nn,n,1.0,gpsep->Ki,n,*k,nn,0.0,*ktKi,nn);
+  /* ktKik <- diag(ktKi %*% k) */
+  *ktKik = new_zero_vector(nn); 
+  for(i=0; i<nn; i++) for(j=0; j<n; j++) (*ktKik)[i] += (*ktKi)[j][i]*(*k)[j][i];
+}
+
+
+/*
+ * predGPsep_lite:
+ *
+ * return the student-t predictive equations,
+ * i.e., parameters to a multivatiate t-distribution
+ * for XX predictive locations of dimension (n*m);
+ * lite because sigma2 not Sigma is calculated
+ */
+
+void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, double *mean, 
+     double *sigma2, double *df, double *llik)
+{
+  unsigned int i;
+  double **k, **ktKi;
+  double *ktKik;
+  double phidf;
+  
+  /* sanity checks */
+  assert(df);
+  *df = gpsep->n; 
+
+  /* utility calculations */
+  new_predutilGPsep_lite(gpsep, nn, XX, &k, &ktKi, &ktKik);
+
+  /* mean <- ktKi %*% Z */
+  if(mean) linalg_dgemv(CblasNoTrans,nn,gpsep->n,1.0,ktKi,nn,gpsep->Z,1,0.0,mean,1);
+
+  /* Sigma <- phi*(Sigma - ktKik)/df */
+  /* *df = n - m - 1.0; */  /* only if estimating beta */
+  if(sigma2) {
+    phidf = gpsep->phi/(*df);
+    for(i=0; i<nn; i++) sigma2[i] = phidf * (1.0 + gpsep->g - ktKik[i]);
+  }
+
+  /* calculate marginal likelihood (since we have the bits) */
+  /* might move to updateGP if we decide to move phi to updateGP */
+  if(llik) *llik = 0.0 - 0.5*(((double) gpsep->n) * log(0.5* gpsep->phi) + gpsep->ldetK);
+  /* continuing: - ((double) n)*M_LN_SQRT_2PI;*/
+
+  /* clean up */
+  delete_matrix(k);
+  delete_matrix(ktKi);
+  free(ktKik);
+}
+
+
+/*
+ * predGPsep_R:
+ *
+ * R-interface to C-side function that 
+ * returns the student-t predictive equations,
+ * i.e., parameters to a multivatiate t-distribution
+ * for XX predictive locations of dimension (n*m)
+ * using the stored GP parameterization
+ */
+
+void predGPsep_R(/* inputs */
+        int *gpsepi_in,
+        int *m_in,
+        int *nn_in,
+        double *XX_in,
+        int *lite_in,
+        
+        /* outputs */
+        double *mean_out,
+        double *Sigma_out,
+        double *df_out,
+        double *llik_out)
+{
+  GPsep* gpsep;
+  unsigned int gpsepi;
+  double **Sigma, **XX;
+
+  /* get the gp */
+  gpsepi = *gpsepi_in;
+  if(gpseps == NULL || gpsepi >= NGPsep || gpseps[gpsepi] == NULL) 
+    error("gpsep %d is not allocated\n", gpsepi);
+  gpsep = gpseps[gpsepi];
+  if((unsigned) *m_in != gpsep->m) 
+    error("ncol(X)=%d does not match GPsep/C-side (%d)", *m_in, gpsep->m);
+
+  /* sanity check and XX representation */
+  XX = new_matrix_bones(XX_in, *nn_in, *m_in);
+  if(! *lite_in) Sigma = new_matrix_bones(Sigma_out, *nn_in, *nn_in);
+  else Sigma = NULL;
+
+  /* call the C-only Predict function */
+  if(*lite_in) predGPsep_lite(gpsep, *nn_in, XX, mean_out, Sigma_out, df_out, llik_out);
+  else predGPsep(gpsep, *nn_in, XX, mean_out, Sigma, df_out, llik_out);
+  
+  /* clean up */
+  free(XX);
+  if(Sigma) free(Sigma);
+}
+
+
+
+/*
+ * alGPsep_R:
+ *
+ * R interface to C-side function that returns the a Monte Carlo approximation 
+ * to the expected improvement (EI) and expected y-value (EY) under an augmented 
+ * Lagrangian with constraint separable GPs (cgpseps) assuming a known linear 
+ * objective function with scale bscale.  The constraints can be scaled with the cnorms
+ */
+
+void alGPsep_R(/* inputs */
+       int *m_in,
+       double *XX_in,
+       int *nn_in,
+       int *fgpsepi_in,
+       double *fnorm_in,
+       int *ncgpseps_in,
+       int *cgpsepis_in,
+       double *cnorms_in,
+       double *lambda_in,
+       double *alpha_in,
+       double *ymin_in,
+       int *nomax_in,
+       int *N_in,
+       
+       /* outputs */
+       double *eys_out,
+       double *eis_out)
+{
+  GPsep **cgpseps, *fgpsep;
+  unsigned int gpsepi, ncgpseps, i, j, k;
+  double **cmu, **cs, **XX;
+  double *mu, *s;
+  double df;
+
+  /* get the gps */
+  ncgpseps = *ncgpseps_in;
+  cgpseps = (GPsep**) malloc(sizeof(GPsep*) * ncgpseps);
+  for(i=0; i<ncgpseps; i++) {
+    gpsepi = cgpsepis_in[i];
+    if(gpseps == NULL || gpsepi >= NGPsep || gpseps[gpsepi] == NULL) 
+      error("gpsep %d is not allocated\n", gpsepi);
+    cgpseps[i] = gpseps[gpsepi];
+    if((unsigned) *m_in != cgpseps[i]->m)  
+      error("ncol(X)=%d does not match GPsep/C-side (%d)", *m_in, cgpseps[i]->m);
+  }
+
+  /* make matrix bones */
+  XX = new_matrix_bones(XX_in, *nn_in, *m_in);
+
+  /* allocate storage for the (possibly null) distribution of f */
+  mu = new_vector(*nn_in);
+  if(*fgpsepi_in >= 0) { /* if modeling f */
+    gpsepi = *fgpsepi_in;
+    if(gpseps == NULL || gpsepi >= NGPsep || gpseps[gpsepi] == NULL) 
+      error("gpsep %d is not allocated\n", gpsepi);
+    fgpsep = gpseps[gpsepi];
+    s = new_vector(*nn_in);
+    predGPsep_lite(fgpsep, *nn_in, XX, mu, s, &df, NULL);
+    for(k=0; k<*nn_in; k++) s[k] = sqrt(s[k]);
+  } else { /* not modeling f; using known linear mean */
+    for(k=0; k<*nn_in; k++) mu[k] = sumv(XX[k], cgpseps[0]->m);
+    s = NULL;
+  }
+
+  /* allocate storage for means and variances under normal approx */
+  cmu = new_matrix(ncgpseps, *nn_in);
+  cs = new_matrix(ncgpseps, *nn_in);
+  for(j=0; j<ncgpseps; j++) {
+    predGPsep_lite(cgpseps[j], *nn_in, XX, cmu[j], cs[j], &df, NULL);
+    for(k=0; k<*nn_in; k++) cs[j][k] = sqrt(cs[j][k]);
+  }
+
+  /* clean up */
+  free(XX);
+  free(cgpseps);
+
+  GetRNGstate();
+
+  /* use mu and s to calculate EI and EY */
+  calc_al_eiey(ncgpseps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+    lambda_in, alpha_in, *ymin_in, *nomax_in, *N_in, eys_out, eis_out);
+
+  PutRNGstate();
+
+  /* clean up */
+  delete_matrix(cmu);
+  delete_matrix(cs);
+  free(mu);
+  if(s) free(s);
 }

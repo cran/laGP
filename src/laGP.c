@@ -194,8 +194,8 @@ void aGP_R(/* inputs */
     verb = *verb_in;
 
     /* checking if threads arguments are reasonable */
-    if(*ompthreads_in != 1) 
-      warning("NOTE: omp.threads > 1, but source not compiled for OpenMP");
+    if(*ompthreads_in != 1) /* mxth should be 1; this is for compiler */
+      warning("NOTE: omp.threads > %d, but source not compiled for OpenMP", mxth);
     if(*gputhreads_in > 1)
       warning("NOTE: using gpu.threads > 1 requires OpenMP compilation");
 
@@ -259,7 +259,7 @@ void aGP_R(/* inputs */
 /*
  * closest_indices:
  *
- * returns the close indices into X which are closes (on average) to the
+ * returns the close indices into X which are closest (on average) to the
  * element(s) of Xref.  The first start of those indices are the start 
  * closest, otherwise the indecies unordered (unless sorted=true).  
  * Even when sorted=true the incies close+1, ... are not sorted.
@@ -276,7 +276,7 @@ int *closest_indices(const unsigned int m, const unsigned int start,
   /* calculate distances to reference location(s), and so-order X & Z */
   D = new_matrix(nref, n);
   distance(Xref, nref, X, n, m, D);
-  if(nref > 1) sum_of_columns(*D, D, nref, n);
+  if(nref > 1) min_of_columns(*D, D, nref, n);
 
   /* partition based on "close"st */
   if(n > close) {

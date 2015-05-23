@@ -291,10 +291,13 @@ model run, and a \code{var} column, which at this time is zero
 
  At this time, this function provides no facility to find local designs
  for the subset of predictive locations \code{XX} jointly, i.e.,
- providing a matrix \code{Xref} to \code{\link{laGP}}
+ providing a matrix \code{Xref} to \code{\link{laGP}}.
+
+ Only (local) isotropic GPs are supported at this time.
 }
 
 \seealso{
+  \code{vignette("laGP")}, 
   \code{\link{laGP}}, \code{\link{alcGP}}, \code{\link{mspeGP}},  \code{\link{alcrayGP}},
   \code{\link[parallel]{makeCluster}}, \code{\link[parallel]{clusterApply}}
 }

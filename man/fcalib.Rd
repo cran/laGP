@@ -181,6 +181,7 @@ J.S. Racine, Z. and Nie (2012). \pkg{crs}:
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
+\code{vignette("laGP")}, 
 \code{\link{jmleGP}}, \code{\link{newGP}}, \code{\link{aGP.seq}}, \code{\link{discrep.est}},
 \code{\link[crs]{snomadr}} 
 }

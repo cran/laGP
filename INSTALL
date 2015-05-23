@@ -44,7 +44,7 @@ following the instructions therein.
 SUPPORT FOR CUDA
 ----------------
 
-CUDA support can be highly architecture and operating system specfic,
+CUDA support can be highly architecture and operating system specific,
 therefore the very basic instructions here may not work widely.  However they
 have been tested on a variety of Unix-alikes including OSX.
 
@@ -72,3 +72,9 @@ The laGP/src/Makvars file contains commented out lines which implement these
 changes.  After these changes are made, simply install the package as usual
 (e.g., see above).  Alternatively, use "make allgpu" to compile a standalone
 shared object.
+
+
+MORE DETAILS
+------------
+
+For more details, please see the Appendix in vignette("laGP")

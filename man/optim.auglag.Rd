@@ -2,19 +2,20 @@
 \alias{optim.auglag}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-    Optimize a linear objective function under
+    Optimize an objective function under
     multiple blackbox constraints
 }
 \description{
     Uses a surrogate modeled augmented Lagrangian (AL) system to optimize
-    a known linear function under unknown multiple (blackbox) constraints via
+    an objective function (blackbox or known and linear) 
+    under unknown multiple (blackbox) constraints via
     expected improvement (EI) and variations
 }
 \usage{
-optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL, 
-    ab = c(3/2, 4), lambda = rep(1, ncol(B)), rho = 1/2, 
+optim.auglag(fn, B, fhat = FALSE, start = 10, end = 100, Xstart = NULL, 
+    sep=FALSE, ab = c(3/2, 4), lambda = rep(1, ncol(B)), rho = 1/2, 
     urate = 10, ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
-    dlim = sqrt(ncol(B)) * c(1/100, 10), obj.norm = 1, 
+    dlim = sqrt(ncol(B)) * c(1/100, 10), Bscale = 1, 
     tol = list(ei = 1e-05, ey = 0.05, its = 10), nomax = FALSE, 
     N = 1000, plotprog = FALSE, verb = 2, ...)
 }
@@ -30,6 +31,10 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
     (\code{length(x)} in \code{fn(x)}); the first column gives
     lower bounds and the second gives upper bounds
 }
+  \item{fhat}{ a scalar logical indicating if the objective function should
+  be modeled with a GP surrogate.  The default of \code{FALSE} assumes a known
+  linear objective scaled by \code{Bscale}.  Using \code{TRUE} is an \dQuote{alpha}
+  feature at this time}
   \item{start}{
     positive integer giving the number of random starting locations before 
     sequential design (for optimization) is performed; \code{start >= 6} is
@@ -45,6 +50,11 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
      \code{start} random ones;  recommend \code{nrow(Xstart) + start >= 6}; also must
      have \code{ncol(Xstart) = nrow(B)}
 }
+  \item{sep}{
+    if \code{sep = TRUE} then separable GPs (i.e., via \code{\link{newGPsep}}, etc.)
+    are used to model the constraints.  Otherwise the default it to use isotropic
+    ones
+  }
   \item{ab}{
     prior parameters; see \code{\link{darg}} describing the prior used on the
     lengthscale parameter during emulation(s) for the constraints
@@ -74,7 +84,7 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
     2-vector giving bounds for the lengthscale parameter(s) under MLE/MAP inference,
     thereby augmenting the prior specification in \code{ab}
 }
-  \item{obj.norm}{
+  \item{Bscale}{
     scalar indicating the relationship between the sum of the inputs \code{sum(x)} 
     to \code{fn} and the output \code{fn(x)$obj$}; note that at this time only linear
     objectives are supported by the code - more details below
@@ -122,7 +132,7 @@ optim.auglag(fn, B, start = 10, end = 100, Xstart = NULL,
   \item{...}{ additional arguments passed to \code{fn}}
 }
 \details{
-In its current form, this is an \dQuote{alpha} code illustrating the suite of
+In its current form, this is a \dQuote{beta} code illustrating the suite of
 methods used to optimize two challenging constrained optimization problems
 from Gramacy, et al. (2014); see references below.  
 
@@ -149,6 +159,10 @@ See Gramacy, et al. (2014) for more details.
 
 The example below illustrates a variation on the toy problem considered in that paper,
 which bases sampling on EI.
+
+The latest version of this function allows an unknown objective function to
+be modeled (\code{fhat = TRUE}), rather than assuming a known linear one.  This
+is \dQuote{alpha} functionality at this time.  Examples are forthcoming
 }
 \value{
 The output is a \code{list} summarizing the progress of the evaluations of the
@@ -162,8 +176,12 @@ blackbox under optimization
 evaluated }
 \item{C }{ \code{matrix} giving the value of the constraint function for the input 
   under consideration at each trial (corresponding to \code{X} above)}
-\item{d}{ \code{matrix} of lengthscale values obtained at each update of the GP 
-  estimator(s), i.e., every \code{urate} iterations}
+\item{d }{ \code{matrix} of lengthscale values obtained at the final update of the 
+  GP emulator for each constraint}
+\item{df }{ if \code{fhat = TRUE} then this is a \code{matrix} of lengthscale values
+for the objective obtained at the final update of the GP emulator}
+\item{lambda }{ a copy of the final Lagrange multiplier parameter}
+\item{rho }{ a copy of the final penalty paramter }
 }
 \references{
 
@@ -186,22 +204,24 @@ Computational Methods in Water Resources} (CMWR 2012).
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
 }
 \note{
-The current version of this function only supports linear objectives; 
-future versions will deal with known monotone objectives.  The is \dQuote{alpha}
-software.
+This function is under active development, especially the newest features including
+separable GP surrogate modeling, and surrogate modeling of a blackbox objective
 }
 
 
 \seealso{
+\code{vignette("laGP")}, \code{demo{ALfhat}} for blackbox objective,
 \code{\link[tgp]{optim.step.tgp}} for unconstrained optimization;\cr
 \code{optim} with \code{method="L-BFGS-B"} for box constraints, or
 \code{optim} with \code{method="SANN"} for simulated annealing
 }
 \examples{
-library(tgp) ## uses dopt.gp, will change later
-library(akima) ## for plotprog=interp below
+## this example assumes a known linear objective; further examples
 
-## a test function returning objective evaluations and constraints
+library(tgp) ## uses dopt.gp, will change later
+
+## a test function returning linear objective evaluations and 
+## non-linear constraints
 aimprob <- function(x)
 {
   f <- sum(x)
@@ -215,9 +235,9 @@ B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
 
 ## optimization (primarily) by EI, change 25 to 100 for
 ## 99% chance of finding the global optimum with value 0.6
-library(akima)
+library(akima) ## for plotprog=interp
 out <- optim.auglag(aimprob, B, ab=c(3/2,8), end=25, plotprog=interp)
-
+  
 
 ## for comparison, here is a version that uses simulated annealing
 ## where the Additive Penalty Method (APM) is used to handle
@@ -247,7 +267,7 @@ out <- optim(runif(2), aimprob.apm, method="SANN")
 aimprob(out$par)
 }
 
-
+## for a version with a modeled objective see demo("ALfhat")
 }
 %  one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

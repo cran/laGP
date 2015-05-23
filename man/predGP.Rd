@@ -1,15 +1,17 @@
 \name{predGP}
 \alias{predGP}
+\alias{predGPsep}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 GP Prediction/Kriging
 }
 \description{
-  Perform Gaussian processes prediction at new XX locations using a GP
-  object stored on the C side
+  Perform Gaussian processes prediction (under isotropic or separable formulation)
+  at new XX locations using a GP object stored on the C side
 }
 \usage{
 predGP(gpi, XX, lite = FALSE)
+predGPsep(gpsepi, XX, lite = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -17,6 +19,8 @@ predGP(gpi, XX, lite = FALSE)
     a C-side GP object identifier (positive integer);
     e.g., as returned by \code{\link{newGP}}
 }
+\item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object,
+as returned by \code{\link{newGPsep}}}
 \item{XX}{
    a \code{matrix} or \code{data.frame} containing
    a design of predictive locations
@@ -47,7 +51,7 @@ predGP(gpi, XX, lite = FALSE)
   \item{mean }{a vector of predictive means of length \code{nrow(Xref)}}
   \item{Sigma}{ a \code{Sigma} containing the covariance matrix of
     for a multivariate Student-t distribution; or if \code{lite = TRUE},
-    then the field \code{sigma2} contains the diagonal of this matrix}
+    then the field \code{s2} contains the diagonal of this matrix}
   \item{df }{a Student-t degrees of freedom scalar (applies to all
   \code{XX})}
 }
@@ -60,7 +64,8 @@ predGP(gpi, XX, lite = FALSE)
 }
 
 \seealso{
-  \code{\link{newGP}}, \code{\link{mleGP}}, \code{\link{jmleGP}}, \code{\link{predGP}}
+\code{vignette("laGP")}, 
+  \code{\link{newGP}}, \code{\link{mleGP}}, \code{\link{jmleGP}}, 
 }
 \examples{
 ## a "computer experiment" -- a much smaller version than the one shown

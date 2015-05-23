@@ -44,10 +44,10 @@ getDs <- function(X, p=0.1, samp.size=1000)
   }
 
 
-## check.arg:
+## check.arg:
 ## 
 ## check a gamma-defined argument as created by garg and 
-## darg beloe
+## darg beloe
 
 check.arg <- function(d)
   {
@@ -87,10 +87,10 @@ garg <- function(g, y)
     if(is.null(g$start) || (g$mle && (is.null(g$max) || is.null(g$ab) || is.na(g$ab[2]))))
       r2s <- (y - mean(y))^2
 
-    ## check for starting value  
+    ## check for starting value  
     if(is.null(g$start)) g$start <- as.numeric(quantile(r2s, p=0.025))
 
-    ## check for max value
+    ## check for max value
     if(is.null(g$max)) {
       if(g$mle) g$max <- max(r2s)
       else g$max <- max(g$start)
@@ -149,6 +149,8 @@ darg <- function(d, X, samp.size=1000)
     if(is.null(d$min)) {
       if(d$mle) d$min <- Ds$min/2
       else d$min <- min(d$start)
+      if(d$min < sqrt(.Machine$double.eps))
+        d$min <- sqrt(.Machine$double.eps)
     }
 
     ## check for priors

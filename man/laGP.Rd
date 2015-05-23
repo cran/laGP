@@ -228,12 +228,15 @@ The output is a \code{list} with the following components.
   Differences between the C \code{qsort} function and \R's
   \code{\link{order}} function may cause chosen designs returned from
   \code{laGP} and \code{laGP.R} to differ when multiple \code{X}
-  values are equidistant to \code{Xref}
+  values are equidistant to \code{Xref}.
+
+  Only (local) isotropic GPs are supported at this time.
 }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
+\code{vignette("laGP")}, 
   \code{\link{aGP}}, \code{\link{newGP}}, \code{\link{updateGP}},
     \code{\link{predGP}}, \code{\link{mleGP}}, \code{\link{jmleGP}},
     \code{\link{alcGP}}, \code{\link{mspeGP}}, \code{\link{alcrayGP}}

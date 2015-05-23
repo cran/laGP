@@ -154,43 +154,6 @@ double calc_alc(const int m, double *ktKik, double *s2p, const double phi,
 
 
 /*
- * calc_g_mui_kxy:
- *
- * function for calculating the g vector, mui scalar, and
- * kxy vector for the IECI calculation; kx is length-n 
- * utility space -- only implements isotropic case; separable
- * version implemented in plgp source tree;
- */
-
-void calc_g_mui_kxy(const int col, double *x, double **X, 
-		    const int n, double **Ki, double **Xref, 
-		    const int m, double d, const double g, double *gvec, 
-        double *mui, double *kx, double *kxy)
-{
-  double mu_neg;
-  int i;
-
-  /* sanity check */
-  if(m == 0) assert(!kxy && !Xref);
-
-  /* kx <- drop(covar(X1=pall$X, X2=x, d=Zt$d, g=Zt$g)) */
-  covar(col, &x, 1, X, n, d, g, &kx);
-  /* kxy <- drop(covar(X1=x, X2=Xref, d=Zt$d, g=0)) */
-  if(m > 0) covar(col, &x, 1, Xref, m, d, 0.0, &kxy);
-
-  /* Kikx <- drop(util$Ki %*% kx) stored in gvex */
-  linalg_dsymv(n,1.0,Ki,n,kx,1,0.0,gvec,1);
-
-  /* mui <- drop(1 + Zt$g - t(kx) %*% Kikx) */
-  *mui = 1.0 + g - linalg_ddot(n, kx, 1, gvec, 1);
-  
-  /* gvec <- - Kikx/mui */
-  mu_neg = 0.0 - 1.0/(*mui);
-  for(i=0; i<n; i++) gvec[i] *= mu_neg;
-}
-
-
-/*
  * calc_ktKikx:
  *
  * function for calculating the ktKikx vector used in the
@@ -237,4 +200,49 @@ void calc_ktKikx(double *ktKik, const int m, double **k, const int n,
   /* clean up */
   if(!ktGmui_util) free(ktGmui);
   if(!Gmui_util) delete_matrix(Gmui);
+}
+
+
+
+/*
+ * calc_al_eiey:
+ *
+ * calculates a Monte Carlo approximation to the expected improvement (EI)
+ * and expected y-value under an augmented Lagrangian with constraint predictive
+ * distributions defined by cmu and cs, and objective by mu and s.  When s is
+ * null the mu argument is treaded as a known fixed value for the objective. 
+ * The constraints can be scaled with the cnorms
+ */
+
+void calc_al_eiey(unsigned int nc, unsigned int nn, double *mu, double *s,
+  double fnorm, double **cmu, double **cs, double *cnorms, double *lambda, 
+  double *alpha, double ymin, int nomax, unsigned int N, double *eys, double *eis)
+{
+  double Yc, cl, c2al, ei, ey;
+  int i, j, k;
+
+  /* init */
+  zerov(eis, nn);
+  zerov(eys, nn);
+
+  /* calculate the EI and EY for each candidate via normal approximation */
+  for(i=0; i<N; i++) {
+    for(k=0; k<nn; k++) {
+      cl = c2al = 0;
+      for(j=0; j<nc; j++) {
+        Yc = rnorm(cmu[j][k], cs[j][k]) * cnorms[j];
+        cl += Yc*lambda[j];
+        if(nomax || Yc > 0) c2al += sq(Yc)*alpha[j];
+      }
+      if(!s) ey = mu[k]*fnorm + cl + c2al;
+      else ey = rnorm(mu[k], s[k])*fnorm;
+      eys[k] += ey;
+      ei = ymin - ey;
+      if(ei > 0) eis[k] += ei;
+    }
+  }
+
+  /* normalize */
+  scalev(eis, nn, 1.0/N);
+  scalev(eys, nn, 1.0/N);
 }

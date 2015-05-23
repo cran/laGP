@@ -63,7 +63,8 @@ discrep.est(X, Y, Yhat, d, g, bias = TRUE, clean = TRUE)
     different initial value for each predictive location
 }
   \item{bias}{
-  a scalar logical indicating if a GP discrepency should be estimated (\code{TRUE})
+  a scalar logical indicating if a (isotropic) 
+  GP discrepency should be estimated (\code{TRUE})
   or a Gaussian noise term only (\code{FALSE})
 }
   \item{clean}{
@@ -112,6 +113,7 @@ models.} Bayesian Analysis, 4, 1, 119-150.
 }
 
 \seealso{
+\code{vignette("laGP")},
 \code{\link{jmleGP}}, \code{\link{newGP}}, \code{\link{aGP.seq}}, \code{\link{fcalib}} 
 }
 \examples{

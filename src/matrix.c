@@ -744,8 +744,7 @@ void sum_of_columns_f(double *s, double **M, unsigned int n1, unsigned int n2,
 /*
  * sum_of_columns:
  *
- * fill sum[n1] with the sum of the columns of M (n1 x n2);
- * each element of which is sent through function f() first;
+ * fill s[n1] with the sum of the columns of M (n1 x n2);
  */
 
 void sum_of_columns(double *s, double **M, unsigned int n1, unsigned int n2)
@@ -758,8 +757,31 @@ void sum_of_columns(double *s, double **M, unsigned int n1, unsigned int n2)
   
   /* calculate sum of columns */
   for(i=0; i<n2; i++) {
-    s[i] = M[0][0];
+    s[i] = M[0][i];
     for(j=1; j<n1; j++) s[i] += M[j][i];
+  }
+}
+
+
+
+/*
+ * min_of_columns:
+ *
+ * fill s[n1] with the min of the columns of M (n1 x n2);
+ */
+
+void min_of_columns(double *s, double **M, unsigned int n1, unsigned int n2)
+{
+  unsigned int i,j;
+
+  /* sanity checks */
+  if(n1 <= 0 || n2 <= 0) {return;}
+  assert(s && M);
+  
+  /* calculate sum of columns */
+  for(i=0; i<n2; i++) {
+    s[i] = M[0][i];
+    for(j=1; j<n1; j++) if(M[j][i] < s[i]) s[i] = M[j][i];
   }
 }
 
@@ -1150,10 +1172,10 @@ double* dseq(double from, double to, double by)
   unsigned int n,i;
   double *s = NULL;
   
-  by = abs(by);
+  by = fabs(by);
   
-  if(from <= to) n = (unsigned int) (to - from)/abs(by) + 1;
-  else n = (unsigned int) (from - to)/abs(by) + 1;
+  if(from <= to) n = (unsigned int) (to - from)/fabs(by) + 1;
+  else n = (unsigned int) (from - to)/fabs(by) + 1;
   
   if( n == 0 ) return NULL;
   

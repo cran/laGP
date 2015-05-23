@@ -2,6 +2,7 @@
 \alias{newGP}
 \alias{updateGP}
 \alias{newGPsep}
+\alias{updateGPsep}
 
 \title{
 Create A New GP Object
@@ -15,6 +16,7 @@ Create A New GP Object
 newGP(X, Z, d, g, dK = FALSE)
 newGPsep(X, Z, d, g)
 updateGP(gpi, X, Z, verb = 0)
+updateGPsep(gpsepi, X, Z, verb = 0)
 }
 
 \arguments{
@@ -43,6 +45,8 @@ updateGP(gpi, X, Z, verb = 0)
 \item{gpi}{
   a C-side GP object identifier (positive integer); e.g., as returned by \code{newGP}
 }
+\item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object,
+  as returned by \code{\link{newGPsep}}}
 \item{verb}{
   a scalar logical indicating the verbosity level.  A positive value
   causes progress statements to be printed to the screen for each
@@ -65,8 +69,8 @@ updateGP(gpi, X, Z, verb = 0)
   \code{updateGP} also updates any statistics needed in order to quickly
   search for new local design candidates via \code{\link{laGP}}.
 
-  \code{updateGP} is not supported for separable GP objects created
-  by \code{newGPsep}
+  \code{updateGPsep} works similarly, on \code{gpsepi} objects, however
+  local design and inference is not supported as this time
 }
 \value{
  \code{newGP} and \code{newGPsep} create 
@@ -86,14 +90,15 @@ updateGP(gpi, X, Z, verb = 0)
   preprint available on arXiv:1303.0383; 
   \url{http://arxiv.org/abs/1303.0383}
 }
-
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
 }
 
 \seealso{
+\code{vignette("laGP")}, 
 \code{\link{deleteGP}}, \code{\link{deleteGPsep}}, \code{\link{mleGP}},
-\code{\link{mleGPsep}}, \code{\link{predGP}}, \code{\link{laGP}}, \code{\link{laGP}}
+\code{\link{mleGPsep}}, \code{\link{predGP}}, \code{\link{predGPsep}},
+\code{\link{laGP}} 
 }
 
 \examples{

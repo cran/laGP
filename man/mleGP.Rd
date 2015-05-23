@@ -32,7 +32,8 @@ jmleGPsep(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
     a C-side GP object identifier (positive integer);
     e.g., as returned by \code{\link{newGP}}
   }
-  \item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object}
+  \item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object,
+  as returned by \code{\link{newGPsep}}}
   \item{N}{ for \code{jmleGP.R}, the maximum number of times the pair of margins
     should be iterated over before determining failed convergence; note
     that (at this time) \code{jmleGP} uses a hard-coded \code{N=100} in
@@ -141,6 +142,7 @@ jmleGPsep(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
+\code{vignette("laGP")}, 
   \code{\link{newGP}}, \code{\link{laGP}}, \code{\link{llikGP}}, \code{\link{optimize}}
 }
 \examples{
@@ -174,11 +176,14 @@ lines(XX, p$mean, lwd=2)
 lines(XX, p$mean+1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
 lines(XX, p$mean-1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
 
+## clean up
+deleteGP(gpi)
+
 ## 
 ## with a separable correlation function 
 ##
 
-## 2D Example: GoldPrice Function, mimixing GP_fit package
+## 2D Example: GoldPrice Function, mimicking GP_fit package
 f <- function(x) 
 {
   x1 <- 4*x[,1] - 2
@@ -204,6 +209,9 @@ g <- garg(list(mle=TRUE), Y)
 ## build GP and optimize
 gpisep <- newGPsep(X, Y, d=rep(d$start, 2), g=g$start)
 jmleGPsep(gpisep, drange=c(d$min, d$max), grange=c(g$min, g$max))
+
+## clean up
+deleteGPsep(gpisep)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

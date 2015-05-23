@@ -24,7 +24,8 @@ efiGP(gpi, Xcand)
 \arguments{
 \item{gpi}{
    a C-side GP object identifier (positive integer);
-    e.g., as returned by \code{\link{newGP}}
+    e.g., as returned by \code{\link{newGP}}; note that separable GP objects
+    (created by \code{\link{newGPsep}} are not supported at this time)
 }
 \item{Xcand}{
    a \code{matrix} or \code{data.frame} containing
@@ -117,6 +118,8 @@ efiGP(gpi, Xcand)
 \seealso{
   \code{\link{laGP}}, \code{\link{aGP}}, \code{\link{predGP}}
 }
+\note{ Note that separable GP objects (i.e., created by \code{\link{newGPsep}} 
+are not supported at this time}
 \examples{
 ## this follows the example in predGP, but only evaluates 
 ## information statistics documented here

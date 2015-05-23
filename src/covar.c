@@ -24,7 +24,9 @@
 
 
 #include "matrix.h"
+#include "linalg.h"
 #include <stdlib.h>
+#include <assert.h>
 #ifdef RPRINT
 #include <R.h>
 #else 
@@ -306,4 +308,41 @@ void dist2covar_symm_R(double *D_in, int *n_in, double *d_in,
   /* clean up */
   free(D);
   free(K);
+}
+
+
+/*
+ * calc_g_mui_kxy:
+ *
+ * function for calculating the g vector, mui scalar, and
+ * kxy vector for the IECI calculation; kx is length-n 
+ * utility space -- only implements isotropic case; separable
+ * version implemented in plgp source tree;
+ */
+
+void calc_g_mui_kxy(const int col, double *x, double **X, 
+        const int n, double **Ki, double **Xref, 
+        const int m, double d, const double g, double *gvec, 
+        double *mui, double *kx, double *kxy)
+{
+  double mu_neg;
+  int i;
+
+  /* sanity check */
+  if(m == 0) assert(!kxy && !Xref);
+
+  /* kx <- drop(covar(X1=pall$X, X2=x, d=Zt$d, g=Zt$g)) */
+  covar(col, &x, 1, X, n, d, g, &kx);
+  /* kxy <- drop(covar(X1=x, X2=Xref, d=Zt$d, g=0)) */
+  if(m > 0) covar(col, &x, 1, Xref, m, d, 0.0, &kxy);
+
+  /* Kikx <- drop(util$Ki %*% kx) stored in gvex */
+  linalg_dsymv(n,1.0,Ki,n,kx,1,0.0,gvec,1);
+
+  /* mui <- drop(1 + Zt$g - t(kx) %*% Kikx) */
+  *mui = 1.0 + g - linalg_ddot(n, kx, 1, gvec, 1);
+  
+  /* gvec <- - Kikx/mui */
+  mu_neg = 0.0 - 1.0/(*mui);
+  for(i=0; i<n; i++) gvec[i] *= mu_neg;
 }

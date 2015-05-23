@@ -1,4 +1,4 @@
-
+G
 @Article{gramacy:apley:2014,
    author = {{Gramacy}, R.~B. and {Apley}, D.~W.},
     title = {Local Gaussian process approximation for large computer experiments},
@@ -18,7 +18,7 @@
 
 @BOOK{cressie:1993,
     Author         = {N.A. Cressie},
-    Publisher      = {John Wiley and Sons, Inc.},
+    Publisher      = {John Wiley and Sons},
     Title          = {Statistics for Spatial Data, {\em revised edition}},
     Year           = {1993}
 }
@@ -32,11 +32,20 @@
   url = {http://CRAN.R-project.org/package=snow},
 }
 
+@Manual{bigGP,
+  title = {{\tt bigGP:} {D}istributed {G}aussian {P}rocess {C}alculations},
+  author = {Christopher Paciorek and Benjamin Lipshitz and Prabhat and Cari Kaufman and Tina Zhuo and Rollin Thomas},
+  year = {2014},
+  note = {{\sf R} package version 0.1-3},
+  url = {http://CRAN.R-project.org/package=bigGP},
+}
+
 @article{gramacy:niemi:weiss:2014,
   title = {Massively Parallel Approximate Gaussian Process Regression},
   author = {R.B. Gramacy and J. Niemi and R. Weiss},
-  volume = {{\em to appear}},
-  note = {see ar{X}iv:1310.5182},
+  volume = {2},
+  number = {1},
+  pages = {564--584},
   journal = {Journal of Uncertainty Quantification},
   year = 2014,
 }
@@ -130,7 +139,7 @@
 @BOOK{stein:1999,
     Address        = {New York, NY},
     Author         = {Michael L. Stein},
-    Publisher      = {Springer},
+    Publisher      = {Springer-Verlag},
     Title          = {Interpolation of Spatial Data},
     Year           = 1999
 }
@@ -163,7 +172,7 @@
 @Article{sang:huang:2012,
   author = {Sang, Huiyan and Huang, Jianhua Z.},
   title = {A Full Scale Approximation of Covariance Functions for Large Spatial Data Sets},
-  journal = {Journal of the Royal Statistical Society: Series B},
+  journal = {Journal of the Royal Statistical B},
   volume = {74},
   number = {1},
   issn = {1467-9868},
@@ -212,7 +221,7 @@ doi = {10.1080/10618600.2012.760460}
 @Article{cressie:joh:2008,
   author =   {Noel Cressie and Gardar Johannesson},
   title =    {Fixed Rank Kriging for Very Large Data Sets},
-  journal =    {Journal of the Royal Statistical Soceity, Series B},
+  journal =    {Journal of the Royal Statistical Soceity B},
   year =   2008,
   volume =   70,
   number =   1,
@@ -231,7 +240,7 @@ doi = {10.1080/10618600.2012.760460}
 @Article{vecchia:1988,
   author =   {Vecchia, A.V.},
   title =    {Estimation and model identification for continuous spatial processes},
-  journal =    {Journal of the Royal Statistical Soceity, Series B},
+  journal =    {Journal of the Royal Statistical Soceity B},
   year =   1988,
   volume =   50,
   pages =    {297--312}}
@@ -239,7 +248,7 @@ doi = {10.1080/10618600.2012.760460}
 @Article{stein:chi:welty:2004,
   author =   {Michael L. Stein and Zhiyi Chi and Leah J. Welty},
   title =    {Approximating Likelihoods for Large Spatial Data Sets},
-  journal =    {Journal of the Royal Statistical Society, Series B},
+  journal =    {Journal of the Royal Statistical Society B},
   year =   2004,
   volume =   66,
   number =   2,
@@ -285,7 +294,7 @@ doi = {10.1080/10618600.2012.760460}
 
 @ARTICLE{schmidt:ohagan:2003,
     Author         = {Alexandra Mello Schmidt and Anthony O'Hagan},
-    Journal        = {Journal of the Royal Statistical Society, Series B},
+    Journal        = {Journal of the Royal Statistical Society B},
     Title          = {Bayesian Inference for Nonstationary Spatial Covariance Structure via Spatial Deformations},
     Volume         = {65},
     Pages          = {745--758},
@@ -324,7 +333,7 @@ doi = {10.1080/10618600.2012.760460}
 
 @ARTICLE{silv:1985,
     Author         = {Silverman, B. W.},
-    Journal        = {Journal of the Royal Statistical Society Series B},
+    Journal        = {Journal of the Royal Statistical Society B},
     Pages          = {1--52},
     Title          = {Some Aspects of the Spline Smoothing Approach to Non-Parametric Curve Fitting},
     Volume         = {47},
@@ -362,10 +371,10 @@ doi = {10.1080/10618600.2012.760460}
 }
 
 @Manual{gpfit,
-  title = {GPfit: Gaussian Processes Modeling},
+  title = {{\tt GPfit}: Gaussian Processes Modeling},
   author = {Blake MacDoanld and Hugh Chipman and Pritam Ranjan},
   year = {2014},
-  note = {R package version 0.2-0},
+  note = {{\sf R} package version 0.2-0},
   url = {http://CRAN.R-project.org/package=GPfit},
 }
 
@@ -380,7 +389,7 @@ doi = {10.1080/10618600.2012.760460}
 
   @ARTICLE{kennedy:ohagan:2001,
     Author         = {Kennedy, M. and O'Hagan, A.},
-    Journal        = {Journal of the Royal Statistical Society, Series B},
+    Journal        = {Journal of the Royal Statistical Society B},
     Pages          = {425--464},
     Title          = {Bayesian Calibration of Computer Models (with discussion)},
     Volume         = {63},
@@ -503,3 +512,133 @@ doi = {10.1080/10618600.2012.760460}
   volume =       107,
   number =       497,
   pages =        {281--289}}
+
+@Book{MASS,
+  title = {Modern Applied Statistics with S},
+  author = {W. N. Venables and B. D. Ripley},
+  publisher = {Springer},
+  edition = {Fourth},
+  address = {New York},
+  year = {2002},
+  note = {ISBN 0-387-95457-0},
+  url = {http://www.stats.ox.ac.uk/pub/MASS4},
+}
+
+  @Article{tgp,
+    title = {{\tt tgp}: An {\sf R} Package for {B}ayesian Nonstationary,
+      Semiparametric Nonlinear Regression and Design by Treed {G}aussian
+      Process Models},
+    author = {Robert B. Gramacy},
+    journal = {Journal of Statistical Software},
+    year = {2007},
+    volume = {19},
+    number = {9},
+    pages = {1--46},
+    url = {http://www.jstatsoft.org/v19/i09/},
+  }
+  
+  @Article{tgp2,
+    title = {Categorical Inputs, Sensitivity Analysis, Optimization and
+      Importance Tempering with {\tt tgp} Version 2, an {\sf R} Package for
+      Treed Gaussian Process Models},
+    author = {Robert B. Gramacy and Matthew Taddy},
+    journal = {Journal of Statistical Software},
+    year = {2010},
+    volume = {33},
+    number = {6},
+    pages = {1--48},
+    url = {http://www.jstatsoft.org/v33/i06/},
+  }
+
+ @Manual{mvtnorm,
+    title = {{\tt mvtnorm}: Multivariate Normal and $t$ Distributions},
+    author = {Alan Genz and Frank Bretz and Tetsuhisa Miwa and Xuefei
+      Mi and Friedrich Leisch and Fabian Scheipl and Torsten Hothorn},
+    year = {2014},
+    note = {{\sf R} package version 1.0-1},
+    url = {http://CRAN.R-project.org/package=mvtnorm},
+  }
+
+  @Book{mvtnorm2,
+    title = {Computation of Multivariate Normal and $t$ Probabilities},
+    author = {Alan Genz and Frank Bretz},
+    series = {Lecture Notes in Statistics},
+    year = {2009},
+    publisher = {Springer-Verlag},
+    address = {Heidelberg},
+    isbn = {978-3-642-01688-2},
+  }
+  
+  @Manual{akima,
+    title = {{\tt akima}: Interpolation of irregularly spaced data},
+    author = {H. Akima and Albrecht Gebhardt and Thomas Petzoldt and Martin Maechler},
+    year = {2013},
+    note = {{\sf R} package version 0.5-11},
+    url = {http://CRAN.R-project.org/package=akima},
+  }
+
+  @Manual{lhs,
+    title = {{\tt lhs}: {L}atin Hypercube Samples},
+    author = {Rob Carnell},
+    year = {2012},
+    note = {{\sf R} package version 0.10},
+    url = {http://CRAN.R-project.org/package=lhs},
+  }
+
+  @Manual{parallel,
+    title = {{\tt R}: A Language and Environment for Statistical Computing},
+    author = {{R Core Team}},
+    organization = {{\sf R} Foundation for Statistical Computing},
+    address = {Vienna, Austria},
+    year = {2014},
+    url = {http://www.R-project.org/},
+  }
+
+  @Manual{R,
+    title = {{\sf R}: A Language and Environment for Statistical Computing},
+    author = {{{\sf R} Core Team}},
+    organization = {{\sf R} Foundation for Statistical Computing},
+    address = {Vienna, Austria},
+    year = {2014},
+    url = {http://www.R-project.org/},
+  }
+
+  @Manual{mlegp,
+    title = {{\tt mlegp}: Maximum Likelihood Estimates of Gaussian Processes},
+    author = {Garrett M. Dancik},
+    year = {2013},
+    note = {{\sf R} package version 3.1.4},
+    url = {http://CRAN.R-project.org/package=mlegp},
+  }
+
+  @Manual{fields,
+    title = {{\tt fields}: Tools for spatial data},
+    author = {Douglas Nychka and Reinhard Furrer and Stephan Sain},
+    year = {2014},
+    note = {{\sf R} package version 7.1},
+    url = {http://CRAN.R-project.org/package=fields},
+  }
+
+  @Manual{spBayes,
+    title = {{\tt spBayes}: Univariate and Multivariate Spatial-temporal Modeling},
+    author = {Andrew O. Finley and Sudipto Banerjee},
+    year = {2013},
+    note = {{\sf R} package version 0.3-8},
+    url = {http://CRAN.R-project.org/package=spBayes},
+  }
+
+  @Manual{laGP,
+    title = {{\tt laGP}: Local Approximate {G}aussian Process Regression},
+    author = {Robert B. Gramacy},
+    year = {2014},
+    note = {{\sf R} package version 1.1-4},
+    url = {http://faculty.chicagobooth.edu/robert.gramacy/laGP.html},
+  }
+
+  @Techreport{datta:etal:2014,
+  author = {Abhirup Datta and Sudipto Banerjee and Andrew O. Finley and Alan E. Gelfand},
+  title = {Hierarchical Nearest-Neighbor {G}aussian Process Models for Large Geostatistical Datasets},
+  Institution = {Univeristy of Minnesota},
+  note = {ar{X}iv:1406.7343},
+  year = {2014}
+}

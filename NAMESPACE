@@ -5,8 +5,8 @@ useDynLib(laGP)
 export(aGP, aGP.R, aGP.parallel, laGP, laGP.R, newGP, updateGP, predGP, mleGP, 
        jmleGP, jmleGP.R, darg, garg, deleteGP, deleteGPs, distance,
        alcGP, mspeGP, efiGP, llikGP, alcrayGP, optim.auglag, newGPsep,
-       mleGPsep, jmleGPsep, deleteGPsep, deleteGPseps, aGP.seq, discrep.est,
-       fcalib)
+       mleGPsep, jmleGPsep, predGPsep, deleteGPsep, deleteGPseps, updateGPsep, 
+       aGP.seq, discrep.est, fcalib)
 
 # Only import certain functions from Imports list for tgp and akima
 importFrom(parallel, clusterEvalQ)

@@ -1,3 +1,37 @@
+1.1-5 (22 May 2015)
+-----
+
+New vignette from JSS revisions
+
+swapped sum_of_columns for min_of_columns in multi-row
+Xref case for laGP
+
+Documentation enhancements and update for JSS/vignette
+resubmission
+
+Option to use separable GP model in optim.auglag.
+
+Option to model objective in optim.auglag rather than 
+assuming a known scaled linear objective 
+
+
+1.1-4 (02 Dec 2014)
+-----
+
+added predGPsep to predict with separable GPs
+
+corrected three abs to fabs in matrix.c
+
+corrected one more hard-code of 8 threads in vignette
+
+added vignette("laGP") to most seealso sections in Rd
+
+fixes to vignette for JSS pre-screening
+
+removed calc.eis because C-implementation was not in src; 
+can use version from plgp package instead
+
+
 1.1-3 (30 Oct 2014)
 -----
 

@@ -59,7 +59,7 @@ aGP.chunk <- function(chunk, XX, X, Z, start, end, d, g, method,
 
 ## aGP.parallel:
 ##
-## a version of the aGP function for use with clusters made by parallel
+## a version of the aGP function for use with clusters made by snow
 ## and/or the parallel package.  Uses clusterApply to split up the
 ## XX rows into a particular number of chunks, and then combines
 ## the results into a single aGP output object

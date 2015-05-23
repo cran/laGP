@@ -33,7 +33,8 @@ newGPsep <- function(X, Z, d, g)
     m <- ncol(X)
     if(is.null(n)) stop("X must be a matrix")
     if(length(Z) != n) stop("must have nrow(X) = length(Z)")
-    if(length(d) != m) stop("must have length(d) = ncol(X)")
+    if(length(d) == 1) d <- rep(d, m)
+    else if(length(d) != m) stop("must have length(d) = ncol(X)")
     
     out <- .C("newGPsep_R",
               m = as.integer(m),
@@ -114,6 +115,7 @@ getdGPsep <- function(gpsepi)
     .C("getdGPsep_R", gpsepi = as.integer(gpsepi), d = double(m), package="laGP")$d
   }
 
+
 ## getgGPsep
 ##
 ## acces the input dimension of a separable GP
@@ -124,7 +126,6 @@ getgGPsep <- function(gpsepi)
   { 
     .C("getgGPsep_R", gpsepi = as.integer(gpsepi), g = double(1), package="laGP")$g
   }
-
 
 
 ## dllikGPsep:
@@ -201,7 +202,7 @@ mleGPsep <- function(gpsepi, param=c("d", "g"),
   {
     param <- match.arg(param)
 
-    if(param == "d") { ## LENGTHSCALE with L-BFGS-B given nugget
+    if(param == "d") { ## lengthscale with L-BFGS-B given nugget
 
       theta <- getdGPsep(gpsepi)
       if(length(ab) != 2 || any(ab < 0)) stop("ab should be a positive 2-vector")   
@@ -231,7 +232,7 @@ mleGPsep <- function(gpsepi, param=c("d", "g"),
       if(sqrt(mean((out$par - getdGPsep(gpsepi))^2)) > sqrt(.Machine$double.eps))
         warning("stored d not same as theta-hat")
     }
-    else { ## NUGGET conditionally on lengthscale
+    else { ## nugget conditionally on lengthscale
 
       ## sanity check
       if(length(ab) != 2 || any(ab < 0)) stop("ab should be a positive 2-vector");
@@ -265,7 +266,8 @@ jmleGPsep <- function(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps), 10),
     ## sanity check N
     if(length(N) != 1 && N > 0) 
       stop("N should be a positive scalar integer")
-    dmle <- matrix(NA, nrow=N, ncol=getmGPsep(gpsepi))
+    m <- getmGPsep(gpsepi)
+    dmle <- matrix(NA, nrow=N, ncol=m)
     gmle <- dits <- dconv <- gits <- rep(NA, N)
 
     ## sanity check tmin and tmax
@@ -280,7 +282,7 @@ jmleGPsep <- function(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps), 10),
       g <- mleGPsep(gpsepi, param="g", tmin=grange[1], tmax=grange[2],
                     ab=gab, verb=verb)
       gmle[i] <- g$g; gits[i] <- g$its
-      if((gits[i] <= 1 && (dits[i] <= 3 && dconv[i] == 0)) || dconv[i] > 1) break;
+      if((gits[i] <= 1 && (dits[i] < m && dconv[i] == 0)) || dconv[i] > 1) break;
     }
 
     ## check if not converged
@@ -294,8 +296,127 @@ jmleGPsep <- function(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps), 10),
     totits <- sum(c(dits, gits), na.rm=TRUE)
 
     ## assemble return objects
-    return(list(mle=data.frame(d=dmle[i,,drop=FALSE], g=gmle[i], tot.its=totits, conv=dconv[i]), 
-      prog=data.frame(dmle=dmle, dits=dits, dconv=dconv, gmle=gmle, gits=gits)))
+    return(list(mle=data.frame(d=dmle[i,,drop=FALSE], g=gmle[i], tot.its=totits, 
+      conv=dconv[i]), prog=data.frame(dmle=dmle, dits=dits, dconv=dconv, gmle=gmle, 
+      gits=gits)))
   }
 
 
+
+## predGPsep
+##
+## obtain the parameters to a multivariate-t
+## distribution describing the predictive surface
+## of the fitted GP model
+
+predGPsep <- function(gpsepi, XX, lite=FALSE)
+  {
+    nn <- nrow(XX)
+
+    if(lite) {  ## lite means does not compute full Sigma, only diag
+      out <- .C("predGPsep_R",
+                gpsepi = as.integer(gpsepi),
+                m = as.integer(ncol(XX)),
+                nn = as.integer(nn),
+                XX = as.double(t(XX)),
+                lite = as.integer(TRUE),
+                mean = double(nn),
+                s2 = double(nn),
+                df = double(1),
+                llik = double(1))
+      
+      ## coerce matrix output
+      return(list(mean=out$mean, s2=out$s2, df=out$df, llik=out$llik))
+
+    } else { ## compute full predictive covariance matrix
+
+      out <- .C("predGPsep_R",
+                gpsepi = as.integer(gpsepi),
+                m = as.integer(ncol(XX)),
+                nn = as.integer(nn),
+                XX = as.double(t(XX)),
+                lite = as.integer(FALSE),
+                mean = double(nn),
+                Sigma = double(nn*nn),
+                df = double(1),
+                llik = double(1))
+      
+      ## coerce matrix output
+      Sigma <- matrix(out$Sigma, ncol=nn)
+      
+      ## return parameterization
+      return(list(mean=out$mean, Sigma=Sigma, df=out$df, llik=out$llik))
+    }
+  }
+
+
+## updateGPsep:
+##
+## add X-Z pairs to the C-side GPsep represnetation
+## using only O(n^2) for each pair
+
+updateGPsep <- function(gpsepi, X, Z, verb=0)
+  {
+    if(length(Z) != nrow(X))
+      stop("bad dims")
+
+    out <- .C("updateGPsep_R",
+              gpsepi = as.integer(gpsepi),
+              m = as.integer(ncol(X)),
+              n = as.integer(nrow(X)),
+              X = as.double(t(X)),
+              Z = as.double(Z),
+              verb = as.integer(verb),
+              PACKAGE = "laGP")
+
+    invisible(NULL)
+  }
+
+
+## alGPsep:
+##
+## calculate the E(Y) and EI(Y) for an augmented Lagrangian 
+## composite objective function with linear objective (in X)
+## and constraint separable GP (gpi) predictive surfaces
+
+alGPsep <- function(XX, fgpi, fnorm, Cgpsepis, Cnorms, lambda, alpha, ymin, 
+                 nomax=FALSE, N=100)
+  {
+    ## doms
+    m <- ncol(XX)
+    nn <- nrow(XX)
+    nCgpseps <- length(Cgpsepis)
+
+    ## checking lengths for number of gps
+    if(length(Cnorms) != nCgpseps) stop("length(Cgpsepis) != length(Cnorms)")
+    if(length(lambda) != nCgpseps) stop("length(Cgpsepis) != length(lambda)")
+    if(length(alpha) != nCgpseps) stop("length(Cgpsepis) != length(alpha)")
+
+    ## checking scalars
+    if(!is.logical(nomax) || length(nomax) != 1) stop("nomax should be a scalar logical")
+    if(length(N) != 1 || N <= 0) stop("N should be a positive integer scalar")
+    if(length(ymin) != 1) stop("ymin should be a scalar")
+    if(length(fnorm) != 1) stop("fnorm should be a scalar")
+
+    ## call the C-side
+    out <- .C("alGPsep_R",
+      m = as.integer(m),
+      XX = as.double(t(XX)),
+      nn = as.integer(nn),
+      fgpi = as.integer(fgpi),
+      fnorm = as.double(fnorm),
+      nCgpseps = as.integer(nCgpseps),
+      Cgpsepis = as.integer(Cgpsepis),      
+      Cnorms = as.double(Cnorms),
+      lambda = as.double(lambda),
+      alpha = as.double(alpha),
+      ymin = as.double(ymin),
+      nonmax = as.double(nomax),
+      N = as.integer(N),
+      eys = double(nn),
+      eis = double(nn),
+      PACKAGE = "laGP")
+    
+    ## done
+    return(data.frame(ey=out$eys, ei=out$eis))
+  }

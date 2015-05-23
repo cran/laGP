@@ -19,6 +19,9 @@ void dist2covar_R(double *D_in, int *n1_in, int *n2_in, double *d_in,
 		  double *g_in, double *K_out);
 void dist2covar_symm_R(double *D_in, int *n_in, double *d_in,
 		       double *g_in, double *K_out);
-
+void calc_g_mui_kxy(const int col, double *x, double **X, 
+		    const int n, double **Ki, double **Xref, 
+		    const int m, double d, const double g, double *gvec, 
+        	double *mui, double *kx, double *kxy);
 #endif
 

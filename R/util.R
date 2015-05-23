@@ -22,24 +22,6 @@
 #*******************************************************************************
 
 
-## calc.eis:
-##
-## wrapper used to calculate the EIs copied from PLGP
-
-calc.eis <- function(tmat, fmin, w=NULL)
-  {
-    n <- nrow(tmat)
-
-    return(.C("calc_eis_R",
-              tmat = as.double(t(tmat)),
-              n = as.integer(n),
-              fmin = as.double(fmin),
-              bw = as.integer(length(w)),
-              w = as.double(w),
-              eis = double(n))$eis,
-              PACKAGE = "laGP")
-  }
-
 
 ## rbetter_R:
 ##

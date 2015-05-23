@@ -1,16 +1,16 @@
 Package: laGP
 Title: Local Approximate Gaussian Process Regression
-Version: 1.1-3
-Date: 2014-10-30
+Version: 1.1-5
+Date: 2015-05-23
 Author: Robert B. Gramacy <rbgramacy@chicagobooth.edu>
 Depends: R (>= 2.14)
 Imports: tgp, parallel
 Suggests: mvtnorm, MASS, akima, lhs, crs
-Description: Performs approximate GP regression for large computer experiments and spatial datasets.  The approximation is based on finding small local designs for prediction (independently) at particular inputs. OpenMP and SNOW parallelization are supported for prediction over a vast out-of-sample testing set; GPU acceleration is also supported for an important subroutine.  OpenMP and GPU features may require special compilation.  An interface to lower-level (full) GP inference and prediction is also provided, as are associated wrapper routines for blackbox optimization under constraints via an augmented Lagrangian scheme, and large scale computer model calibration
+Description: Performs approximate GP regression for large computer experiments and spatial datasets.  The approximation is based on finding small local designs for prediction (independently) at particular inputs. OpenMP and SNOW parallelization are supported for prediction over a vast out-of-sample testing set; GPU acceleration is also supported for an important subroutine.  OpenMP and GPU features may require special compilation.  An interface to lower-level (full) GP inference and prediction is also provided, as are associated wrapper routines for blackbox optimization under constraints via an augmented Lagrangian scheme, and large scale computer model calibration.
 Maintainer: Robert B. Gramacy  <rbgramacy@chicagobooth.edu>
 License: LGPL
-URL: http://faculty.chicagobooth.edu/robert.gramacy/laGP.html
-Packaged: 2014-10-30 18:23:58 UTC; bobby
+URL: http://bobby.gramacy.com/r_packages/laGP
 NeedsCompilation: yes
+Packaged: 2015-05-23 00:43:26 UTC; bobby
 Repository: CRAN
-Date/Publication: 2014-10-31 06:07:14
+Date/Publication: 2015-05-27 01:37:43

@@ -6,10 +6,9 @@
   Generate Priors for GP correlation
 }
 \description{
-  Generate empirical Bayes priors and choose initial values and
-   ranges for (isotropic) lengthscale and nugget parameters
-  to a Gaussian correlation function for a GP regression model
-}
+  Generate empirical Bayes regularization (priors) and choose initial values
+   and ranges for (isotropic) lengthscale and nugget parameters to a Gaussian
+   correlation function for a GP regression model }
 \usage{
 darg(d, X, samp.size = 1000)
 garg(g, y)
@@ -45,7 +44,8 @@ garg(g, y)
   for a lengthscale and nugget parameter.  This is useful since the
   likelihood can sometimes be very flat, and even with proper priors
   inference can be very sensitive to the specification of those priors
-  and any initial search values.
+  and any initial search values.  The focus is on avoiding pathologies
+  while otherwise remaining true to the spirit of MLE calculation.  
 
   \code{darg} output specifies MLE inference (\code{out$mle = TRUE})
   by default, whereas \code{garg} instead fixes the nugget at the starting value,
@@ -89,6 +89,7 @@ garg(g, y)
 
 
 \seealso{
+\code{vignette("laGP")}, 
   \code{\link{laGP}}, \code{\link{aGP}}, \code{\link{laGP}},
   \code{\link{mleGP}}, \code{\link{distance}}, \code{\link{llikGP}}
 }

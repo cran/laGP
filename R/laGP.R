@@ -241,7 +241,7 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     outp$d <- d
     ## assign g
     outp$g <- g
-    ## assign mle
+    ## assign mle
     outp$mle <- mle
 
     ## add ray info?
