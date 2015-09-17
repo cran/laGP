@@ -1,6 +1,8 @@
 \name{laGP}
 \alias{laGP}
 \alias{laGP.R}
+\alias{laGPsep.R}
+\alias{laGPsep}
 
 \title{
 Localized Approximate GP Prediction At a Single Input Location
@@ -14,12 +16,21 @@ Localized Approximate GP Prediction At a Single Input Location
 \usage{
 laGP(Xref, start, end, X, Z, d = NULL, g = 1/1000,
      method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
-        close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
-        alc.gpu = FALSE, numrays = ncol(X), rect = NULL, verb = 0)
+     close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+     alc.gpu = FALSE, numrays = ncol(X), rect = NULL, verb = 0)
 laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
-       method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
+     method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
+     pall = FALSE, close = min(1000*if(method=="alcray") 10 else 1, nrow(X)),  
+     parallel = c("none", "omp", "gpu"), numrays = ncol(X), rect = NULL, 
+     verb = 0)
+laGPsep(Xref, start, end, X, Z, d = NULL, g = 1/1000, 
+     method = c("alc", "alcray", "nn"), Xi.ret = TRUE, 
+     close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+     numrays = ncol(X), rect = NULL, verb = 0)
+laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
+       method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
        pall = FALSE, close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),  
-       parallel = c("none", "omp", "gpu"), numrays = ncol(X), rect = NULL, 
+       parallel = c("none", "omp"), numrays = ncol(X), rect = NULL, 
        verb = 0)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -45,7 +56,7 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     a vector of responses/dependent values with \code{length(Z) = ncol(X)}
 }
   \item{d}{
-    a prior or initial setting for the (single/isotropic) lengthscale
+    a prior or initial setting for the lengthscale
     parameter for a Gaussian correlation function; a (default)
     \code{NULL} value causes a sensible regularization (prior) and
     initial setting to be generated via \code{\link{darg}};
@@ -54,7 +65,9 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     of \code{\link{darg}} can be used to specify a custom prior.  In the
     case of a partial list, the only the missing entries will be
     generated. Note that a default/generated list specifies MLE/MAP
-    inference for this parameter
+    inference for this parameter. With 
+    \code{laGPsep}, the starting values can be a 
+    \code{ncol(X)}-by-\code{nrow(XX)} \code{matrix} or \code{ncol(X)} vector
 }
 \item{g}{
     a prior or initial setting for the nugget parameter; a 
@@ -63,7 +76,7 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     (default \code{g = 1/1000}) specifies an initial value, causing \code{\link{garg}}
     to only generate the prior; otherwise, a
     list or partial list matching the output of \code{\link{garg}} can be used to
-    specify a custom prior.  In the case of a partial list, the only the
+    specify a custom prior.  In the case of a partial list, only the
     missing entries will be generated. Note that a default/generated list
     specifies \emph{no} inference for this parameter; i.e., it is fixed
     at its starting value, which may be appropriate for emulating 
@@ -80,7 +93,7 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     error (requires extra computation);
     NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"efi"}) uses
     the expected Fisher information - essentially \code{1/G} from
-    Gramacy & Apley (2014) - which is global heuristic, i.e., not
+    Gramacy & Apley (2015) - which is global heuristic, i.e., not
     localized to \code{Xref}
 }
   \item{Xi.ret}{
@@ -105,7 +118,8 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     parallelize the evaluation of the ALC criteria (\code{method = "alc"}).
     Requires the package be compiled with CUDA flags; see README/INSTALL 
     in the package source for more details; currently only available 
-    via \code{laGP}, and only supports off-loading ALC calculation to the GPU
+    via \code{laGP}, not \code{laGPsep} or the \code{.R} variants 
+    and only supports off-loading ALC calculation to the GPU
  }
   \item{parallel}{
     a switch indicating if any parallel calculation of 
@@ -135,11 +149,13 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
 \details{
 
   A sub-design of \code{X} of size \code{end} is built-up according to
-  the criteria prescribed by the \code{method} then used to predict at
+  the criteria prescribed by the \code{method} and then used to predict at
   \code{Xref}.  The first \code{start} locations are NNs in order to
-  initialize the first GP, via \code{\link{newGP}}, and thereby initialize the
+  initialize the first GP, via \code{\link{newGP}} or \code{\link{newGPsep}}, 
+  and thereby initialize the
   search.  Each subsequent addition is found via the chosen criterion
-  (\code{method}), and the GP fit is updated via \code{\link{updateGP}}.
+  (\code{method}), and the GP fit is updated via \code{\link{updateGP}}
+  or \code{\link{updateGPsep}}
 
   The runtime is cubic in \code{end}, although
   the multiplicative \dQuote{constant} out front depends on the
@@ -157,19 +173,17 @@ laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
   are returned.  Unless \code{Xi.ret = FALSE}, the indices of the
   local design are also returned.
   
-  The function \code{laGP.R} is a prototype \R-only version for
-  debugging and transparency purposes.  It is slower than
-  \code{laGP}, which is primarily in C, and may not provide identical
-  output in all cases due differing library implementations used as 
-  subroutines; see note below for an example.  \code{laGP.R} and
-  other \code{.R} functions in the package may be
-  useful for developing new programs that involve similar subroutines.
-  The current version of \code{laGP.R} allows OpenMP and/or GPU parallelization 
-  of the criteria (\code{method}) if the package is compiled with 
-  the appropriate flags.  See README/INSTALL in the package source for 
-  more information.  For algorithmic details, see 
-  Gramacy, Niemi, \& Weiss (2014)
-}
+  The functions \code{laGP.R} and \code{laGPsep.R} are a prototype \R-only version for
+  debugging and transparency purposes.  They are slower than
+  \code{laGP} and \code{laGPsep}, which are primarily in C, and may not
+  provide identical output in all cases due differing library implementations
+  used as subroutines; see note below for an example.  \code{laGP.R} and other
+  \code{.R} functions in the package may be useful for developing new programs
+  that involve similar subroutines. The current version of \code{laGP.R}
+  allows OpenMP and/or GPU parallelization of the criteria (\code{method}) if
+  the package is compiled with the appropriate flags.  See README/INSTALL in
+  the package source for more information.  For algorithmic details, see
+  Gramacy, Niemi, & Weiss (2014) }
 \value{
 The output is a \code{list} with the following components.
 
@@ -195,27 +209,33 @@ The output is a \code{list} with the following components.
 \item{close }{ a copy of the input argument }
 }
 \references{
-  R.B. Gramacy and D.W. Apley (2014).
+  R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
-    experiments.} Journal of Computational and Graphical Statistics, \emph{to appear};
-  preprint available on arXiv:1303.0383; 
+    experiments.} Journal of Computational and Graphical Statistics, 
+  24(2), pp. 561-678; preprint on arXiv:1303.0383;
   \url{http://arxiv.org/abs/1303.0383}
 
-  R.B. Gramacy, J. Niemi, R.M. Weiss (2014). 
+  R.B. Gramacy, J. Niemi, R.M. Weiss (2014).
   \emph{Massively parallel approximate Gaussian process regression.}
-  SIAM/ASA Journal on Uncertainty Quantification, \emph{to appear};
-  preprint on arXiv:1310.5182
+  SIAM/ASA Journal on Uncertainty Quantification, 2(1), pp. 568-584;
+  preprint on arXiv:1310.5182;
   \url{http://arxiv.org/abs/1310.5182}
 
-  R.B. Gramacy and B. Haaland (2014).
+  R.B. Gramacy and B. Haaland (2015).
   \emph{Speeding up neighborhood search in local Gaussian process prediction.}
-  Preprint on arXiv:1409.0074 
+  Technometrics, \emph{to appear};
+  preprint on arXiv:1409.0074 
   \url{http://arxiv.org/abs/1409.0074}
 }
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
 }
 \note{
+  \code{laGPsep} provides the same functionality as \code{laGP} but deploys
+  a separable covariance function.  However criteria (\code{method}s) EFI and
+  MSPE are not supported.  This is considered \dQuote{beta} functionality
+  at this time.
+
   Note that using \code{method="NN"} gives the same result as specifying
   \code{start=end}, however at some extra computational expense.
 
@@ -227,10 +247,9 @@ The output is a \code{list} with the following components.
 
   Differences between the C \code{qsort} function and \R's
   \code{\link{order}} function may cause chosen designs returned from
-  \code{laGP} and \code{laGP.R} to differ when multiple \code{X}
-  values are equidistant to \code{Xref}.
-
-  Only (local) isotropic GPs are supported at this time.
+  \code{laGP} and \code{laGP.R} (code and \code{laGPsep} and \code{laGPsep.R})
+  to differ when multiple \code{X}
+  values are equidistant to \code{Xref}
 }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
@@ -269,7 +288,7 @@ out <- laGP(Xref, 6, 50, X, Z, method="nn")
 
 ## second and pass via ALC, MSPE, and ALC-ray respectively
 out2 <- laGP(Xref, 6, 50, X, Z, d=out$mle$d)
-out2.mspe <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d)
+out2.mspe <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="mspe")
 out2.alcray <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="alcray")
 
 ## look at the different designs

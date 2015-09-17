@@ -2,8 +2,13 @@
 #include <stdlib.h>
 #include <math.h>
 #include <Rmath.h>
+#include <R_ext/Applic.h>
 #include "rhelp.h"
 #include "util.h"
+#include "matrix.h"
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
 
 /*
  * log_determinant_chol:
@@ -131,3 +136,34 @@ double Brent_fmin(double ax, double bx, double (*f)(double, void *),
     return x;
 }
 #endif
+
+
+void MYlbfgsb(int n, double *x, double *l, double *u, optimfn fn, 
+  optimgr gr, int *fail, void *ex, int *counts, int maxit, char *msg, 
+  int trace, int fromR)
+{
+  int *nbd;
+  int k;
+  double val = 0;
+
+  nbd = new_ivector(n);
+  for(k=0; k<n; k++) nbd[k] = 2;
+
+
+  if(fromR) {
+    lbfgsb(n, 5, x, l, u, nbd, &val, fn, gr, fail, ex, 
+    1e7, 0, counts, counts+1, maxit, msg, trace, 10);
+  } else {
+
+#ifdef _OPENMP
+    #pragma omp critical
+    {
+#endif  
+      lbfgsb(n, 5, x, l, u, nbd, &val, fn, gr, fail, ex, 
+        1e7, 0, counts, counts+1, maxit, msg, trace, 10);
+#ifdef _OPENMP
+    }
+#endif
+  }
+  free(nbd);
+}

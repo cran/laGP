@@ -46,7 +46,7 @@ llikGPsep(gpsepi, dab = c(0, 0), gab = c(0, 0))
 }
 
 \seealso{
-\code{\link{mleGP}}, \code{\link{mleGPsep}}, \code{\link{darg}}
+\code{\link{mleGP}}, \code{\link{darg}}
 }
 \examples{
 ## partly following the example in mleGP

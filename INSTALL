@@ -40,6 +40,15 @@ compiler provided by Apple does not include OpenMP support.  We suggest
 downloading gcc v9 or later, for example from hpc.sourceforge.net, and 
 following the instructions therein.
 
+NOTE: There can be some incompatibilities between multi-threaded BLAS (e.g.,
+Intel MKL) and OpenMP (e.g., non-Intel, like with GCC).  The reason is that
+laGP can, in some builds, create nested OpenMP threads of different types
+(Intel for linear algebra, and GCC for parallel local design). Problematic
+behavior has been observed when using aGPsep with GCC OpenMP and MKL
+multi-threaded linear algebra.  Generally speaking, since laGP uses threads to
+divvy up local design tasks, a threaded linear algebra subroutine library is
+not recommended.
+
 
 SUPPORT FOR CUDA
 ----------------

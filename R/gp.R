@@ -289,12 +289,19 @@ dllikGP <- function(gpi, ab=c(0,0), param=c("d", "g"))
 
 ## mleGP.switch:
 ## 
-## switch function for mle calculaitons by localGP.R
+## switch function for mle calculaitons by laGP.R
 
-mleGP.switch <- function(gpi, d, g, verb) 
+mleGP.switch <- function(gpi, method, d, g, verb) 
   { 
+    ## do nothing if no MLE required
     if(!(d$mle || g$mle)) return(NULL)
-    if(d$mle && g$mle) { ## joint lengthscale and nugget
+
+    ## calculate derivatives
+    if(d$mle && method != "mspe" && method != "efi") buildKGP(gpi)
+
+    ## switch
+    if(d$mle && g$mle) { 
+      ## joint lengthscale and nugget
       return(jmleGP(gpi, drange=c(d$min,d$max), grange=c(g$min, g$max), 
                     dab=d$ab, gab=g$ab))
     } else { ## maybe one or the other
@@ -415,6 +422,30 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
   }
 
 
+## ray.bounds:
+##
+## get the end of the ray eminating from Xstart that goes
+## away (in the direction) from Xref which is 10 times the
+## distance but not beyond the bounding rectangle
+
+ray.end <- function(numrays, Xref, Xstart, rect)
+  {
+    for(r in 1:numrays) {
+      Xend[r,] <- as.numeric(10*(Xstart[r,] - Xref) + Xstart[r,])
+      while(any(Xend[r,] < rect[1,]) | any(Xend[r,] > rect[2,])) {
+        w <- which(Xend[r,] < rect[1,])
+        if(length(w) > 0) { col <- 1
+        } else { w <- which(Xend[r,] > rect[2,]); col <- 2 }
+        w <- w[1]
+        sc <- (rect[col,w] - Xstart[r,w])/(Xend[r,w] - Xstart[r,w])
+        Xend[r,] <- (Xend[r,] - Xstart[r,])*sc + Xstart[r,]
+      }
+    }
+
+    return(Xend)
+  }
+
+
 ## lalcrayGP.R:
 ##
 ## calculates a ray emiating from a random nearest (of start)
@@ -443,17 +474,7 @@ lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), ve
 
     ## get starting and ending point of ray
     Xstart <- Xcand[sample(1:offset, numrays),,drop=FALSE]
-    for(r in 1:numrays) {
-      Xend[r,] <- as.numeric(10*(Xstart[r,] - Xref) + Xstart[r,])
-      while(any(Xend[r,] < rect[1,]) | any(Xend[r,] > rect[2,])) {
-        w <- which(Xend[r,] < rect[1,])
-        if(length(w) > 0) { col <- 1
-        } else { w <- which(Xend[r,] > rect[2,]); col <- 2 }
-        w <- w[1]
-        sc <- (rect[col,w] - Xstart[r,w])/(Xend[r,w] - Xstart[r,w])
-        Xend[r,] <- (Xend[r,] - Xstart[r,])*sc + Xstart[r,]
-      }
-    }
+    Xend <- ray.end(numrays, Xref, Xstart, rect)
 
     ## solve for the best convex combination of Xstart and Xend
     so <- alcrayGP(gpi, Xref, Xstart, Xend, verb)
@@ -549,9 +570,9 @@ alcrayGP <- function(gpi, Xref, Xstart, Xend, verb=0)
 ## and constraint GP (gpi) predictive surfaces
 
 alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin, 
-                 nomax=FALSE, N=100)
+                 nomax=FALSE, N=100, fn=NULL, Bscale=1)
   {
-    ## doms
+    ## dimensions
     m <- ncol(XX)
     nn <- nrow(XX)
     nCgps <- length(Cgpis)
@@ -559,13 +580,27 @@ alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin,
     ## checking lengths for number of gps
     if(length(Cnorms) != nCgps) stop("length(Cgpis) != length(Cnorms)")
     if(length(lambda) != nCgps) stop("length(Cgpis) != length(lambda)")
-    if(length(alpha) != nCgps) stop("length(Cgpis) != length(alpha)")
+    if(length(alpha) != 1) stop("length(alpha) != 1")
 
     ## checking scalars
-    if(!is.logical(nomax) || length(nomax) != 1) stop("nomax should be a scalar logical")
+    if(length(nomax) != 1) stop("nomax should be a scalar logical or negative nuumber")
     if(length(N) != 1 || N <= 0) stop("N should be a positive integer scalar")
     if(length(ymin) != 1) stop("ymin should be a scalar")
     if(length(fnorm) != 1) stop("fnorm should be a scalar")
+
+    ## run fn to get cheap objectives and constraints
+    if(fgpi < 0 || any(Cgpis < 0)) {
+      if(is.null(fn)) stop("fn must be provided when fgpi or Cgpis < -1")
+      out <- fn(XX*Bscale, known.only=TRUE)
+      if(fgpi < 0) {
+        if(is.null(out$obj)) stop("fgpsepi < 0 but out$obj from fn() is NULL")
+        obj <- out$obj
+      } else obj <- NULL
+      if(any(Cgpis < 0)) {
+        C <- out$c
+        if(ncol(C) != sum(Cgpis < 0)) stop("ncol(C) != sum(Cgpis < 0)")
+      } else C <- NULL
+    } else { obj <- C <- NULL }
 
     ## call the C-side
     out <- .C("alGP_R",
@@ -580,7 +615,7 @@ alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin,
       lambda = as.double(lambda),
       alpha = as.double(alpha),
       ymin = as.double(ymin),
-      nonmax = as.double(nomax),
+      nomax = as.integer(nomax),
       N = as.integer(N),
       eys = double(nn),
       eis = double(nn),
@@ -588,6 +623,67 @@ alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin,
     
     ## done
     return(data.frame(ey=out$eys, ei=out$eis))
+  }
+
+
+## eicGP:
+##
+## calculate EI(f) and p(Y(c) <= 0) for known linear or esitmated
+## objective f and vectorized constraints C via isotropic GP (gpsi)
+## predictive surfaces; returns log probabilities (lplex) and 
+## EIs on the original scale
+
+eicGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, fmin, fn=NULL, Bscale=1)
+  {
+    ## doms
+    m <- ncol(XX)
+    nn <- nrow(XX)
+    nCgps <- length(Cgpis)
+
+    ## checking lengths for number of constraint gps
+    if(length(Cnorms) != nCgps) stop("length(Cgpis) != length(Cnorms)")
+    ## checking scalars
+    if(length(fmin) != 1) stop("ymin should be a scalar")
+    if(length(fnorm) != 1) stop("fnorm should be a scalar")
+
+    ## run fn to get cheap objectives and constraints
+    if(fgpi < 0 || any(Cgpis < 0)) {
+      if(is.null(fn)) stop("fn must be provided when fgpi or Cgpis < -1")
+      out <- fn(XX*Bscale, known.only=TRUE)
+      if(fgpi < 0) {
+        if(is.null(out$obj)) stop("fgpi < 0 but out$obj from fn() is NULL")
+        obj <- out$obj
+      } else obj <- NULL
+      if(any(Cgpis < 0)) {
+        C <- out$c
+        if(ncol(C) != sum(Cgpis < 0)) stop("ncol(C) != sum(Cgpis < 0)")
+      } else C <- NULL
+    }
+
+    ## calculate expected improvement part
+    if(fgpi <= 0) {
+      obj <- rowSums(XX) * fnorm
+      if(!is.finite(fmin)) fmin <- quantile(obj, p=0.9)
+      I <- fmin - obj
+      ei <- pmax(I, 0)
+    } else {
+      p <- predGP(fgpi, XX=XX, lite=TRUE)
+      pm <- p$mean * fnorm
+      ps <- sqrt(p$s2) * fnorm
+      if(!is.finite(fmin)) fmin <- quantile(pm, p=0.9)
+      u <- (fmin  - pm)/ps
+      ei <- ps*dnorm(u) + (fmin-pm)*pnorm(u)
+    }
+
+    ## calculate constraint part
+    lplez <- matrix(NA, nrow=nrow(XX), nCgps)
+    for(j in 1:nCgps) {
+      pc <- predGP(Cgpis[j], XX=XX, lite=TRUE)
+      lplez[,j] <- pnorm(0, pc$mean, sqrt(pc$s2), log.p=TRUE)
+    }
+    
+    ## done
+    return(data.frame(ei=ei, lplez=lplez))
   }
 
 

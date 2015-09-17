@@ -1,9 +1,11 @@
 \name{mleGP}
 \alias{mleGP}
+\alias{mleGPsep.R}
 \alias{mleGPsep}
 \alias{jmleGP}
 \alias{jmleGP.R}
 \alias{jmleGPsep}
+\alias{jmleGPsep.R}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
   Inference for GP correlation parameters
@@ -18,13 +20,18 @@ mleGP(gpi, param = c("d", "g"), tmin=sqrt(.Machine$double.eps),
   tmax = -1, ab = c(0, 0), verb = 0)
 mleGPsep(gpsepi, param=c("d", "g"), tmin=sqrt(.Machine$double.eps), 
   tmax=-1, ab=c(0,0), maxit=100, verb=0)
+mleGPsep.R(gpsepi, param=c("d", "g"), tmin=sqrt(.Machine$double.eps), 
+  tmax=-1, ab=c(0,0), maxit=100, verb=0)
 jmleGP(gpi, drange=c(sqrt(.Machine$double.eps),10), 
   grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), verb=0)
 jmleGP.R(gpi, N=100, drange=c(sqrt(.Machine$double.eps),10), 
   grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), verb=0)
-jmleGPsep(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10), 
+jmleGPsep(gpsepi, drange=c(sqrt(.Machine$double.eps),10), 
   grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), 
   maxit=100, verb=0)
+jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10), 
+  grange=c(sqrt(.Machine$double.eps), 1), dab=c(0,0), gab=c(0,0), 
+  maxit=100, mleGPsep=mleGPsep.R, verb=0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -61,46 +68,53 @@ jmleGPsep(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   MAP inference is performed
 }
 \item{maxit}{ for \code{mleGPsep} this is passed as \code{control=list(trace=maxit)}
-  to \code{\link{optim}} implemented the L-BFGS-B method for optimizing
+  to \code{\link{optim}}'s L-BFGS-B method for optimizing
   the likelihood/posterior of a separable GP representation; this argument is
   not used for isotropic GP versions, and nor for optimizing the nugget }
 \item{dab}{ for \code{jmleGP}, this is \code{ab} for the lengthscale
   parameter }
 \item{gab}{ for \code{jmleGP}, this is \code{ab} for the nugget
   parameter }
-  \item{verb}{
+\item{mleGPsep}{ function for internal MLE calculation of the separable
+  lengthscale parameter; one of either \code{mleGPsep.R} based on 
+  \code{method="L-BFGS-B"} using \code{\link{optim}}; 
+  or \code{mleGPsep} using the \code{C} entry point \code{lbfgsb}.  
+  Both options use a \code{C} backend for the nugget }
+\item{verb}{
     a verbosity argument indicating how much information about the optimization
     steps should be printed to the screen; \code{verb <= 0} is quiet; for
-    \code{jmleGP}, a \code{verb - 1} value is passed to the \code{mleGP} subroutine(s).
+    \code{jmleGP}, a \code{verb - 1} value is passed to the \code{mleGP} or 
+    \code{mleGPsep} subroutine(s)
 }
 }
 \details{
-  \code{mleGP} and \code{mleGPsep} performs marginal (or profile) inference
+  \code{mleGP} and \code{mleGPsep} perform marginal (or profile) inference
   for the specified \code{param}, either the lengthscale or the nugget. 
 
   For the lengthscale, \code{mleGP} uses a Newton-like scheme with analytic first 
-  and second derivatives (more below) to find the single scalar parameter for the isotropic
+  and second derivatives (more below) to find the scalar parameter for the isotropic
   Gaussian correlation function, with hard-coded 100-max iterations threshold and a
   \code{sqrt(.Machine$double.eps)} tolerance for determining convergence;
-  \code{mleGPsep} uses L-BFGS-B via \code{\link{optim}} for the 
+  \code{mleGPsep.R} uses L-BFGS-B via \code{\link{optim}} for the 
   vectorized parameter of the separable Gaussian correlation, with a user-supplied
   maximum number of iterations (\code{maxit}) passed to \code{\link{optim}}.  
   When \code{maxit} is reached the output \code{conv = 1} is returned, whereby
-  subsequent identical calls to \code{mleGPsep} can be used to continue with
-  further iterations.
+  subsequent identical calls to \code{mleGPsep.R} can be used to continue with
+  further iterations.  \code{mleGPsep} is similar, but uses the \code{C} 
+  entry point \code{lbfgsb}.
 
   For the nugget, both \code{mleGP} and \code{mleGPsep} utilize a (nearly 
   identical) Newton-like scheme leveraging derivatives.
 
-  \code{jmleGP} and \code{jmleGPsep} provides joint inference by iterating
+  \code{jmleGP} and \code{jmleGPsep} provide joint inference by iterating
   over the marginals of lengthscale and nugget.  The \code{jmleGP.R} function
   is an \R-only wrapper around
   \code{mleGP} (which is primarily in C), whereas \code{jmleGP} is
-  primarily in C but should give the same output. No such variation is
-  provided for \code{jmleGPsep}.
+  primarily in C but should give answers but with reduced output and 
+  with hard-coded \code{N=100}.  The same is true for \code{jmleGPsep}.
 
   All methods are initialized at the value of the parameter(s) currently
-  stored by the C-side referenced by \code{gpi} or \code{gpsepi}.  It is
+  stored by the C-side object referenced by \code{gpi} or \code{gpsepi}.  It is
   \emph{highly recommended} that sensible range values (\code{tmin}, \code{tmax}
   or \code{drange}, \code{grange}) be provided.  The defauls provided are
   too loose for most applications.  As illustrated in the examples below,
@@ -111,26 +125,27 @@ jmleGPsep(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   The Newton-like method implemented for the isotropic lengthscale and for the
   nugget offers very fast convergence to local maxima, but sometimes it fails
   to converge (for any of the usual reasons).  The implementation
-  detect this, and in such cases it invokes a \code{Brent_fmin} call instead -
+  detects this, and in such cases it invokes a \code{Brent_fmin} call instead -
   this is the method behind the \code{\link{optimize}} function.
 
-  Note that the \code{gpi} object must have been allocated with
-  \code{dK=TRUE}; alternatively, one can call \code{buildKGP} - however,
-  this is not in the namespace at this time
+  Note that the \code{gpi} or \code{gpsepi} object(s) must have been allocated with
+  \code{dK=TRUE}; alternatively, one can call \code{buildKGP} or \code{buildKGPsep}
+  - however, this is not in the NAMESPACE at this time
 }
 \value{
   A self-explanatory \code{\link{data.frame}} is returned containing the
   values inferred and the number of iterations used.  The
-  \code{jmleGP.R} function will also show progress details (the values
+  \code{jmleGP.R} and \code{jmleGPsep.R} functions will also show progress details (the values
   obtained after each iteration over the marginals).
 
   However, the most important \dQuote{output} is the modified GP object
   which retains the setting of the parameters reported on output as a 
   side effect.
 
-  Code for \code{mleGPsep} and \code{jmleGPsep} an output field/column
-  called \code{conv} indicates convergence (when 0), or provides
-  the non-convergence code output by \code{\link{optim}}
+  \code{mleGPsep} and \code{jmleGPsep} provide an output field/column
+  called \code{conv} indicating convergence (when 0), or alternately 
+  a value agreeing with a non-convergence code provided on 
+  output by \code{\link{optim}}
 }
 \references{
   For standard GP inference, refer to any graduate text, e.g., Rasmussen
@@ -207,7 +222,7 @@ d <- darg(NULL, X)
 g <- garg(list(mle=TRUE), Y)
 
 ## build GP and optimize
-gpisep <- newGPsep(X, Y, d=rep(d$start, 2), g=g$start)
+gpisep <- newGPsep(X, Y, d=rep(d$start, 2), g=g$start, dK=TRUE)
 jmleGPsep(gpisep, drange=c(d$min, d$max), grange=c(g$min, g$max))
 
 ## clean up

@@ -1,6 +1,8 @@
 \name{alcGP}
 \alias{alcGP}
+\alias{alcGPsep}
 \alias{alcrayGP}
+\alias{alcrayGPsep}
 \alias{mspeGP}
 \alias{efiGP}
 
@@ -16,7 +18,10 @@
 \usage{
 alcGP(gpi, Xcand, Xref = Xcand, parallel = c("none", "omp", "gpu"), 
       verb = 0)
-alcrayGP(gpi, Xref, Xstart, Xend, verb=0)
+alcGPsep(gpsepi, Xcand, Xref = Xcand, parallel = c("none", "omp", "gpu"), 
+      verb = 0)
+alcrayGP(gpi, Xref, Xstart, Xend, verb = 0)
+alcrayGPsep(gpsepi, Xref, Xstart, Xend, verb = 0)
 mspeGP(gpi, Xcand, Xref = Xcand, fi = TRUE, verb = 0)
 efiGP(gpi, Xcand)
 }
@@ -24,8 +29,11 @@ efiGP(gpi, Xcand)
 \arguments{
 \item{gpi}{
    a C-side GP object identifier (positive integer);
-    e.g., as returned by \code{\link{newGP}}; note that separable GP objects
-    (created by \code{\link{newGPsep}} are not supported at this time)
+    e.g., as returned by \code{\link{newGP}}
+    }
+\item{gpsepi}{
+  a C-side separable GP object identifier (positive integer);
+    e.g., as returned by \code{\link{newGPsep}}
 }
 \item{Xcand}{
    a \code{matrix} or \code{data.frame} containing
@@ -40,8 +48,8 @@ efiGP(gpi, Xcand)
    at which the reduction in variance, or mean squared predictive error,
    are calculated.  In the context of \code{\link{laGP}}, this is
    the single location \code{Xref = x} around which a local design 
-   is sought.  For \code{alcray} the \code{matrix} may only have one
-   row, i.e., one reference location
+   is sought.  For \code{alcrayGP} and \code{alcrayGPsep} the 
+   \code{matrix} may only have one row, i.e., one reference location
 }
 \item{parallel}{
    a switch indicating if any parallel calculation of 
@@ -49,15 +57,14 @@ efiGP(gpi, Xcand)
   For \code{parallel = "omp"}, the package be compiled with OpenMP flags; 
   for \code{parallel = "gpu"}, the package must be compiled with CUDA
   flags (only the ALC criteria is supported on the GPU); see README/INSTALL
-  in the package source for more details;  at this time this option is
-  only supported for \code{method = "alc"} criteria
+  in the package source for more details
 }
 \item{Xstart}{
   a \code{1}-by-\code{ncol(Xref)} starting location for a search along
   a ray between \code{Xstart} and \code{Xend}
 }
 \item{Xend}{
-  a \code{1}-by-\code{ncol(Xref)} starting location for a search along
+  a \code{1}-by-\code{ncol(Xref)} ending location for a search along
   a ray between \code{Xstart} and \code{Xend}
 }
 \item{fi}{
@@ -78,35 +85,40 @@ efiGP(gpi, Xcand)
   approximation is to inspect the code in the \code{\link{laGP.R}} function.
 
   Otherwise they are pretty self explanatory.  They evaluate the ALC, MSPE,
-  and EFI quantities outlined in Gramacy & Apley (2014).  The ALC is originally
+  and EFI quantities outlined in Gramacy & Apley (2015).  The ALC is originally
   due to Seo, et al. (2000).  The ray-based search is described by a forthcoming
-  paper by Gramacy & Haaland (2014).
+  paper by Gramacy & Haaland (2015).
 
-  \code{alcrayGP} allows only one reference location (\code{nrow(Xref) = 1}).  
+  MSPE and EFI calculations are not supported for separable GP models.  I.e.,
+  there are no \code{mspeGPsep} or \code{efiGPsep} functions.
+
+  \code{alcrayGP} and \code{alcrayGPsep} allows only one reference location 
+  (\code{nrow(Xref) = 1}).  
 }
 \value{
   A vector of length \code{nrow(Xcand)} is returned filled with values
   corresponding to the desired statistic
 }
 \references{
-  R.B. Gramacy and D.W. Apley (2014).
+  R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
-    experiments.} Journal of Computational and Graphical Statistics, \emph{to appear};
-  preprint available on arXiv:1303.0383; 
+    experiments.} Journal of Computational and Graphical Statistics, 
+  24(2), pp. 561-678; preprint on arXiv:1303.0383;
   \url{http://arxiv.org/abs/1303.0383}
 
-  R.B. Gramacy, J. Niemi, R.M. Weiss (2014). 
+  R.B. Gramacy, J. Niemi, R.M. Weiss (2014).
   \emph{Massively parallel approximate Gaussian process regression.}
-  SIAM/ASA Journal on Uncertainty Quantification, \emph{to appear};
-  preprint on arXiv:1310.5182
-  \url{http://arxiv.org/abs/1310.5182}  
+  SIAM/ASA Journal on Uncertainty Quantification, 2(1), pp. 568-584;
+  preprint on arXiv:1310.5182;
+  \url{http://arxiv.org/abs/1310.5182}
 
-  R.B. Gramacy and B. Haaland (2014).
+  R.B. Gramacy and B. Haaland (2015).
   \emph{Speeding up neighborhood search in local Gaussian process prediction.}
-  Preprint on arXiv:1409.0074 
+  Technometrics, \emph{to appear};
+  preprint on arXiv:1409.0074 
   \url{http://arxiv.org/abs/1409.0074}
 
-  Seo, S., Wallat, M., Graepel, T., and Obermayer, K. (2000). 
+  Seo, S., Wallat, M., Graepel, T., Obermayer, K. (2000). 
   \emph{Gaussian Process Regression: Active Data Selection and Test Point Rejection.}
   In Proceedings of the International Joint Conference on Neural Networks, 
   vol. III, 241-246. IEEE.
@@ -118,13 +130,12 @@ efiGP(gpi, Xcand)
 \seealso{
   \code{\link{laGP}}, \code{\link{aGP}}, \code{\link{predGP}}
 }
-\note{ Note that separable GP objects (i.e., created by \code{\link{newGPsep}} 
-are not supported at this time}
+
 \examples{
 ## this follows the example in predGP, but only evaluates 
 ## information statistics documented here
 
-## Simple 2-d test function used in Gramacy & Apley (2014);
+## Simple 2-d test function used in Gramacy & Apley (2015);
 ## thanks to Lee, Gramacy, Taddy, and others who have used it before
 f2d <- function(x, y=NULL)
   {

@@ -36,7 +36,8 @@ rbetter <- function(n, rect, ybest)
              m = as.integer(nrow(rect)),
              rect = as.double(rect),
              ystar = as.double(ybest),
-             X = double(n*nrow(rect)));
+             X = double(n*nrow(rect)),
+             PACKAGE = "laGP")
 
     return(matrix(rr$X, ncol=nrow(rect), byrow=TRUE))
   }

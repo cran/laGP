@@ -42,13 +42,13 @@ double fishinfoGP(GP *gp);
 void calc_ZtKiZ(GP *gp);
 void newdKGP(GP *gp);
 void buildKGP_R(int *gpi_in);
-GP* buildGP(GP *gp, int dK);
+GP* buildGP(GP *gp, const int dK);
 GP* newGP(const unsigned int m, const unsigned int n, double **X,
     double *Z, const double d, const double g, const int dK);
 GP* newGP_sub(const unsigned int m, const unsigned int n, int *p, 
         double **X, double *Z, const double d, const double g, const int dK);
 void newGP_R(int *m_in, int *n_in, double *X_in, double *Z_in,
-       double *d_in, double *g_in, int *dK, int *gp_index);
+       double *d_in, double *g_in, int *dK_in, int *gp_index);
 void newparamsGP(GP* gp, const double d, const double g);
 void newparamsGP_R(int *gpi_in, double *d_in, double *g_in);
 double llikGP(GP *gp, double *dab, double *gab);
@@ -56,14 +56,14 @@ void llikGP_R(int *gpi_in, double *dab_in, double *gab_in, double *llik_out);
 double Ropt(GP* gp, Theta theta, double tmin, double tmax, double *ab, 
         char *msg, int *its, int verb);
 double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab, 
-        int *its, int verb);
+        int verb, int *its);
 void mleGP_R(int *gpi_in, int *param_in, int *verb_in, double *tmin_in,
        double *tmax_in, double *ab_in, double *mle_out, int * its_out);
 void jmleGP(GP *gp, double *drange, double *grange, double *dab, double *gab,
-            int *dits, int *gits, int verb);
+            int verb, int *dits, int *gits);
 void jmleGP_R(int *gpi_in, int *verb_in, double *drange_in, double *grange_in,
-       double *dab_in, double *gab_in, double *d_out, double *g_out, int *dits_out,
-       int *gits_out);
+       double *dab_in, double *gab_in, double *d_out, double *g_out, 
+       int *dits_out, int *gits_out);
 GP* copyGP(GP* gp);
 void copyGP_R(int *gpi_in, int *newgpi_out);
 void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ, int verb);
@@ -71,8 +71,13 @@ void updateGP_R(int *gpi_in, int *m_in, int *nn_in, double *XX_in, double *ZZ_in
       int *verb_in);
 void predGP(GP* gp, unsigned int nn, double **XX, double *mean, 
       double **Sigma, double *df, double *llik);
+void pred_generic(const unsigned int n, const double phidf, double *Z, 
+  double **Ki, const unsigned int nn, double **k, double *mean, 
+  double **Sigma);
 void new_predutilGP_lite(GP *gp, unsigned int nn, double **XX, double ***k, 
        double ***ktKi, double **ktKik);
+void new_predutil_generic_lite(const unsigned int n, double **Ki, 
+  const unsigned int nn, double **k, double ***ktKi, double **ktKik);
 void predGP_lite(GP* gp, unsigned int nn, double **XX, double *mean, 
      double *sigma2, double *df, double *llik);
 void predGP_R(int *gpi_in, int *m_in, int *nn_in, double *XX_in,
@@ -80,8 +85,16 @@ void predGP_R(int *gpi_in, int *m_in, int *nn_in, double *XX_in,
         double *llik_out);
 void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
      double **Xref,  int verb, double *alc);
+void ray_bounds(const unsigned int offset, const unsigned int nr, const unsigned int m, 
+  double **rect, double **Xref, unsigned int ncand, double **Xcand, double **Xstart, 
+  double **Xend);
+int convex_index(double *s, const unsigned int rmin, const unsigned int offset, 
+  const unsigned int nr, const unsigned int m, const unsigned int ncand, 
+  double **Xcand, double **Xstart, double **Xend);
 int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref, 
   const unsigned int offset, unsigned int nr, double **rect, int verb);
+double* alcrayGP(GP *gp, double **Xref, const unsigned int nump, 
+  double **Xstart, double **Xend, double *negalc, const unsigned int verb);
 #ifdef _GPU
 void alcGP_gpu(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
      double **Xref,  int verb, double *alc, int omp_threadnum);

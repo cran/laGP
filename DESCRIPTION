@@ -1,7 +1,7 @@
 Package: laGP
 Title: Local Approximate Gaussian Process Regression
-Version: 1.1-5
-Date: 2015-05-23
+Version: 1.2
+Date: 2015-09-10
 Author: Robert B. Gramacy <rbgramacy@chicagobooth.edu>
 Depends: R (>= 2.14)
 Imports: tgp, parallel
@@ -11,6 +11,6 @@ Maintainer: Robert B. Gramacy  <rbgramacy@chicagobooth.edu>
 License: LGPL
 URL: http://bobby.gramacy.com/r_packages/laGP
 NeedsCompilation: yes
-Packaged: 2015-05-23 00:43:26 UTC; bobby
+Packaged: 2015-09-16 17:48:26 UTC; bobby
 Repository: CRAN
-Date/Publication: 2015-05-27 01:37:43
+Date/Publication: 2015-09-17 22:50:06

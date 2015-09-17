@@ -13,18 +13,18 @@ void error(const char *str, ...);
 #define DOUBLE_EPS 2.220446e-16
 #define M_LN_SQRT_2PI   0.918938533204672741780329736406  
 #include <stdio.h>
-#define mystdout stdout
-#define mystderr stderr
+#define MYstdout stdout
+#define MYstderr stderr
 #else
 #include <R_ext/Utils.h>
 #include <R.h>
 #include <Rmath.h>
-extern FILE *mystdout, *mystderr;
+extern FILE *MYstdout, *MYstderr;
 #endif
 
 void R_FlushConsole(void); /* R < 2.3 does not have this in R.h (in Rinterface.h) */
-void myprintf(FILE *outfile, const char *str, ...);
-void myflush(FILE *outfile);
+void MYprintf(FILE *outfile, const char *str, ...);
+void MYflush(FILE *outfile);
 time_t my_r_process_events(time_t itime);
 
 #endif

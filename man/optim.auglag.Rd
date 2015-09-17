@@ -1,5 +1,6 @@
 \name{optim.auglag}
 \alias{optim.auglag}
+\alias{optim.eic}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
     Optimize an objective function under
@@ -9,33 +10,44 @@
     Uses a surrogate modeled augmented Lagrangian (AL) system to optimize
     an objective function (blackbox or known and linear) 
     under unknown multiple (blackbox) constraints via
-    expected improvement (EI) and variations
+    expected improvement (EI) and variations; a comparator based
+    on EI with constraints is also provided
 }
 \usage{
-optim.auglag(fn, B, fhat = FALSE, start = 10, end = 100, Xstart = NULL, 
-    sep=FALSE, ab = c(3/2, 4), lambda = rep(1, ncol(B)), rho = 1/2, 
-    urate = 10, ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
-    dlim = sqrt(ncol(B)) * c(1/100, 10), Bscale = 1, 
-    tol = list(ei = 1e-05, ey = 0.05, its = 10), nomax = FALSE, 
-    N = 1000, plotprog = FALSE, verb = 2, ...)
+optim.auglag(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100, 
+  Xstart = NULL, sep=FALSE, ab = c(3/2, 4), lambda = 1, rho = 1/2, 
+  urate = 10, ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
+  dlim = sqrt(ncol(B)) * c(1/100, 10), Bscale = 1, ey.tol = 0.05, 
+  nomax = FALSE, N = 1000, plotprog = FALSE, verb = 2, ...)
+optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100, 
+  Xstart = NULL, sep = FALSE, ab = c(3/2,4), urate = 10, 
+  ncandf = function(t) { t }, dg.start = c(0.1,1e-6), 
+  dlim = sqrt(ncol(B))*c(1/100,10), Bscale = 1, plotprog = FALSE, 
+  verb = 2, ...)
 }
 \arguments{
   \item{fn}{
-    function of a single, vector-valued, input (\code{x}) returning a \code{list} 
+    function of an input (\code{x}), facilitating vectorization on a 
+    \code{matrix} \code{X} thereof,  returning a \code{list} 
     with elements \code{"obj"} containing the (scalar) objective value and \code{"c"} 
-    returning a vector of evaluations of the (multiple) constraint function at \code{x}
+    containing a vector of evaluations of the (multiple) constraint function at \code{x}.
+    The \code{fn} function must take a \code{known.only} argument which is explained
+    in the note below; it need not act on that argument
 }
-  \item{B}{
+\item{B}{
     2-column \code{matrix} describing the bounding box.  The number of rows
     of the \code{matrix} determines the input dimension 
     (\code{length(x)} in \code{fn(x)}); the first column gives
     lower bounds and the second gives upper bounds
 }
-  \item{fhat}{ a scalar logical indicating if the objective function should
+\item{fhat}{ a scalar logical indicating if the objective function should
   be modeled with a GP surrogate.  The default of \code{FALSE} assumes a known
   linear objective scaled by \code{Bscale}.  Using \code{TRUE} is an \dQuote{alpha}
   feature at this time}
-  \item{start}{
+\item{cknown}{ A optional positive integer vector specifying which of the constraint
+  values returned by \code{fn} should be treated as \dQuote{known}, i.e., not modeled
+  with Gaussian processes}
+\item{start}{
     positive integer giving the number of random starting locations before 
     sequential design (for optimization) is performed; \code{start >= 6} is
     recommended unless \code{Xstart} is non-\code{NULL}; in the current version
@@ -47,12 +59,12 @@ optim.auglag(fn, B, fhat = FALSE, start = 10, end = 100, Xstart = NULL,
 }
   \item{Xstart}{
     optional matrix of starting design locations in lieu of, or in addition to,
-     \code{start} random ones;  recommend \code{nrow(Xstart) + start >= 6}; also must
+     \code{start} random ones;  we recommend \code{nrow(Xstart) + start >= 6}; also must
      have \code{ncol(Xstart) = nrow(B)}
 }
   \item{sep}{
     if \code{sep = TRUE} then separable GPs (i.e., via \code{\link{newGPsep}}, etc.)
-    are used to model the constraints.  Otherwise the default it to use isotropic
+    are used to model the constraints.  Otherwise the default is to use isotropic
     ones
   }
   \item{ab}{
@@ -60,14 +72,14 @@ optim.auglag(fn, B, fhat = FALSE, start = 10, end = 100, Xstart = NULL,
     lengthscale parameter during emulation(s) for the constraints
 }
   \item{lambda}{
-    \code{m}-dimensional initial Lagrangian parameter for \code{m}-constraints
+    \code{m}-dimensional initial Lagrange multiplier parameter for \code{m}-constraints
 }
   \item{rho}{
     positive scalar initial quadratic penalty parameter in the augmented Lagrangian
 }
   \item{urate}{
     positive integer indicating  how many optimization trials should pass before
-    each MLE/MAP update is performed for estimators for GP correlation lengthscale 
+    each MLE/MAP update is performed for GP correlation lengthscale 
     parameter(s) 
 }
   \item{ncandf}{
@@ -85,29 +97,22 @@ optim.auglag(fn, B, fhat = FALSE, start = 10, end = 100, Xstart = NULL,
     thereby augmenting the prior specification in \code{ab}
 }
   \item{Bscale}{
-    scalar indicating the relationship between the sum of the inputs \code{sum(x)} 
+    scalar indicating the relationship between the sum of the inputs, \code{sum(x)}, 
     to \code{fn} and the output \code{fn(x)$obj$}; note that at this time only linear
-    objectives are supported by the code - more details below
+    objectives are fully supported by the code - more details below
 }
-  \item{tol}{
-    \code{list} containing entries \code{"ei"}, \code{"ey"}, and \code{"its"} together
-    describing the search method and the criteria used to determine approximate convergence
-    of the inner loop of the augmented Lagrangian search.  \code{"ei"} describes 
-    the tolerance determining approximate convergence when sampling under expected
-    improvement (EI), i.e., whether the largest EI value obtained in the current search
-    is too low to continue; \code{"ey"} is a proportion indicating how many of the EIs
-    at \code{ncandf(t)} candidate locations must be non-zero to trust that metric to 
-    guide search, reducing to an EY-based 
-    search instead [choosing that proportion to be zero forces EY-based search]; 
-    \code{"its"} is an integer specifying the maximum number of inner-loop iterations 
-    that can pass without improvement in the sub-problem before approximate convergence 
-    is declared
+  \item{ey.tol}{
+    a scalar proportion indicating how many of the EIs
+    at \code{ncandf(t)} candidate locations must be non-zero to \dQuote{trust}
+     that metric to guide search, reducing to an EY-based search instead 
+     [choosing that proportion to be zero forces EY-based search]
 }
   \item{nomax}{
-    one of \code{c{0,1,2}} indicating if the max should be removed from the 
+    one of \code{c{-1,0,1}} indicating if the max should be removed from the 
     augmented lagrangian (AL): not at all (0),
-    in the evaluation of EI or EY (1), or also in the update of \code{lambda} (2); 
-    see the description for details
+    in the evaluation of EI or EY (1).  Specifying a negative number (e.g., \code{-1})
+    invokes the slack variable implementation of AL, which is \dQuote{alpha}
+     functionality at this time
 }
   \item{N}{
     positive scalar integer indicating the number of Monte Carlo samples to be
@@ -134,12 +139,12 @@ optim.auglag(fn, B, fhat = FALSE, start = 10, end = 100, Xstart = NULL,
 \details{
 In its current form, this is a \dQuote{beta} code illustrating the suite of
 methods used to optimize two challenging constrained optimization problems
-from Gramacy, et al. (2014); see references below.  
+from Gramacy, et al. (2015); see references below.  
 
 That scheme hybridizes Gaussian process based surrogate modeling and expected
 improvement (EI; Jones, et., al, 2008) with the additive penalty method (APM)
-implemented by the augmented Lagrangian (AL, e.g., Kannan and Wild, 2012).
-The goal is to minimize a a known linear objective function \code{f(x)} under
+implemented by the augmented Lagrangian (AL, e.g., Nocedal & Wright, 2006).
+The goal is to minimize a known linear objective function \code{f(x)} under
 multiple, unknown (blackbox) constraint functions satisfying \code{c(x) <= 0},
 which is vector-valued.  The solution here emulates the components of \code{c}
 with Gaussian process surrogates, and guides optimization by searching the
@@ -150,19 +155,24 @@ posterior mean surface, or the EI of, the following composite objective
 }{ Y(x) = f(x) + lambda \%*\% Yc(x) + 1/(2rho) sum(max(0, Yc(x))^2)}  
 where \eqn{\lambda}{lambda} and \eqn{\rho}{rho} follow updating equations that
 guarantee convergence to a valid solution minimizing the objective.  For more
-details, see Gramacy, et al. (2014).
+details, see Gramacy, et al. (2015).
 
 The \code{nomax} argument indicates whether or not the \code{max} is present
 in the AL formula above.  Setting \code{nomax > 0} can lead to a more
 aggressive search nearby the boundary between feasible and infeasible regions.
-See Gramacy, et al. (2014) for more details. 
+See Gramacy, et al. (2015) for more details. 
 
 The example below illustrates a variation on the toy problem considered in that paper,
 which bases sampling on EI.
 
 The latest version of this function allows an unknown objective function to
 be modeled (\code{fhat = TRUE}), rather than assuming a known linear one.  This
-is \dQuote{alpha} functionality at this time.  Examples are forthcoming
+is \dQuote{alpha} functionality at this time.  For an example, see
+\code{demo("ALfhat")}.
+
+The \code{optim.eic} function is provided as a comparator.  This method uses
+the same underlying GP models to with the hybrid EI and probability of satisfying
+the constraints heuristic from Schonlau, et al., (1998).
 }
 \value{
 The output is a \code{list} summarizing the progress of the evaluations of the
@@ -172,7 +182,7 @@ blackbox under optimization
   of the objective over the trials }
 \item{obj }{ vector giving the value of the objective for the input under consideration 
   at each trial }
-\item{X }{ \code{matrix} giving the input calues at which the blackbox function was
+\item{X }{ \code{matrix} giving the input values at which the blackbox function was
 evaluated }
 \item{C }{ \code{matrix} giving the value of the constraint function for the input 
   under consideration at each trial (corresponding to \code{X} above)}
@@ -180,12 +190,13 @@ evaluated }
   GP emulator for each constraint}
 \item{df }{ if \code{fhat = TRUE} then this is a \code{matrix} of lengthscale values
 for the objective obtained at the final update of the GP emulator}
-\item{lambda }{ a copy of the final Lagrange multiplier parameter}
-\item{rho }{ a copy of the final penalty paramter }
+\item{lambda }{ a \code{matrix} containing \code{lambda} vectors used in each outer
+loop iteration }
+\item{rho }{ a vector of \code{rho} values used in each outer loop iteration }
 }
 \references{
 
-Gramacy, R.B, Gray, G.A, Lee, H.K.H, Le Digabel, S., Ranjan P., Wells, G., Wild, S.M. (2014)
+Gramacy, R.B, Gray, G.A, Lee, H.K.H, Le Digabel, S., Ranjan P., Wells, G., Wild, S.M. (2015)
 \dQuote{Modeling an Augmented Lagrangian for Improved
   Blackbox Constrained Optimization}, Preprint available on arXiv:1403.4890;
   \url{http://arxiv.org/abs/1403.4890}
@@ -194,40 +205,50 @@ Jones, D., Schonlau, M., and Welch, W. J. (1998).
 \dQuote{Efficient Global Optimization of Expensive Black Box Functions.} 
 \emph{Journal of Global Optimization}, 13, 455-492.
 
-Kannan, A. and Wild, S. (2012). 
-\dQuote{Benefits of Deeper Analysis in Simulation-based Groundwater 
-Optimization Problems.} In \emph{Proceedings of the XIX International Conference on
-Computational Methods in Water Resources} (CMWR 2012).
+Schonlau, M., Jones, D.R., and Welch, W. J. (1998). \dQuote{Global Versus Local Search in
+Constrained Optimization of Computer Models.} In \emph{New Developments and Applications
+in Experimental Design}, vol. 34, 11-25. Institute of Mathematical Statistics.
+
+Nocedal, J. and Wright, S.J. (2006). \emph{Numerical Optimization.}
+2nd ed. Springer.
 
 }
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
 }
 \note{
-This function is under active development, especially the newest features including
-separable GP surrogate modeling, and surrogate modeling of a blackbox objective
-}
+This function is under active development, especially the newest features
+including separable GP surrogate modeling, and surrogate modeling of a
+blackbox objective. Also note that, compared with earlier versions, it is now
+required to augment your blackbox function (\code{fn}) with an argument named
+\code{known.only}. This allows the user to specify if a potentially different
+object 
+(with a subset of the outputs, those that are \dQuote{known}) gets returned in
+certain circumstances. For example, the objective is treated as known in our
+examples. When a non-null \code{cknown} object is used, the \code{known.only}
+flag can be used to return only the outputs which are known.}
 
 
 \seealso{
-\code{vignette("laGP")}, \code{demo{ALfhat}} for blackbox objective,
+\code{vignette("laGP")}, \code{demo("ALfhat")} for blackbox objective,
 \code{\link[tgp]{optim.step.tgp}} for unconstrained optimization;\cr
 \code{optim} with \code{method="L-BFGS-B"} for box constraints, or
 \code{optim} with \code{method="SANN"} for simulated annealing
 }
 \examples{
 ## this example assumes a known linear objective; further examples
-
-library(tgp) ## uses dopt.gp, will change later
+## are in the optim.auglag demo
 
 ## a test function returning linear objective evaluations and 
 ## non-linear constraints
-aimprob <- function(x)
+aimprob <- function(X, known.only = FALSE)
 {
-  f <- sum(x)
-  c1 <- 1.5-x[1]-2*x[2]-0.5*sin(2*pi*(x[1]^2-2*x[2]))
-  c2 <- x[1]^2+x[2]^2-1.5
-  return(list(obj=f, c=c(c1,c2)))
+  if(is.null(nrow(X))) X <- matrix(X, nrow=1)
+  f <- rowSums(X)
+  if(known.only) return(list(obj=f))
+  c1 <- 1.5-X[,1]-2*X[,2]-0.5*sin(2*pi*(X[,1]^2-2*X[,2]))
+  c2 <- rowSums(X^2)-1.5
+  return(list(obj=f, c=cbind(c1,c2)))
 }
 
 ## set bounding rectangle for adaptive sampling

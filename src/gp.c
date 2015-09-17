@@ -178,7 +178,7 @@ void deleteGPs(void)
   int i;
   for(i=0; i<NGP; i++) {
     if(gps[i]) {
-      myprintf(mystdout, "removing gp %d\n", i);
+      MYprintf(MYstdout, "removing gp %d\n", i);
       deleteGP(gps[i]);
     }
   }
@@ -506,14 +506,14 @@ void buildKGP_R(/* inputs */
  * parameters are defined */
 
 
-GP* buildGP(GP *gp, int dK)
+GP* buildGP(GP *gp, const int dK)
 { 
   double **Kchol, **X;
   unsigned int n, m;
   int info;
 
   assert(gp && gp->K == NULL);
-  if(gp->d == 0) assert(!dK);
+  if(gp->d == 0) assert(!dK);  /* sanity check for degenerate GP */
   n = gp->n;
   m = gp->m;
   X = gp->X;
@@ -623,7 +623,7 @@ void newGP_R(/* inputs */
 	     double *Z_in,
 	     double *d_in,
 	     double *g_in,
-	     int *dK,
+	     int *dK_in,
 	     
 	     /* outputs */
 	     int *gp_index)
@@ -635,7 +635,7 @@ void newGP_R(/* inputs */
 
   /* create a new GP; */
   X = new_matrix_bones(X_in, *n_in, *m_in);
-  gps[*gp_index] = newGP(*m_in, *n_in, X, Z_in, *d_in, *g_in, *dK);
+  gps[*gp_index] = newGP(*m_in, *n_in, X, Z_in, *d_in, *g_in, *dK_in);
   free(X);
 }
 
@@ -736,7 +736,7 @@ double llikGP(GP *gp, double *dab, double *gab)
 
   /* proportional to likelihood calculation */
   llik = 0.0 - 0.5*(((double) gp->n) * log(0.5 * gp->phi) + gp->ldetK);
-  // myprintf(mystdout, "d=%g, g=%g, phi=%g, llik=%g\n", gp->d, gp->g, gp->phi, llik); 
+  // MYprintf(MYstdout, "d=%g, g=%g, phi=%g, llik=%g\n", gp->d, gp->g, gp->phi, llik); 
   /* llik += lgamma(0.5*((double) gp->n)) - ((double) gp->n)*M_LN_SQRT_2PI; */
 
   /* if priors are being used; for lengthscale */
@@ -780,7 +780,7 @@ void llikGP_R(/* inputs */
 
 
 /*
- * utility structure for fcnllik and fcndllik defined below
+ * utility structure for fcnllik defined below
  * for use with Brent_fmin (R's optimize) or uniroot
  */
 
@@ -807,12 +807,12 @@ static double fcnnllik(double x, struct callinfo *info)
     newparamsGP(info->gp, x, info->gp->g);
     llik = llikGP(info->gp, info->ab, NULL);
      if(info->verb > 1) 
-      myprintf(mystdout, "fmin it=%d, d=%g, llik=%g\n", info->its, info->gp->d, llik);
+      MYprintf(MYstdout, "fmin it=%d, d=%g, llik=%g\n", info->its, info->gp->d, llik);
   } else {
     newparamsGP(info->gp, info->gp->d, x);
     llik = llikGP(info->gp, NULL, info->ab);
     if(info->verb > 1)
-      myprintf(mystdout, "fmin it=%d, g=%g, llik=%g\n", info->its, info->gp->g, llik);
+      MYprintf(MYstdout, "fmin it=%d, g=%g, llik=%g\n", info->its, info->gp->g, llik);
   }
   return 0.0-llik;
 } 
@@ -853,10 +853,10 @@ double Ropt(GP* gp, Theta theta, double tmin, double tmax,
    if(tnew > tmin && tnew < tmax) break;
    if(tnew == tmin) { /* left boundary found */
     tmin *= 2;
-    if(verb > 0) myprintf(mystdout, "Ropt: tnew=tmin, increasing tmin=%g\n", tmin);
+    if(verb > 0) MYprintf(MYstdout, "Ropt: tnew=tmin, increasing tmin=%g\n", tmin);
    } else { /* right boundary found */
     tmax /= 2.0;
-    if(verb > 0) myprintf(mystdout, "Ropt: tnew=tmax, decreasing tmax=%g\n", tmax);
+    if(verb > 0) MYprintf(MYstdout, "Ropt: tnew=tmax, decreasing tmax=%g\n", tmax);
   }
   /* check that boundaries still valid */
   if(tmin >= tmax) error("unable to opimize in fmin()");
@@ -870,7 +870,7 @@ double Ropt(GP* gp, Theta theta, double tmin, double tmax,
   }
 
   /* possible print message and return */
-  if(verb > 0) myprintf(mystdout, "Ropt %s: told=%g -[%d]-> tnew=%g\n",
+  if(verb > 0) MYprintf(MYstdout, "Ropt %s: told=%g -[%d]-> tnew=%g\n",
 			msg, th, info.its, tnew);
 
   *its += info.its;
@@ -887,7 +887,7 @@ double Ropt(GP* gp, Theta theta, double tmin, double tmax,
  */
 
 double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab, 
-             int *its, int verb)
+             int verb, int *its)
 {
   double tnew, dllik, d2llik, llik_init, llik_new, adj, rat;
   double th;
@@ -908,7 +908,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
 
   /* check how close we are to tmin */
   if(theta == NUGGET && fabs(th - tmin) < SDEPS) {
-    if(verb > 0) myprintf(mystdout, "(g=%g) -- starting too close to min (%g)\n", th, tmin);
+    if(verb > 0) MYprintf(MYstdout, "(g=%g) -- starting too close to min (%g)\n", th, tmin);
     goto alldone;
   }
 
@@ -918,10 +918,10 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
   /* initial printing */
   if(verb > 0) {
     if(theta == LENGTHSCALE)
-      myprintf(mystdout, "(d=%g, llik=%g) ", gp->d, llik_init);
+      MYprintf(MYstdout, "(d=%g, llik=%g) ", gp->d, llik_init);
     else 
-      myprintf(mystdout, "(g=%g, llik=%g) ", gp->g, llik_init);
-  } if(verb > 1) myprintf(mystdout, "\n");
+      MYprintf(MYstdout, "(g=%g, llik=%g) ", gp->g, llik_init);
+  } if(verb > 1) MYprintf(MYstdout, "\n");
 
   while(1) { /* checking for improved llik */
     while(1) {  /* Newton step(s) */
@@ -935,7 +935,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
         /* check for convergence by root */
         if(fabs(dllik) < SDEPS) {
           if(*its == 0) {
-            if(verb > 0) myprintf(mystdout, "-- Newton not needed\n");
+            if(verb > 0) MYprintf(MYstdout, "-- Newton not needed\n");
             goto alldone;
           } else goto newtondone;
         }
@@ -970,7 +970,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
       }
 
       /* print progress */
-      if(verb > 1) myprintf(mystdout, "\ti=%d theta=%g, c(a,b)=(%g,%g)\n", 
+      if(verb > 1) MYprintf(MYstdout, "\ti=%d theta=%g, c(a,b)=(%g,%g)\n", 
                             *its, tnew, ab[0], ab[1]);      
 
       /* check for convergence, and break or update */
@@ -989,7 +989,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
 newtondone:
     llik_new = llikGP(gp, dab, gab);
     if(llik_new < llik_init-SDEPS) { 
-      if(verb > 0) myprintf(mystdout, "llik_new = %g\n", llik_new);
+      if(verb > 0) MYprintf(MYstdout, "llik_new = %g\n", llik_new);
       llik_new = 0.0-1e300*1e300;
       if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
       th = Ropt(gp, theta, tmin, tmax, ab, "[dir]", its, verb); 
@@ -1002,9 +1002,9 @@ mledone:
   if(!R_FINITE(llik_new)) llik_new = llikGP(gp, dab, gab);
   if(verb > 0) {
     if(theta == LENGTHSCALE)
-      myprintf(mystdout, "-> %d Newtons -> (d=%g, llik=%g)\n", 
+      MYprintf(MYstdout, "-> %d Newtons -> (d=%g, llik=%g)\n", 
                *its, gp->d, llik_new);
-    else myprintf(mystdout, "-> %d Newtons -> (g=%g, llik=%g)\n", 
+    else MYprintf(MYstdout, "-> %d Newtons -> (g=%g, llik=%g)\n", 
                *its, gp->g, llik_new);
   }
 
@@ -1068,7 +1068,7 @@ void mleGP_R(/* inputs */
 
   /* call C-side MLE */
   *mle_out = mleGP(gp, theta, *tmin_in, *tmax_in, ab_in, 
-                 its_out, *verb_in);
+                   *verb_in, its_out);
 }
 
 
@@ -1080,7 +1080,7 @@ void mleGP_R(/* inputs */
  */
 
 void jmleGP(GP *gp, double *drange, double *grange, double *dab, double *gab,
-            int *dits, int *gits, int verb) 
+            int verb, int *dits, int *gits) 
   {
     unsigned int i;
     int dit, git;
@@ -1092,9 +1092,9 @@ void jmleGP(GP *gp, double *drange, double *grange, double *dab, double *gab,
     /* loop over coordinate-wise iterations */
     *dits = *gits = 0;
     for(i=0; i<100; i++) {
-      mleGP(gp, LENGTHSCALE, drange[0], drange[1], dab, &dit, verb);
+      mleGP(gp, LENGTHSCALE, drange[0], drange[1], dab, verb, &dit);
       *dits += dit;
-      mleGP(gp, NUGGET, grange[0], grange[1], gab, &git, verb);
+      mleGP(gp, NUGGET, grange[0], grange[1], gab, verb, &git);
       *gits += git;
       if(dit <= 1 && git <= 1) break;
     }
@@ -1106,7 +1106,7 @@ void jmleGP(GP *gp, double *drange, double *grange, double *dab, double *gab,
  * jmleGP_R:
  *
  * R-interface to update the GP to use its joint MLE (lengthscale
-* and nugget) parameterization using the current data
+ * and nugget) parameterization using the current data
  */
 
 void jmleGP_R(/* inputs */
@@ -1145,7 +1145,8 @@ void jmleGP_R(/* inputs */
     error("derivative info not in gp; use newGP with dK=TRUE");
 
   /* call C-side MLE */
-  jmleGP(gp, drange_in, grange_in, dab_in, gab_in, dits_out, gits_out, *verb_in);
+  jmleGP(gp, drange_in, grange_in, dab_in, gab_in, *verb_in, 
+    dits_out, gits_out);
 
   /* write back d and g */
   *d_out = gp->d;
@@ -1313,7 +1314,7 @@ void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
 
     /* progress meter? */
     if(verb > 0)
-      myprintf(mystdout, "update j=%d, n=%d, ldetK=%g\n", j+1, gp->n, gp->ldetK);
+      MYprintf(MYstdout, "update j=%d, n=%d, ldetK=%g\n", j+1, gp->n, gp->ldetK);
     n = gp->n; /* increment for next interation */
   }
 
@@ -1376,11 +1377,11 @@ void updateGP_R(/* inputs */
  * for XX predictive locations of dimension (n*m)
  */
 
-void predGP(GP* gp, unsigned int nn, double **XX, double *mean, 
+void predGP(GP* gp, const unsigned int nn, double **XX, double *mean, 
 	    double **Sigma, double *df, double *llik)
 {
-  unsigned int i, j, m, n;
-  double **k, **ktKi, **ktKik;
+  unsigned int i, m, n;
+  double **k;
   double phidf;
 
   /* easier referencing for dims */
@@ -1405,29 +1406,51 @@ void predGP(GP* gp, unsigned int nn, double **XX, double *mean,
   /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
   k = new_matrix(n, nn);
   covar(m, gp->X, n, XX, nn, gp->d, 0.0, k);
+
   /* Sigma <- covar(X1=XX, d=Zt$d, g=Zt$g) */
   covar_symm(m, XX, nn, gp->d, gp->g, Sigma);
   
+  /* call generic function that would work for all GP covariance specs */
+  pred_generic(n, phidf, gp->Z, gp->Ki, nn, k, mean, Sigma);
+
+  /* clean up */
+  delete_matrix(k);
+}
+
+
+/* 
+ * pred_generic:
+ *
+ * a function that captures the predictive equations without reference
+ * struct gp objects.  Created so that code can be shared between GP
+ * and GPsep objects, and beyond
+ */
+
+void pred_generic(const unsigned int n, const double phidf, double *Z, 
+  double **Ki, const unsigned int nn, double **k, double *mean, double **Sigma)
+{
+  int i, j;
+  double **ktKi, **ktKik;
+
   /* ktKi <- t(k) %*% util$Ki */
   ktKi = new_matrix(n, nn);
-  linalg_dsymm(CblasRight,nn,n,1.0,gp->Ki,n,k,nn,0.0,ktKi,nn);
+  linalg_dsymm(CblasRight,nn,n,1.0,Ki,n,k,nn,0.0,ktKi,nn);
   /* ktKik <- ktKi %*% k */
   ktKik = new_matrix(nn, nn);
   linalg_dgemm(CblasNoTrans,CblasTrans,nn,nn,n,
                1.0,k,nn,ktKi,nn,0.0,ktKik,nn);
 
   /* mean <- ktKi %*% Z */
-  linalg_dgemv(CblasNoTrans,nn,n,1.0,ktKi,nn,gp->Z,1,0.0,mean,1);
+  linalg_dgemv(CblasNoTrans,nn,n,1.0,ktKi,nn,Z,1,0.0,mean,1);
 
   /* Sigma <- phi*(Sigma - ktKik)/df */
   for(i=0; i<nn; i++) {
-     Sigma[i][i] = phidf * (Sigma[i][i] - ktKik[i][i]);
+    Sigma[i][i] = phidf * (Sigma[i][i] - ktKik[i][i]);
     for(j=0; j<i; j++)
       Sigma[j][i] = Sigma[i][j] = phidf * (Sigma[i][j] - ktKik[i][j]);
   }
 
   /* clean up */
-  delete_matrix(k);
   delete_matrix(ktKi);
   delete_matrix(ktKik);
 }
@@ -1443,19 +1466,34 @@ void predGP(GP* gp, unsigned int nn, double **XX, double *mean,
 void new_predutilGP_lite(GP *gp, unsigned int nn, double **XX, double ***k, 
 			 double ***ktKi, double **ktKik)
 {
-  unsigned int i, j, m, n;
-
   /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
-  n = gp->n;  m = gp->m;
-  *k = new_matrix(n, nn);
-  covar(m, gp->X, n, XX, nn, gp->d, 0.0, *k);
+  *k = new_matrix(gp->n, nn);
+  covar(gp->m, gp->X, gp->n, XX, nn, gp->d, 0.0, *k);
   
+  /* call generic function that would work for all GP covariance specs */
+  new_predutil_generic_lite(gp->n, gp->Ki, nn, *k, ktKi, ktKik);
+}
+
+
+/* 
+ * new_predutil_generic_lite:
+ *
+ * a function allocates space and calculate portions of the GP predictive 
+ * equations without reference struct gp objects.  Created so that code can 
+ * be shared between GP and GPsep objects, and beyond
+ */
+
+void new_predutil_generic_lite(const unsigned int n, double ** Ki, 
+  const unsigned int nn, double **k, double ***ktKi, double **ktKik)
+{
+  unsigned int i, j;
+
   /* ktKi <- t(k) %*% util$Ki */
   *ktKi = new_matrix(n, nn);
-  linalg_dsymm(CblasRight,nn,n,1.0,gp->Ki,n,*k,nn,0.0,*ktKi,nn);
+  linalg_dsymm(CblasRight,nn,n,1.0,Ki,n,k,nn,0.0,*ktKi,nn);
   /* ktKik <- diag(ktKi %*% k) */
   *ktKik = new_zero_vector(nn); 
-  for(i=0; i<nn; i++) for(j=0; j<n; j++) (*ktKik)[i] += (*ktKi)[j][i]*(*k)[j][i];
+  for(i=0; i<nn; i++) for(j=0; j<n; j++) (*ktKik)[i] += (*ktKi)[j][i]*k[j][i];
 }
 
 
@@ -1591,6 +1629,14 @@ struct alcinfo {
 };
 
 
+/*
+ * fcnnalc:
+ *
+ * utility function lassed to Brent_Fmin (R's optimize) or
+ * uniroot in order to optimize along a RAY with the ALC
+ * statistic
+ */
+
 static double fcnnalc(double x, struct alcinfo *info)
 {
   int m, n, j;
@@ -1620,9 +1666,9 @@ static double fcnnalc(double x, struct alcinfo *info)
 
   /* progress meter */
   if(info->verb > 0) {
-    myprintf(mystdout, "alcray eval i=%d, Xcand=", info->its);
-    for(j=0; j<m; j++) myprintf(mystdout, "%g ", info->Xcand[j]);
-    myprintf(mystdout, "(s=%g), alc=%g\n", x, alc);
+    MYprintf(MYstdout, "alcray eval i=%d, Xcand=", info->its);
+    for(j=0; j<m; j++) MYprintf(MYstdout, "%g ", info->Xcand[j]);
+    MYprintf(MYstdout, "(s=%g), alc=%g\n", x, alc);
   }
 
   return 0.0-alc;
@@ -1711,36 +1757,26 @@ double* alcrayGP(GP *gp, double **Xref, const unsigned int nump,
   return(snew);
 }
 
-/* lalcrayGP:
+
+/*
+ * ray_bounds:
  *
- * local search of via ALC on rays (see alcrayGP) which finds the element
- * of Xcand that is closest to the max ALC value along a random ray eminating
- * from the (one of the) closest Xcands to Xref.  The offset determines which
- * candidate the ray eminates from (0 being the NN).  On input this function
- * assumes that the rows od Xcand are ordered by distance to Xref
+ * choose the starting and ending points of the ray based on
+ * the reference location and an offset into the candidate grid;
+ * repeat for nr number of rays;  the starting point is taken from
+ * the effective offset into Xcand; and Xend is set to 10 times
+ * the distance (and direction) from Xref through Xstart, or
+ * to the bounding rectangle
  */
 
-int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref, 
-  const unsigned int offset, unsigned int nr, double **rect, int verb)
+void ray_bounds(const unsigned int offset, const unsigned int nr, const unsigned int m, 
+  double **rect, double **Xref, unsigned int ncand, double **Xcand, double **Xstart, 
+  double **Xend)
 {
-  unsigned int m, j, k, i, mini, r, rmin, eoff; 
-  double **Xstart, **Xend;
-  double *s, *negalc;
-  double sc, smin, mind, dist;
+  unsigned int r, j, k, eoff;
+  double sc;
 
-  /* gp dimension */
-  m = gp->m; 
-
-  /* check numrays argument */
-  assert(nr > 0);
-  if(nr > ncand) nr = ncand;
-
-  /* allocation and initialization */
-  Xend = new_matrix(nr, m);
-  Xstart = new_matrix(nr, m);
-  negalc = new_vector(nr);
-
-  /* set up starting and ending pairs */
+ /* set up starting and ending pairs */
   for(r=0; r<nr; r++) {
 
     /* starting point of a ray */
@@ -1761,12 +1797,23 @@ int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref,
       }
     }
   }
+}
 
-  /* calculate ALC along ray */
-  s = alcrayGP(gp, Xref, nr, Xstart, Xend, negalc, verb);
-  
-  /* find the best amongst the pairs */
-  min(negalc, nr, &rmin);
+
+/*
+ * convex_index:
+ *
+ * find the closest invex into Xcand to the convex combination
+ * Xstart + s[rmin]*Xend;  re-uses storage from Xend;
+ */
+
+int convex_index(double *s, const unsigned int rmin, const unsigned int offset, 
+  const unsigned int nr, const unsigned int m, const unsigned int ncand, 
+  double **Xcand, double **Xstart, double **Xend)
+{
+  unsigned int i, j, eoff, mini;
+  double mind, dist, smin;
+
   smin = s[rmin];
 
   /* find Xstar with smin */
@@ -1791,6 +1838,51 @@ int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref,
       mini = i;
     }
   } else mini = (offset + rmin) % ncand;
+
+  return(mini);
+}
+
+
+/* lalcrayGP:
+ *
+ * local search of via ALC on rays (see alcrayGP) which finds the element
+ * of Xcand that is closest to the max ALC value along a random ray eminating
+ * from the (one of the) closest Xcands to Xref.  The offset determines which
+ * candidate the ray eminates from (0 being the NN).  On input this function
+ * assumes that the rows od Xcand are ordered by distance to Xref
+ */
+
+int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref, 
+  const unsigned int offset, unsigned int nr, double **rect, int verb)
+{
+  unsigned int m, mini, rmin; 
+  double **Xstart, **Xend;
+  double *s, *negalc;
+
+  /* gp dimension */
+  m = gp->m; 
+
+  /* check numrays argument */
+  assert(nr > 0);
+  if(nr > ncand) nr = ncand;
+
+  /* allocation and initialization */
+  Xend = new_matrix(nr, m);
+  Xstart = new_matrix(nr, m);
+  negalc = new_vector(nr);
+
+  /* set up starting and ending pairs */
+  ray_bounds(offset, nr, m, rect, Xref, ncand, Xcand, Xstart, Xend);
+
+  /* calculate ALC along ray */
+  s = alcrayGP(gp, Xref, nr, Xstart, Xend, negalc, verb);
+  
+  /* find the best amongst the pairs */
+  min(negalc, nr, &rmin);
+
+  /* find the index into Xcand that is closes to Xstart + s*Xend */
+  mini = convex_index(s, rmin, offset, nr, m, ncand, Xcand, Xstart, Xend);
+  /* careful, storage from Xend re-used above */
 
   /* clean up */
   delete_matrix(Xstart);
@@ -1847,7 +1939,7 @@ void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   for(i=0; i<ncand; i++) {
 
     /* progress meter */
-    if(verb > 0) myprintf(mystdout, "calculating ALC for point %d of %d\n", verb, i, ncand);
+    if(verb > 0) MYprintf(MYstdout, "calculating ALC for point %d of %d\n", verb, i, ncand);
     
     /* calculate the g vector, mui, and kxy */
     calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d, 
@@ -1927,7 +2019,7 @@ void alcGP_omp(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 
       /* progress meter */
       #pragma omp master
-      if(verb > 0) myprintf(mystdout, "calculating ALC for point %d of %d\n", verb, i, ncand);
+      if(verb > 0) MYprintf(MYstdout, "calculating ALC for point %d of %d\n", verb, i, ncand);
     
       /* calculate the g vector, mui, and kxy */
       calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d, 
@@ -2243,9 +2335,10 @@ void alcGP_R(/* inputs */
  * alGP_R:
  *
  * R interface to C-side function that returns the a Monte Carlo approximation 
- * to the expected improvement (EI) and expected y-value (EY) under an augmented 
- * Lagrangian with constraint GPs (cgps) assuming a known linear objective 
- * function with scale bscale.  The constraints can be scaled with the cnorms
+ * to the expected improvement (EI) and expected y-value (EY) under an 
+ * augmented Lagrangian with constraint GPs (cgps) assuming a known linear 
+ * objective function with scale bscale.  The constraints can be scaled with 
+ * the cnorms
  */
 
 void alGP_R(/* inputs */
@@ -2318,8 +2411,15 @@ void alGP_R(/* inputs */
   GetRNGstate();
 
   /* use mu and s to calculate EI and EY */
-  calc_al_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
-    lambda_in, alpha_in, *ymin_in, *nomax_in, *N_in, eys_out, eis_out);
+  if(*nomax_in >= 0) {
+    MC_al_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+      lambda_in, *alpha_in, *ymin_in, *nomax_in, *N_in, eys_out, eis_out);
+  } else {
+    /* MC_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+      lambda_in, *alpha_in, *ymin_in, *N_in, eys_out, eis_out); */
+    calc_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+      lambda_in, *alpha_in, *ymin_in, eys_out, eis_out);
+  } 
 
   PutRNGstate();
 

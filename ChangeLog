@@ -1,3 +1,19 @@
+1.2 (03 Aug 2015)
+---
+
+vignette accepted at JSS -- includes latest modifications
+
+changed my to MY for myprintf, etc., for Brian
+
+initial C-version of optim via lbfgsb with OpenMP critical
+pragmas, accompanying laGPsep and aGPsep functions for
+local modeling with a separable correlation (beta)
+
+implementation of EIC for optimization (Schonlau, etal, 1998)
+
+alpha implementation of AL optimization by slack variables
+
+
 1.1-5 (22 May 2015)
 -----
 

@@ -6,10 +6,9 @@ Objective function for performing large scale computer model
 calibration via optimization
 }
 \description{
-Defines an objective function for performing blackbox optimization
-towards solving a modularized calibration of
-of large computer model simulation to field data
-}
+Defines an objective function for performing blackbox optimization towards
+solving a modularized calibration of large computer model simulation to field
+data }
 \usage{
 fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL, 
   methods = rep("alc", 2), M = NULL, bias = TRUE, 
@@ -24,8 +23,8 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
   \item{XU}{
    a \code{matrix} or \code{data.frame} containing
     the full (large) design matrix of input locations to a computer
-    simulator whose final \code{ncol(XU) - ncol(X)} columns are
-    contains settings of a calibration or tuning parameter like
+    simulator whose final \code{ncol(XU) - ncol(X)} columns
+    contain settings of a calibration or tuning parameter like
     \code{u}
 }
   \item{Z}{
@@ -37,11 +36,11 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
     the full (large) design matrix of input locations
 }
   \item{Y}{
-  a vector values with \code{length(Y) = ncol(X)}
+  a vector of values with \code{length(Y) = ncol(X)}
   containing the response from field data observations
   at \code{X}.  A \code{Y}-vector with \code{length(Y) = k*ncol(X)},
   for positive integer \code{k}, can be supplied in which case
-  the multiple code \code{Y}-values will be treated as replicates
+  the multiple \code{Y}-values will be treated as replicates
   at the \code{X}-values
 }
   \item{da}{
@@ -61,21 +60,21 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
     different initial value for each predictive location
 }
   \item{d}{
-  for the discrepency between emulations \code{Yhat} at \code{X}, based
+  for the discrepancy between emulations \code{Yhat} at \code{X}, based
   on \code{Z} at \code{XU}, and the oputs \code{Y} observed at \code{X}.
-  Otherwise, same description as \code{da} above. 
+  Otherwise, same description as \code{da} above 
 }
   \item{g}{
   for the nugget in the GP model for the discrepency between emulation
   \code{Yhat} at \code{X}, based
-  on \code{Z} at \code{XU}, and the oputs \code{Y} observed at \code{X}:
+  on \code{Z} at \code{XU}, and the outputs \code{Y} observed at \code{X}:
    a prior or initial setting for the nugget parameter; a 
     \code{NULL} value causes a sensible regularization (prior) and
     initial setting to be generated via \code{\link{garg}}; a scalar (default
     \code{g = 1/1000}) specifies an initial value, causing \code{\link{garg}}
     to only generate the prior; otherwise, a list or partial list matching the
     output of \code{\link{garg}} can be used to specify a custom prior.  In
-    the case of a partial list, the only the missing entries will be
+    the case of a partial list, only the missing entries will be
     generated. Note that a default/generated list specifies \emph{no}
     inference for this parameter; i.e., it is fixed at its starting value,
     which may be appropriate for emulating deterministic computer code output.
@@ -98,8 +97,9 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
   inputs, to be used in lieu of emulation; see \code{\link{aGP.seq}} for mode details
 }
   \item{bias}{
-  a scalar logical indicating whether a GP discrepency or bias term should
-  be estimated via \code{\link{discrep.est}}, or only a Gaussian (zero-mean) variance;
+  a scalar logical indicating whether a GP discrepancy or bias term should
+  be estimated via \code{\link{discrep.est}}, as opposed to 
+  only a Gaussian (zero-mean) variance;
   see \code{\link{discrep.est}} for more details
   }
   \item{omp.threads}{
@@ -118,37 +118,37 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
 }
 \details{
 
-  Gramacy, et al. (2014) defined an objective function which, when optimized,
+  Gramacy, et al. (2015) defined an objective function which, when optimized,
   returns a setting of calibration parameters under a setup akin to
-  the modularized calibration method of Liu, et al., (2009).  The fcalib
-  function return a log density (likelihood or posterior probability) value 
+  the modularized calibration method of Liu, et al., (2009).  The \code{fcalib}
+  function returns a log density (likelihood or posterior probability) value 
   obtained by performing emulation at a set of inputs \code{X} augmented
   with a value of the calibration parameter, \code{u}.  The emulator
-  is trained on \code{XU} and \code{Z}, presumed to be very large relative
+  is trained on \code{XU} and \code{Z}, presumed to be very large 
   relative to the size of the field data set \code{X} and \code{Y},
   necesitating the use of approximate methods like \code{\link{aGP}}, 
   via \code{\link{aGP.seq}}.  The
   emulated values, call them \code{Yhat} are fed along with \code{X} and 
   \code{Y} into the \code{\link{discrep.est}} function, whose whose
   likelihood or posterior calculation serves as a measure of merit for
-  the value \code{u}, upon which the emulations are best.
+  the value \code{u}.
 
-  The \code{fcalib} function is deterministic but, as Gramacy, et al. (2014)
+  The \code{fcalib} function is deterministic but, as Gramacy, et al. (2015)
   described, can result is a rugged objective surface for optimizing,
   meaning that conventional methods, like those in \code{\link{optim}}
   are unlikely to work well.  They instead recommend using a blackbox
   derivative-free method, like NOMAD (Le Digabel, 2011).  In our example
   below we use the implementation in the \pkg{crs} package, which provides
-  an \R wrapper aroudn the underlying C library.
+  an \R wrapper around the underlying C library.
 
   Note that while \code{fcalib} automates a call first to \code{\link{aGP.seq}}
   and then to \code{\link{discrep.est}}, it does not return enough
-  information to complete, say, an out-of-sample prediction excercise like
+  information to complete, say, an out-of-sample prediction exercise like
   the one demonstrated in the \code{\link{discrep.est}} documentation.
   Therefore, after \code{\link{fcalib}} is used in an optimization to
   find the best setting of the calibration parameter, \code{u}, 
   those functions must then be used in post-processing to complete a
-  prediction ecercise.  See \code{demo("calib")} or \code{vignette("laGP")}
+  prediction exercise.  See \code{demo("calib")} or \code{vignette("laGP")}
   for more details
 }
 \value{
@@ -156,11 +156,17 @@ Returns a scalar measuring the negative log likelihood or posterior density
 of the calibration parameter \code{u} given the other inputs, for
 the purpose of optimization over \code{u}
 }
+
+\note{
+  Note that in principle a separable correlation function could be used 
+  (e.g, via \code{newGPsep}), however this is not implemented at this time
+}
+
 \references{
 R.B. Gramacy, D. Bingham, JP. Holloway, M.J. Grosskopf, C.C. Kuranz, E. Rutter, 
-M. Trantham, and P.R. Drake (2014). \emph{Calibrating a large computer 
-experiment simulating radiative shock hydrodynamics.}
-Preprint on arXiv:1410.3293 
+M. Trantham, and P.R. Drake (2015). \emph{Calibrating a large computer 
+experiment simulating radiative shock hydrodynamics.} 
+Annals of Applied Statistics, \emph{to appear}; preprint on arXiv:1410.3293 
 \url{http://arxiv.org/abs/1410.3293}
 
 F. Liu, M. Bayarri, and J. Berger (2009). 

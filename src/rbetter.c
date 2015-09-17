@@ -65,7 +65,7 @@ void rbetter_R(int *n_in, int *m_in, double *rect_in, double *ystar_in,
     for(j=0; j<m; j++) {
       left = ystar - cumsum;
       if(rect[0][j] > left) X[i][j] = -1e300*1e300;
-      X[i][j] = runif(rect[0][j], myfmin(rect[1][j], left));
+      X[i][j] = runif(rect[0][j], MYfmin(rect[1][j], left));
       cumsum += X[i][j];
     }
     /* randomly reorder ith row */

@@ -66,7 +66,7 @@ check.arg <- function(d)
 
 
 ## garg:
-#3
+##
 ## process the g argument to approxGP and localGP, which
 ## specifies starting values, ranges, whether or not mle calcuations
 ## should be made, and priors

@@ -24,31 +24,29 @@
 
 
 #include "laGP.h"
+#include "laGP_sep.h"
 #include "rhelp.h"
 #include "matrix.h"
-#include "gp.h"
+#include "gp_sep.h"
 #include "covar.h"
 #include "order.h"
 #include <assert.h>
-#ifdef _GPU
-  #include "alc_gpu.h"
-#endif
 #ifdef _OPENMP
   #include <omp.h>
 #endif
 
 
 /*
- * aGP_R:
+ * aGPsep_R:
  * 
- * R-interface to C-version of R function aGP.R: 
+ * R-interface to C-version of R function aGPsep.R: 
  * uses ALC to adaptively select a small (size n) subset 
  * of (X,Z) from which to predict by (thus a in approx) kriging 
  * equations at eack XX row; returns  mean and variance of 
  * those Student-t equations.
  */
 
-void aGP_R(/* inputs */
+void aGPsep_R(/* inputs */
 		int *m_in,
 		int *start_in,
 		int *end_in,
@@ -64,11 +62,8 @@ void aGP_R(/* inputs */
 		int *imethod_in,
 		int *close_in,
 		int *ompthreads_in,
-		int *numgpus_in,
-		int *gputhreads_in,
-		int *nngpu_in,
-                int *numrays_in,
-                double *rect_in,
+    int *numrays_in,
+    double *rect_in,
 		int *verb_in,
 		int *Xiret_in,
 		
@@ -82,8 +77,8 @@ void aGP_R(/* inputs */
 		int *gits_out,
 		double *llik_out)
 {
-  int verb, dmle, gmle, mxth;
-  double **X, **XX, **rect;
+  int j, verb, dmle, gmle, mxth, m;
+  double **X, **XX, **rect, **dstart, **dmle_mat;
   Method method;
 
 #ifdef _OPENMP
@@ -92,56 +87,33 @@ void aGP_R(/* inputs */
   mxth = 1;
 #endif
 
-  /* check gpu input */
-#ifndef _GPU
-  if(*numgpus_in || *nngpu_in) error("laGP not compiled with GPU support");
-  if(*gputhreads_in != 0) 
-    MYprintf(MYstdout, "NOTE: gpu.threads(%d) > 0 but GPUs not enabled\n");
-#else
-  int ngpu = num_gpus();
-  if(*numgpus_in > ngpu) 
-    error("%d GPUs requested, but %d available", *numgpus_in, ngpu);
-  if(*nngpu_in < 0) error("must have nngpu (%d) >= 0", *nngpu_in);
-  if(*nngpu_in < *numgpus_in)
-    warning("number of GPUs (%d) greater than nngpu (%d)", *numgpus_in, *nngpu_in);
-  if(*gputhreads_in == 0 && *numgpus_in > 0)
-    error("requested 0 GPU threads but indicated %d GPUs", *numgpus_in);
-  if(*gputhreads_in > 0 && *numgpus_in == 0)
-    error("requested %d GPU threads but indicated 0 GPUs", *gputhreads_in);
-  if(*gputhreads_in > mxth) {
-    MYprintf(MYstdout, "NOTE: GPU threads(%d) > max(%d), using %d\n", 
-      *gputhreads_in, mxth,   mxth);
-    *gputhreads = mxth;
-  }
-  if(*nngpu_in < *nn_in && *ompthreads_in < 1)
-    error("must have non-zero ompthreads (%d) when nngpu (%d) < nn (%d)", 
-      *ompthreads_in, *nngpu_in, *nn_in);
-#endif
-
   /* copy method */
   method = ALC; /* to guarentee initializaion */
   if(*imethod_in == 1) method = ALC;
   else if(*imethod_in == 2) method = ALCRAY;
-  else if(*imethod_in == 3) method = MSPE;
-  else if(*imethod_in == 4) method = EFI;
   else if(*imethod_in == 5) method = NN;
   else error("imethod %d does not correspond to a known method\n", 
     *imethod_in);
 
   /* make matrix bones */
-  X = new_matrix_bones(X_in, *n_in, *m_in);
-  XX = new_matrix_bones(XX_in, *nn_in, *m_in);
+  m = *m_in;
+  X = new_matrix_bones(X_in, *n_in, m);
+  XX = new_matrix_bones(XX_in, *nn_in, m);
+  dstart = new_matrix_bones(dstart_in, *nn_in, m);
 
   /* check rect input */
   if(method == ALCRAY) {
     assert(*numrays_in >= 1);
-    rect = new_matrix_bones(rect_in, 2, *m_in);
+    rect = new_matrix_bones(rect_in, 2, m);
   } else rect = NULL;
 
   /* check for mle */
-  gmle = dmle = 0;
-  if(darg_in[0] > 0) dmle = 1;
-  if(garg_in[0] > 0) gmle = 1;
+  gmle = dmle = 0; dmle_mat = NULL;
+  if(darg_in[0] > 0) {
+    dmle = 1;
+    dmle_mat = new_matrix_bones(dmle_out, *nn_in, m);
+  } 
+  if(garg_in[0] > 0) gmle = 1; 
 
   /* for each predictive location */
 #ifdef _OPENMP
@@ -160,37 +132,19 @@ void aGP_R(/* inputs */
     *ompthreads_in = mxth;
   }
 
-  /* check combined threads */
-  if(*ompthreads_in + *gputhreads_in > mxth) {
-    MYprintf(MYstdout, "NOTE: combined GPU/OMP threads(%d) > max(%d), reducing OMP to %d\n", 
-      *ompthreads_in + *gputhreads_in, mxth, mxth - *gputhreads_in);
-    *ompthreads_in = mxth - *gputhreads_in;
-  }
 
   /* ready to parallelize */
-  #pragma omp parallel num_threads(*ompthreads_in + *gputhreads_in)
+  #pragma omp parallel num_threads(*ompthreads_in)
   {
-    int i, me, start, step, end, gpu;
+    int i, start, step, end;
 
     /* get thread information */
-    me = omp_get_thread_num();
-    // nth = omp_get_num_threads();
-
-    /* decide on gpu usage and range of XX locations for thread */
-    if(me < *gputhreads_in) { 
-      gpu = *numgpus_in; 
-      start = me; 
-      step = *gputhreads_in; 
-      end = *nngpu_in;
-    } else { 
-      gpu = 0; 
-      start = me - *gputhreads_in + *nngpu_in; 
-      step = *ompthreads_in;
-      end = *nn_in;
-    }
+    start = omp_get_thread_num();
+    step = *ompthreads_in;
+    end = *nn_in;
 
 #else
-    int i, start, step, end, gpu;
+    int i, start, step, end;
     
     start = 0; step = 1; end = *nn_in; 
     verb = *verb_in;
@@ -199,41 +153,42 @@ void aGP_R(/* inputs */
     if(*ompthreads_in != 1) /* mxth should be 1; this is for compiler */
       warning("NOTE: omp.threads > %d, but source not compiled for OpenMP", 
         mxth);
-    if(*gputhreads_in > 1)
-      warning("NOTE: using gpu.threads > 1 requires OpenMP compilation");
-
-    /* gpu usage */
-    gpu = *numgpus_in;
 #endif
 
     /* initialization of data required for each thread */
-    double ** Xref = new_matrix(1, *m_in);
+    double ** Xref = new_matrix(1, m);
     double df;
-    double *dmlei, *gmlei;  dmlei = gmlei = NULL;
-    int *ditsi, *gitsi, *Xi; ditsi = gitsi = Xi = NULL;
+    double *dmlei, *gmlei; dmlei = gmlei = NULL;
+    int *gitsi, *Xi; gitsi = Xi = NULL;
+    int ditsi[2];
 
-    /* fill in prior part of dvec and gvec */
-    double dvec[6], gvec[6];
-    dupv(dvec+1, darg_in, 5);
+    /* fill prior part of dvec and gvec */
+    double gvec[6], *dvec;
+    dvec = new_vector(3*m+3);
+    dupv(dvec+m, darg_in, 2*m+3);
     dupv(gvec+1, garg_in, 5);
 
     /* loop over each predictive location */
     for(i=start; i<end; i+=step) {
 
       /* copy in predictive location; MAYBE move inside laGP */
-      dupv(*Xref, XX[i], *m_in);
-      dvec[0] = dstart_in[i]; gvec[0] = g_in[i];
+      dupv(*Xref, XX[i], m);
+      dupv(dvec, dstart[i], m);
+      gvec[0] = g_in[i];
 
       /* deal with mle and Xi pointers */
-      if(dmle) { dmlei = &(dmle_out[i]); ditsi = &(dits_out[i]); }
+      if(dmle) { dmlei = dmle_mat[i]; }
       if(gmle) { gmlei = &(gmle_out[i]); gitsi = &(gits_out[i]); }
       if(*Xiret_in) { Xi = Xi_out+i*(*end_in); }
 
       /* call C-only code */
-      laGP(*m_in, *start_in, *end_in, Xref, 1, *n_in, X, Z_in, dvec,
-        gvec, method, *close_in, gpu, *numrays_in, rect, verb-1, Xi, 
+      laGPsep(m, *start_in, *end_in, Xref, 1, *n_in, X, Z_in, dvec,
+        gvec, method, *close_in, *numrays_in, rect, verb-1, Xi, 
         &(mean_out[i]), &(var_out[i]), &df, dmlei, ditsi, gmlei, gitsi, 
-        &(llik_out[i]));
+        &(llik_out[i]), 0);
+
+      /* copy outputs */
+      if(dmle) dits_out[i] = ditsi[0];
       var_out[i] *= df/(df-2.0);
 
       /* progress meter */
@@ -242,8 +197,11 @@ void aGP_R(/* inputs */
 #endif
       if(verb > 0) {
         MYprintf(MYstdout, "i = %d (of %d)", i+1, end);
-        if(dmle) MYprintf(MYstdout, ", d = %g, its = %d", *dmlei, *ditsi);
-        if(gmle) MYprintf(MYstdout, ", g = %g, its = %d", *gmlei, *gitsi);
+        if(dmle) {
+          MYprintf(MYstdout, ", d = [%g", dmlei[0]);
+          for(j=1; j<m; j++) MYprintf(MYstdout, ",%g", dmlei[j]); 
+          MYprintf(MYstdout, "], its = %d", *ditsi);
+        } if(gmle) MYprintf(MYstdout, ", g = %g, its = %d", *gmlei, *gitsi);
         MYprintf(MYstdout, "\n");
       }
 
@@ -251,6 +209,7 @@ void aGP_R(/* inputs */
     }
 
     /* clean up */
+    free(dvec);
     delete_matrix(Xref);
 
 #ifdef _OPENMP
@@ -259,79 +218,35 @@ void aGP_R(/* inputs */
     
   /* clean up */
   if(rect) free(rect);
+  if(dmle_mat) free(dmle_mat);
   free(X);
   free(XX);
+  free(dstart);
 }
 
 
 /*
- * closest_indices:
- *
- * returns the close indices into X which are closest (on average) to the
- * element(s) of Xref.  The first start of those indices are the start 
- * closest, otherwise the indecies unordered (unless sorted=true).  
- * Even when sorted=true the incies close+1, ... are not sorted.
- */
-
-int *closest_indices(const unsigned int m, const unsigned int start,
-  double **Xref, const unsigned int nref, const unsigned int n, double **X,
-  const unsigned int close, const unsigned int sorted)
-{
-  int i;
-  int *oD, *oD2, *temp;
-  double **D;
-
-  /* calculate distances to reference location(s), and so-order X & Z */
-  D = new_matrix(nref, n);
-  distance(Xref, nref, X, n, m, D);
-  if(nref > 1) min_of_columns(*D, D, nref, n);
-
-  /* partition based on "close"st */
-  if(n > close) {
-    oD = iseq(0, n-1);
-    quick_select_index(*D, oD, n, close);
-  } else oD = NULL;
-
-  /* now partition based on start */
-  if(sorted) {
-    oD2 = order(*D, close);
-    if(oD) {
-      temp = new_ivector(close);
-      for(i=0; i<close; i++) temp[i] = oD[oD2[i]];
-      free(oD);
-      oD = temp;
-      free(oD2);  
-    } else oD = oD2;
-  } else {
-    if(!oD) oD = iseq(0, n-1);
-    quick_select_index(*D, oD, close, start);
-  }
-
-  delete_matrix(D);
-  return(oD);
-}
-
-
-/*
- * laGP:
+ * laGPsep:
  * 
- * C-version of R function laGP.R: uses ALC to adaptively
+ * C-version of R function laGPsep.R: uses ALC to adaptively
  * select a small (size n) subset of (X,Z) from which to
  * predict by (thus approx) kriging equations; returns
  * those Student-t equations.
  */
 
-void laGP(const unsigned int m, const unsigned int start, 
+void laGPsep(const unsigned int m, const unsigned int start, 
   const unsigned int end, double **Xref, const unsigned int nref, 
   const unsigned int n, double **X, double *Z, double *d, double *g, 
-  const Method method, const unsigned int close, const int alc_gpu, 
-  const unsigned int numrays, double **rect, const int verb, 
-  int *Xi, double *mean, double *s2, double *df, double *dmle, int *dits,
-  double *gmle, int *gits, double *llik)
+  const Method method, const unsigned int close, const unsigned int numrays,
+  double **rect, const int verb, int *Xi, double *mean, double *s2, 
+  double *df, double *dmle, int *dits, double *gmle, int *gits, double *llik,
+  int fromR)
 {
-  GP *gp;
+  GPsep *gpsep;
   unsigned int i, j, ncand, w;
   int *oD, *cand;
+  int dconv;
+  char msg[60];
   double **Xcand, **Xcand_orig, **x; //, **Sigma;
   double *al;
 
@@ -345,8 +260,8 @@ void laGP(const unsigned int m, const unsigned int start,
   /* get the indices of the closest X-locations to Xref */
   oD = closest_indices(m, start, Xref, nref, n, X, close, method == ALCRAY);
 
-  /* build GP with closest start locations */
-  gp = newGP_sub(m, start, oD, X, Z, *d, *g, method == MSPE || method == EFI);
+  /* build separable GP with closest start locations */
+  gpsep = newGPsep_sub(m, start, oD, X, Z, d, *g, 0);
   if(Xi) dupiv(Xi, oD, start);
 
   /* possibly restricted candidate set */
@@ -364,22 +279,10 @@ void laGP(const unsigned int m, const unsigned int start,
     if(method == ALCRAY) {
       assert(nref == 1);
       int roundrobin = (i-start+1) % ((int) sqrt(i-start+1.0));
-      w = lalcrayGP(gp, Xcand, ncand, Xref, roundrobin, numrays, rect, verb-2);
-    } else if(method == ALC) {
-      if(alc_gpu) {
-#ifdef _GPU
-	#ifdef _OPENMP
-        int gpu = omp_get_thread_num() % alc_gpu;
-	#else
-        int gpu = 0;
-	#endif
-        alcGP_gpu(gp, ncand, Xcand, nref, Xref, verb-2, al, gpu);
-#else
-        error("laGP not compiled for GPU support");
-#endif
-      } else alcGP(gp, ncand, Xcand, nref, Xref, verb-2, al);
-    } else if(method == EFI) efiGP(gp, ncand, Xcand, al); /* no verb arg */
-    else if(method == MSPE) mspeGP(gp, ncand, Xcand, nref, Xref, 1, verb-2, al);
+      w = lalcrayGPsep(gpsep, Xcand, ncand, Xref, roundrobin, numrays, rect, 
+            verb-2);
+    } else if(method == ALC) 
+        alcGPsep(gpsep, ncand, Xcand, nref, Xref, verb-2, al);
     
     /* selecting from the evaluated criteria */
     if(method != ALCRAY) {
@@ -392,8 +295,8 @@ void laGP(const unsigned int m, const unsigned int start,
     if(Xi != NULL) Xi[i] = cand[w];
 
     /* update the GP with the chosen candidate */
-    dupv(x[0], Xcand[w], m);
-    updateGP(gp, 1, x, &(Z[cand[w]]), verb-1);
+    dupv(x[0], Xcand[w], gpsep->m);
+    updateGPsep(gpsep, 1, x, &(Z[cand[w]]), verb-1);
 
     /* remove from candidates */
     if(al && w != ncand-1) { 
@@ -414,15 +317,18 @@ void laGP(const unsigned int m, const unsigned int start,
   }
 
   /* possibly do MLE calculation */
-  if(d[1] > 0 && g[1] > 0) {
-    if(! gp->dK) newdKGP(gp);
-    jmleGP(gp, d+2, g+2, d+4, g+4, verb, dits, gits);
-    *dmle = gp->d; *gmle = gp->g;
-  } else if(d[1] > 0) {
-    if(! gp->dK) newdKGP(gp);
-    *dmle = mleGP(gp, LENGTHSCALE, d[2], d[3], d+4, verb, dits);
+  if(d[m] > 0 && g[1] > 0) {
+    if(! gpsep->dK) newdKGPsep(gpsep);
+    jmleGPsep(gpsep, 100, d+m+1, d+2*m+1, g+2, d+3*m+1, g+4, verb, 
+              dits, gits, &dconv, fromR);
+    dupv(dmle, gpsep->d, m); 
+    *gmle = gpsep->g;
+  } else if(d[m] > 0) {
+    if(! gpsep->dK) newdKGPsep(gpsep);
+    mleGPsep(gpsep, d+m+1, d+2*m+1, d+3*m+1, 100, verb, dmle, dits, msg, 
+             &dconv, fromR);
   } else if(g[1] > 0) {
-    *gmle = mleGP(gp, NUGGET, g[2], g[3], g+4, verb, gits);
+    *gmle = mleGPsep_nug(gpsep, g[2], g[3], g+4, verb, gits);
   }
 
   /* now predict */
@@ -430,12 +336,12 @@ void laGP(const unsigned int m, const unsigned int start,
   predGP(gp, nref, Xref, mean, Sigma, df, llik);
   for(i=0; i<nref; i++) s2[i] = Sigma[i][i];
   delete_matrix(Sigma); */
-  predGP_lite(gp, nref, Xref, mean, s2, df, llik); 
+  predGPsep_lite(gpsep, nref, Xref, mean, s2, df, llik); 
   /* LATER add option to return full covariance matrix when
      nref > 1 */
 
   /* clean up */
-  deleteGP(gp);
+  deleteGPsep(gpsep);
   delete_matrix(Xcand_orig);
   free(oD);
   if(al) free(al);
@@ -452,7 +358,7 @@ void laGP(const unsigned int m, const unsigned int start,
  * equations at Xref; returns those Student-t equations.
  */
 
-void laGP_R(/* inputs */
+void laGPsep_R(/* inputs */
          int *m_in,
          int *start_in,
          int *end_in,
@@ -465,7 +371,6 @@ void laGP_R(/* inputs */
          double *g_in,
          int *imethod_in,
          int *close_in,
-         int *alc_gpu_in,
          int *numrays_in,
          double *rect_in,
          int *verb_in,
@@ -483,46 +388,48 @@ void laGP_R(/* inputs */
          double *llik_out)
 {
   double **X, **Xref, **rect;
+  unsigned int j, m;
+  int dits[2];
   Method method;
-
-    /* check gpu input */
-#ifndef _GPU
-  if(*alc_gpu_in) error("laGP not compiled with GPU support");
-#endif
 
   /* copy method */
   method = ALC; /* to guarentee initialization */
   if(*imethod_in == 1) method = ALC;
   else if(*imethod_in == 2) method = ALCRAY;
-  else if(*imethod_in == 3) method = MSPE;
-  else if(*imethod_in == 4) method = EFI;
   else if(*imethod_in == 5) method = NN;
   else error("imethod %d does not correspond to a known method\n", 
     *imethod_in);
 
   /* sanity check d and tmax */
-  if(d_in[1] > 0 && (d_in[0] > d_in[3] || d_in[0] < d_in[2])) 
-    error("d=%g not in [tmin=%g, tmax=%g]\n", d_in[0], d_in[2], d_in[3]);
+  m = *m_in;
+  if(d_in[m] > 0)
+    for(j=0; j<m; j++) 
+      if(d_in[j] > d_in[2*m+1+j] || d_in[j] < d_in[m+1+j])
+        error("d[%d]=%g not in [tmin=%g, tmax=%g]\n", 
+          j, d_in[j], d_in[2*m+1+j], d_in[m+1+j]);
 
   /* make matrix bones */
   X = new_matrix_bones(X_in, *n_in, *m_in);
-  Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
+  Xref = new_matrix_bones(Xref_in, *nref_in, m);
 
   /* check rect input */
   if(method == ALCRAY) {
     assert(*nref_in == 1);
     assert(*numrays_in >= 1);
-    rect = new_matrix_bones(rect_in, 2, *m_in);
+    rect = new_matrix_bones(rect_in, 2, m);
   } else rect = NULL;
 
   /* check Xi input */
   if(! *Xiret_in) Xi_out = NULL;
 
   /* call C-only code */
-  laGP(*m_in, *start_in, *end_in, Xref, *nref_in, *n_in, X, Z_in,
-    d_in, g_in, method, *close_in, *alc_gpu_in, *numrays_in, rect, 
-    *verb_in, Xi_out, mean_out, s2_out, df_out, dmle_out, dits_out, 
-    gmle_out, gits_out, llik_out);
+  laGPsep(m, *start_in, *end_in, Xref, *nref_in, *n_in, X, Z_in,
+    d_in, g_in, method, *close_in, *numrays_in, rect, *verb_in, Xi_out,
+    mean_out, s2_out, df_out, dmle_out, dits, gmle_out, gits_out, 
+    llik_out, 1);
+
+  /* return first component of dits */
+  *dits_out = dits[0];
 
   /* clean up */
   free(X);

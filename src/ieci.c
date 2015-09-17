@@ -28,6 +28,8 @@
 #include "rhelp.h"
 #include "covar.h"
 #include "ieci.h"
+#include "davies.h"
+#include "util.h"
 #include <stdlib.h>
 #include <assert.h>
 #ifdef RPRINT
@@ -205,18 +207,19 @@ void calc_ktKikx(double *ktKik, const int m, double **k, const int n,
 
 
 /*
- * calc_al_eiey:
+ * MC_al_eiey:
  *
  * calculates a Monte Carlo approximation to the expected improvement (EI)
- * and expected y-value under an augmented Lagrangian with constraint predictive
- * distributions defined by cmu and cs, and objective by mu and s.  When s is
- * null the mu argument is treaded as a known fixed value for the objective. 
- * The constraints can be scaled with the cnorms
+ * and expected y-value under an augmented Lagrangian with constraint 
+ * predictive distributions defined by cmu and cs, and objective by mu and 
+ * s.  When s is null the mu argument is treaded as a known fixed value 
+ * for the objective. The constraints can be scaled with the cnorms
  */
 
-void calc_al_eiey(unsigned int nc, unsigned int nn, double *mu, double *s,
-  double fnorm, double **cmu, double **cs, double *cnorms, double *lambda, 
-  double *alpha, double ymin, int nomax, unsigned int N, double *eys, double *eis)
+void MC_al_eiey(const unsigned int nc, const unsigned int nn, double *mu, 
+  double *s, const double fnorm, double **cmu, double **cs, double *cnorms, 
+  double *lambda, const double alpha, const double ymin, const int nomax, 
+  const unsigned int N, double *eys, double *eis)
 {
   double Yc, cl, c2al, ei, ey;
   int i, j, k;
@@ -230,12 +233,14 @@ void calc_al_eiey(unsigned int nc, unsigned int nn, double *mu, double *s,
     for(k=0; k<nn; k++) {
       cl = c2al = 0;
       for(j=0; j<nc; j++) {
-        Yc = rnorm(cmu[j][k], cs[j][k]) * cnorms[j];
+        if(cs[j]) Yc = rnorm(cmu[j][k], cs[j][k]) * cnorms[j];
+        else Yc = cmu[j][k] * cnorms[j];
         cl += Yc*lambda[j];
-        if(nomax || Yc > 0) c2al += sq(Yc)*alpha[j];
+        if(nomax || Yc > 0) c2al += sq(Yc)*alpha;
       }
-      if(!s) ey = mu[k]*fnorm + cl + c2al;
-      else ey = rnorm(mu[k], s[k])*fnorm;
+      ey = cl + c2al;
+      if(!s) ey += mu[k]*fnorm;
+      else ey += rnorm(mu[k], s[k])*fnorm;
       eys[k] += ey;
       ei = ymin - ey;
       if(ei > 0) eis[k] += ei;
@@ -245,4 +250,193 @@ void calc_al_eiey(unsigned int nc, unsigned int nn, double *mu, double *s,
   /* normalize */
   scalev(eis, nn, 1.0/N);
   scalev(eys, nn, 1.0/N);
+}
+
+
+/*
+ * MC_alslack_eiey:
+ *
+ * calculates a Monte Carlo approximation to the expected improvement (EI)
+ * and expected y-value under an augmented Lagrangian with slack variables.  
+ * Constraint predictive distributions defined by cmu and cs, and objective 
+ * by mu and s.  When s is null the mu argument is treated as a known fixed
+ * value for the objective. The constraints can be scaled with the cnorms
+ */
+
+void MC_alslack_eiey(const unsigned int nc, const unsigned int nn, double *mu, 
+  double *s, const double fnorm, double **cmu, double **cs, double *cnorms, 
+  double *lambda, const double alpha, const double ymin, const unsigned int N,
+  double *eys, double *eis)
+{
+  double Yc, cl, c2al, ei, ey;
+  double **slacks;
+  int i, j, k;
+
+  /* generate random slack variables */
+  slacks = new_matrix(nc, nn);
+  draw_slacks(nc, nn, cmu, cs, cnorms, lambda, alpha, slacks);
+
+  /* init */
+  zerov(eis, nn);
+  zerov(eys, nn);
+
+  /* calculate the EI and EY for each candidate via normal approximation */
+  for(i=0; i<N; i++) {
+    for(k=0; k<nn; k++) {
+      cl = c2al = 0;
+      for(j=0; j<nc; j++) {
+        Yc = rnorm(cmu[j][k], cs[j][k]) * cnorms[j] + slacks[j][k];
+        cl += Yc*lambda[j];
+        c2al += sq(Yc)*alpha;
+      }
+      if(!s) ey = mu[k]*fnorm + cl + c2al;
+      else ey = rnorm(mu[k], s[k])*fnorm + cl + c2al;
+      eys[k] += ey;
+      ei = ymin - ey;
+      if(ei > 0) eis[k] += ei;
+    }
+  }
+
+  /* normalize */
+  scalev(eis, nn, 1.0/N);
+  scalev(eys, nn, 1.0/N);
+
+  /* clean up */
+  delete_matrix(slacks);
+}
+
+
+/*
+ * draw_slacks:
+ *
+ * generate slack variables according to a range specified by
+ * the distribution of constraints and the augmented Lagrangian
+ * parameters
+ */
+
+void draw_slacks(const unsigned int nc, const unsigned int nn, 
+  double **cmu, double **cs, double *cnorms, double *lambda, 
+  const double alpha, double **slacks)
+{
+  unsigned int j, k;
+  double u, l;
+
+  for(k=0; k<nn; k++) {
+    for(j=0; j<nc; j++) {
+
+      #ifdef CUT
+      /* upper bound */
+      u = qnorm(0.01, cmu[j][k], cs[j][k], 1, 0) * cnorms[j];
+      u = 0.0 - u - 0.5*lambda[j]/alpha;
+      if(u < 0.0) u = 0.0;
+      
+      /* lower bound */
+      l = qnorm(0.99, cmu[j][k], cs[j][k], 1, 0) * cnorms[j];
+      l = 0.0 - l - 0.5*lambda[j]/alpha;
+      if(l < 0.0) l = 0.0;
+      
+      /* random draw */
+      if((u-l) < SDEPS) slacks[j][k] = 0.0;
+      else slacks[j][k] = runif(l, u);
+      #endif 
+
+      u = l = 0.0 - cmu[j][k]*cnorms[j] - 0.5*lambda[j]/alpha;
+      if(u > 0) slacks[j][k] = u;
+      else slacks[j][k] = 0.0;
+
+    }
+  }
+}
+
+
+/*
+ * calc_alslack_eiey:
+ *
+ * calculates the exact expected improvement (EI) and expected y-value under 
+ * an augmented Lagrangian with slack variables.  Constraint predictive 
+ * distributions defined by cmu and cs, and objective by mu and s.  When s 
+ * is null the mu argument is treated as a known fixed value for the objective.
+ * The constraints can be scaled with the cnorms
+ */
+
+void calc_alslack_eiey(const unsigned int nc, const unsigned int nn, 
+  double *mu, double *s, const double fnorm, double **cmu, double **cs, 
+  double *cnorms, double *lambda, const double alpha, const double ymin, 
+  double *eys, double *eis)
+{
+  double g, wmin, acc, q, a, cmuj, temp, muk, sigma, lower;
+  double **slacks;
+  double *delta, *wts;
+  double trace[7];
+  int i, j, k, ifault, lim;
+  int *dof;
+
+  /* allocate and draw new slack variable */
+  slacks = new_matrix(nc, nn);
+  draw_slacks(nc, nn, cmu, cs, cnorms, lambda, alpha, slacks);
+
+  /* for qfc call below; NOTE that qfc is not thread safe */
+  delta = new_vector(nc);
+  dof = new_ones_ivector(nc, 1);
+  wts = new_vector(nc); 
+  lim = 10000;
+  acc = 0.0001;
+
+  /* calculate the EI and EY for each candidate via normal approximation */
+  for(k=0; k<nn; k++) {
+
+    /* first EY and auxilliary for EI */
+    g = 0;
+    muk = mu[k]*fnorm;
+    eys[k] = muk;
+    for(j=0; j<nc; j++) {
+      
+      /* auxilliary */
+      cmuj = cmu[j][k]*cnorms[j];
+      wts[j] = sq(cs[j][k]*cnorms[j]);
+
+      /* EY calculation */
+      eys[k] += lambda[j] * (cmuj + slacks[j][k]);
+      eys[k] += alpha * sq(slacks[j][k]);
+      eys[k] += 2.0 * alpha * slacks[j][k] * cmuj;
+      eys[k] += alpha * (wts[j] + sq(cmuj));
+
+      /* required for EI */
+      a = lambda[j]/(2.0*alpha) + slacks[j][k];
+      g += lambda[j]*slacks[j][k] + alpha*(sq(slacks[j][k]) - sq(a));
+      delta[j] = sq(cmuj + a)/wts[j];
+    }
+    
+    /* then integrate for EI: possibly swap for quadrature later */
+    wmin = (ymin - g)/alpha;
+    if(s == NULL) {
+      lower = 0.0;
+      wmin -= muk/alpha;
+      sigma = 0.0;
+    } else {
+      sigma = s[k]/alpha;
+      lower = - 3.0*sigma;
+    }
+    
+    /* integration by summation */
+    eis[k] = 0.0;
+    if(wmin > lower) {
+      for(i=0; i<30; i++) {
+        q = lower + (wmin - lower)*(((double) i) / 29.0);
+        if(s != NULL) q -= mu[k]/alpha;
+        /* NOTE that this is not thread-safe due to static and global variables */
+        qfc(wts, delta, dof, (int*) &nc, &sigma, &q, &lim, &acc, trace, 
+            &ifault, &temp);
+        eis[k] += temp;
+      }
+      /* post processing integration by summation */
+      eis[k] = alpha * eis[k] * (wmin - lower) / (29.0);
+    }
+  }
+
+  /* clean up */
+  free(delta);
+  free(dof);
+  free(wts);
+  delete_matrix(slacks);
 }

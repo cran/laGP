@@ -25,29 +25,29 @@
 #ifdef RPRINT
 #include <R_ext/Print.h>
 #include <R.h>
-FILE *mystdout = (FILE*) 0;
-FILE *mystderr = (FILE*) 1;
+FILE *MYstdout = (FILE*) 0;
+FILE *MYstderr = (FILE*) 1;
 #endif
 #include <stdarg.h>
 #include <time.h>
 #include <assert.h>
 
 /* 
- * myprintf:
+ * MYprintf:
  *
  * a function many different types of printing-- in particular, using 
  * the Rprintf if the code happens to be compiled with RPRINT, 
  * othersie fprintf (takes the same arguments as fprintf)
  */
 
-void myprintf(FILE *outfile, const char *str, ...)
+void MYprintf(FILE *outfile, const char *str, ...)
 {
   va_list argp;
   va_start(argp, str);
   
   #ifdef RPRINT
-  if(outfile == mystdout) Rvprintf(str, argp);
-  else if(outfile == mystderr) REvprintf(str, argp);
+  if(outfile == MYstdout) Rvprintf(str, argp);
+  else if(outfile == MYstderr) REvprintf(str, argp);
   else vfprintf(outfile, str, argp);
   #else
   vfprintf(outfile, str, argp);
@@ -69,14 +69,14 @@ void error(const char *str, ...)
   va_list argp;
   va_start(argp, str);
   
-  myprintf(stderr, "ERROR: ");
+  MYprintf(stderr, "ERROR: ");
   vfprintf(stderr, str, argp);
   
   va_end(argp);
-  myflush(stderr);
+  MYflush(stderr);
   
   /* add a final newline */
-  myprintf(stderr, "\n");
+  MYprintf(stderr, "\n");
 
   /* kill the code */
   assert(0);
@@ -94,27 +94,27 @@ void warning(const char *str, ...)
   va_list argp;
   va_start(argp, str);
   
-  myprintf(stderr, "WARNING: ");
+  MYprintf(stderr, "WARNING: ");
   vfprintf(stderr, str, argp);
 
   va_end(argp);
-  myflush(stderr);
+  MYflush(stderr);
 
   /* add a final newline */
-  myprintf(stderr, "\n");
+  MYprintf(stderr, "\n");
 }
 #endif
 
 
 /* 
- * myflush:
+ * MYflush:
  *
  * a function for many different types of flushing--  in particular, 
  * using * the R_FlushConsole the code happens to be compiled with 
  * RPRINT, otherwise fflush
  */
 
-void myflush(FILE *outfile)
+void MYflush(FILE *outfile)
 {
 #ifdef RPRINT
   R_FlushConsole();
@@ -125,14 +125,14 @@ void myflush(FILE *outfile)
 
 
 /*
- * my_r_process_events:
+ * MY_r_process_events:
  *
  * at least every 1 second(s) pass control back to
  * R so that it can check for interrupts and/or 
  * process other R-gui events
  */
 
-time_t my_r_process_events(time_t itime)
+time_t MY_r_process_events(time_t itime)
 {
 #ifdef RPRINT  
   time_t ntime = time(NULL);

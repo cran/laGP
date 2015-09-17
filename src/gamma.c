@@ -39,7 +39,7 @@ double Cgamma(const double a, const int ulog)
   double r;
   if(ulog) r = lgammafn(a) / M_LN10;
   else r = gammafn(a);
-  /* myprintf(mystdout, "Cgamma: a=%g, ulog=%d, r=%g\n", a, ulog, r); */
+  /* MYprintf(MYstdout, "Cgamma: a=%g, ulog=%d, r=%g\n", a, ulog, r); */
   assert(!isnan(r));
   return(r);
 }
@@ -57,7 +57,7 @@ double Rgamma_inv(const double a, const double y, const int lower,
   double r;
   if(ulog) r = qgamma(y*M_LN10, a, /*scale=*/ 1.0, lower, ulog);
   else r = qgamma(y, a, /*scale=*/ 1.0, lower, ulog);
-  /*myprintf(mystdout, "Rgamma_inv: a=%g, y=%g, lower=%d, ulog=%d, r=%g\n",
+  /*MYprintf(MYstdout, "Rgamma_inv: a=%g, y=%g, lower=%d, ulog=%d, r=%g\n",
     a, y, lower, ulog, r); */
   assert(!isnan(r));
   return(r);
@@ -77,7 +77,7 @@ double Igamma_inv(const double a, const double y, const int lower,
   if(ulog) r = Rgamma_inv(a, y - Cgamma(a, ulog), lower, ulog);
   else r = Rgamma_inv(a, y / Cgamma(a, ulog), lower, ulog);
   assert(!isnan(r));
-  /* myprintf(mystdout, "Rgamma_inv: a=%g, y=%g, lower=%d, ulog=%d, r=%g\n",
+  /* MYprintf(MYstdout, "Rgamma_inv: a=%g, y=%g, lower=%d, ulog=%d, r=%g\n",
      a, y, lower, ulog, r); */
   return(r);
 }

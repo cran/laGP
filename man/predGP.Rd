@@ -7,7 +7,7 @@ GP Prediction/Kriging
 }
 \description{
   Perform Gaussian processes prediction (under isotropic or separable formulation)
-  at new XX locations using a GP object stored on the C side
+  at new \code{XX} locations using a GP object stored on the C side
 }
 \usage{
 predGP(gpi, XX, lite = FALSE)
@@ -29,7 +29,7 @@ as returned by \code{\link{newGPsep}}}
     a scalar logical indicating whether (\code{lite = FALSE}, default) or not
     (\code{lite = TRUE}) a full predictive covariance matrix should be
     returned, as would be required for plotting random sample paths,
-    but substantially increases computation time if only point-prediction
+    but substantially increasing computation time if only point-prediction
     is required
 }
 }
@@ -49,9 +49,10 @@ as returned by \code{\link{newGPsep}}}
   The output is a \code{list} with the following components.
   
   \item{mean }{a vector of predictive means of length \code{nrow(Xref)}}
-  \item{Sigma}{ a \code{Sigma} containing the covariance matrix of
-    for a multivariate Student-t distribution; or if \code{lite = TRUE},
-    then the field \code{s2} contains the diagonal of this matrix}
+  \item{Sigma}{ covariance matrix of
+    for a multivariate Student-t distribution; alternately
+     if \code{lite = TRUE},
+    then a field \code{s2} contains the diagonal of this matrix}
   \item{df }{a Student-t degrees of freedom scalar (applies to all
   \code{XX})}
 }
@@ -71,7 +72,7 @@ as returned by \code{\link{newGPsep}}}
 ## a "computer experiment" -- a much smaller version than the one shown
 ## in the aGP docs
 
-## Simple 2-d test function used in Gramacy & Apley (2014);
+## Simple 2-d test function used in Gramacy & Apley (2015);
 ## thanks to Lee, Gramacy, Taddy, and others who have used it before
 f2d <- function(x, y=NULL)
   {

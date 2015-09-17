@@ -14,7 +14,7 @@ Create A New GP Object
 }
 \usage{
 newGP(X, Z, d, g, dK = FALSE)
-newGPsep(X, Z, d, g)
+newGPsep(X, Z, d, g, dK = FALSE)
 updateGP(gpi, X, Z, verb = 0)
 updateGPsep(gpsepi, X, Z, verb = 0)
 }
@@ -30,17 +30,16 @@ updateGPsep(gpsepi, X, Z, verb = 0)
   \item{d}{
     a positive scalar lengthscale parameter for an isotropic Gaussian
     correlation function (\code{newGP}); or a vector for a separable
-    version (\code{newGPsep}) with limited capibility
+    version (\code{newGPsep}) 
 }
   \item{g}{
     a positive scalar nugget parameter
 }
   \item{dK}{
     a scalar logical indicating whether or not derivative information
-  should be maintained by the GP object; this is required for
-  calculating MLEs/MAPs via \code{\link{mleGP}}, \code{\link{jmleGP}};
-  \code{newGPsep} does not have a \code{dK} argument since the required
-  derivatives are maintained automatically
+    (for the lengthscale) should be maintained by the GP object; 
+    this is required for calculating MLEs/MAPs of the lengthscale 
+    parameter(s) via \code{\link{mleGP}} and \code{\link{jmleGP}}
 }
 \item{gpi}{
   a C-side GP object identifier (positive integer); e.g., as returned by \code{newGP}
@@ -68,26 +67,23 @@ updateGPsep(gpsepi, X, Z, verb = 0)
   quadratic in the number of data points. 
   \code{updateGP} also updates any statistics needed in order to quickly
   search for new local design candidates via \code{\link{laGP}}.
-
-  \code{updateGPsep} works similarly, on \code{gpsepi} objects, however
-  local design and inference is not supported as this time
+  The same applies to \code{updateGPsep} on \code{gpsepi} objects
 }
 \value{
  \code{newGP} and \code{newGPsep} create 
- a unique GP indicator (\code{gpi}) referencing a C-side object;
-  \code{updateGP} does not return anything, but yields a modified C-side object as a 
-  side effect
-}
+ a unique GP indicator (\code{gpi} or \code{gpsepi}) referencing a C-side object;
+  \code{updateGP} and \code{updateGPsep} do not return anything, but yields a
+  modified C-side object as a side effect }
 \references{
   For standard GP inference, refer to any graduate text, e.g., Rasmussen
   & Williams \emph{Gaussian Processes for Machine Learning}. \cr
 
   For efficient updates of GPs, see: \cr
   
-   R.B. Gramacy and D.W. Apley (2014).
+  R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
-    experiments.} Journal of Computational and Graphical Statistics, \emph{to appear};
-  preprint available on arXiv:1303.0383; 
+    experiments.} Journal of Computational and Graphical Statistics, 
+  24(2), pp. 561-678; preprint on arXiv:1303.0383;
   \url{http://arxiv.org/abs/1303.0383}
 }
 \author{
@@ -96,9 +92,7 @@ updateGPsep(gpsepi, X, Z, verb = 0)
 
 \seealso{
 \code{vignette("laGP")}, 
-\code{\link{deleteGP}}, \code{\link{deleteGPsep}}, \code{\link{mleGP}},
-\code{\link{mleGPsep}}, \code{\link{predGP}}, \code{\link{predGPsep}},
-\code{\link{laGP}} 
+\code{\link{deleteGP}}, \code{\link{mleGP}}, \code{\link{predGP}}, \code{\link{laGP}} 
 }
 
 \examples{

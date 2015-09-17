@@ -1,6 +1,8 @@
 \name{aGP}
 \alias{aGP}
 \alias{aGP.R}
+\alias{aGPsep.R}
+\alias{aGPsep}
 \alias{aGP.parallel}
 \alias{aGP.seq}
 
@@ -8,10 +10,10 @@
 Localized Approximate GP Regression For Many Predictive Locations
 }
 \description{
-  Provides localized Gaussian process inference and prediction at a large set of
-  predictive locations, by (essentially) calling \code{\link{laGP}}
+  Provides localized Gaussian process inference and prediction at a large 
+  set of predictive locations, by (essentially) calling \code{\link{laGP}}
   at each location, and returning the moments of the predictive
-  equations, and indices intot he design, thus obtained
+  equations, and indices into the design, thus obtained
 }
 \usage{
 aGP(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
@@ -30,6 +32,14 @@ aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
       method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
       close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
       numrays = ncol(X), laGP=laGP.R, verb = 1)
+aGPsep(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
+      method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
+      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+      numrays = ncol(X),  omp.threads = 1, verb = 1)
+aGPsep.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
+      method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
+      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+      numrays = ncol(X), laGPsep=laGPsep.R, verb = 1)
 aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -53,7 +63,7 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
       the total size of the local designs; \code{start < end}
 }
 \item{d}{
-   a prior or initial setting for the (single/isotropic) lengthscale
+   a prior or initial setting for the lengthscale
    parameter in a Gaussian correlation function; a (default)
     \code{NULL} value triggers a sensible regularization (prior) and
     initial setting to be generated via \code{\link{darg}};
@@ -65,7 +75,9 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
     generated. Note that a default/generated list specifies MLE/MAP
     inference for this parameter.  When specifying initial values, a
     vector of length \code{nrow(XX)} can be provided, giving a
-    different initial value for each predictive location
+    different initial value for each predictive location. With 
+    \code{aGPsep}, the starting values can be a 
+    \code{ncol(X)}-by-\code{nrow(XX)} \code{matrix} or \code{ncol(X)} vector
 }
 \item{g}{
   a prior or initial setting for the nugget parameter; a 
@@ -74,7 +86,7 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
     (default \code{g = 1/1000}) specifies an initial value, causing \code{\link{garg}}
     to only generate the prior; otherwise, a
     list or partial list matching the output of \code{\link{garg}} can be used to
-    specify a custom prior.  In the case of a partial list, the only the
+    specify a custom prior.  In the case of a partial list, only the
     missing entries will be generated. Note that a default/generated list
     specifies \emph{no} inference for this parameter; i.e., it is fixed
     at its starting value, which may be appropriate for emulating 
@@ -83,23 +95,23 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
     different initial value for each predictive location
 }
   \item{method}{
-    Specifies the method by which \code{end-start} candidates from
+    specifies the method by which \code{end-start} candidates from
     \code{X} are chosen in order to predict at each row \code{XX} independently. 
     In brief, ALC (\code{"alc"}, default) minimizes predictive variance; 
-    ALCRAY (\code{"alcray")}) executes a thrify search focused on rays eminating
+    ALCRAY (\code{"alcray")} executes a thrifty search focused on rays emanating
     from the reference location(s); MSPE
     (\code{"mspe"}) augments ALC with extra derivative information to
     minimize mean-squared prediction error (requires extra computation);
     NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"efi"}) uses
     the expected Fisher information - essentially \code{1/G} from
-    Gramacy & Apley (2014) - which is global heuristic, i.e., not
+    Gramacy & Apley (2015) - which is global heuristic, i.e., not
     localized to each row of \code{XX}}
   \item{methods}{ for \code{aGP.seq} this is a vectorized \code{method} argument,
     containing a list of valid methods to perform in sequence.  When \code{methods = FALSE}
-    a call to \code{M} is envoked instead; see below for
+    a call to \code{M} is invoked instead; see below for
     more details }
   \item{Xi.ret}{
-    A scalar logical indicating whether or not a \code{matrix} of indices
+    a scalar logical indicating whether or not a \code{matrix} of indices
     into \code{X}, describing the chosen sub-design for each of the
     predictive locations in \code{XX}, should be returned on
     output}
@@ -114,19 +126,24 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
   }
   \item{numrays}{ a scalar integer indicating the number of rays for each
   greedy search; only relevant when \code{method="alcray"}.  More rays
-  leads to a more thurough, but more computational intensive search }
+  leads to a more thorough, but more computationally intensive search }
   \item{laGP}{
     applicable only to the \R-version \code{aGP.R}, this is a
     function providing the local design implementation to be used.
     Either \code{\link{laGP}} or \code{\link{laGP.R}} can be
     provided, or a bespoke routine providing similar outputs
-}
+  }
+  \item{laGPsep}{
+    applicable only to the \R-version \code{aGPsep.R}, this is a
+    function providing the local design implementation to be used.
+    Either \code{\link{laGPsep}} or \code{\link{laGPsep.R}} can be
+    provided, or a bespoke routine providing similar outputs
+  }
 \item{num.gpus}{
   applicable only to the C-version \code{aGP}, this is a scalar 
   positive integer indicating the number of GPUs available for calculating 
   ALC (see \code{\link{alcGP}}); the package must be compiled for CUDA support; 
-  see README/INSTALL in the package source for more dsils. 
-  Only \code{method = "alc"} is supported when using CUDA
+  see README/INSTALL in the package source for more details
 }
 \item{gpu.threads}{ applicable only to the C-version \code{aGP}; this 
   is a scalar positive integer indicating the number of SMP (i.e., CPU)
@@ -134,13 +151,13 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
    If \code{gpu.threads >= 2} then the package must \emph{also}
   be compiled for OpenMP support; see README/INSTALL in the package source for
   more details.  We recommend setting \code{gpu.threads} to up to two-times
-  the number the sum of the number of GPU devices and CPU cores.
+  the sum of the number of GPU devices and CPU cores.
   Only \code{method = "alc"} is supported when using CUDA.   If the
    sum of \code{omp.threads} and \code{gpu.threads} is bigger than the
    max allowed by your system, then that max is used instead (giving 
    \code{gpu.threads} preference) 
 }
-\item{omp.threads}{ applicable only to the C-version \code{aGP},
+\item{omp.threads}{ applicable only to the C-version \code{aGP};
    this is a scalar positive integer indicating the number
    of threads to use for SMP parallel processing; the package must be 
    compiled for OpenMP support; see README/INSTALL in the package source for
@@ -163,7 +180,7 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
     to each \code{laGP} call}
 \item{cls}{ 
     a cluster object created by \code{\link[parallel]{makeCluster}} 
-    from the \pkg{parallel} or \pkg{parallel} packages
+    from the \pkg{parallel} or \pkg{snow} packages
 }
 \item{chunks}{
     a scalar integer indicating the number of chunks to break \code{XX} into
@@ -197,7 +214,7 @@ partition \code{X} and \code{XX} inputs into the two matrices required for \code
   due to differing library subroutines deployed in \R and C.
 
   The function \code{aGP.parallel} allows \code{aGP} to be called on segments
-  of the \code{XX} matrix distributed to cluster created by \pkg{parallel}.
+  of the \code{XX} matrix distributed to a cluster created by \pkg{parallel}.
   It breaks \code{XX} into \code{chunks} which are sent to \code{aGP} 
   workers pointed to by the entries of \code{cls}.  The \code{aGP.parallel} function
   collects the outputs from each chunk before returning an object
@@ -218,17 +235,18 @@ partition \code{X} and \code{XX} inputs into the two matrices required for \code
   some of the ALC calculations will be done on the GPUs, and some 
   on the CPUs.  In our own experimentation we have not found this
   to lead to large speedups relative to \code{omp.threads = 0} when
-  using GPUs.  For more details, see Gramacy, Niemi, \& Niemi (2014).
+  using GPUs.  For more details, see Gramacy, Niemi, \& Weiss (2014).
 
   The \code{aGP.sep} function is provided primarly for use in calibration
-  exercices, see Gramacy, et al. (2014).  It automates a sequence of
-  code{aGP} calls, each with a potentially different method, 
+  exercices, see Gramacy, et al. (2015).  It automates a sequence of
+  \code{aGP} calls, each with a potentially different method, 
   successively feeding the previous estimate of local lengthscale (\code{d})
   as in initial set of values for the next call.  It also allows the
   use of \code{aGP} to be bypassed, feeding the inputs into a user-supplied
   \code{M} function instead.  This feature is enabled when 
   \code{methods = FALSE}.  The \code{M} function takes two matrices
-  (same number of rows) as inputs, where the first \code{ncol(X) - ncalib} represents
+  (same number of rows) as inputs, where the first \code{ncol(X) - ncalib} 
+  columns represent
   \dQuote{field data} inputs shared by the physical and computer model
   (in the calibration context), and the remaining \code{ncalib} are 
   the extra tuning or calibration parameters required to evalue the computer
@@ -265,27 +283,33 @@ is a data frame with a \code{mean} column indicating the output of the computer
 model run, and a \code{var} column, which at this time is zero
 }
 \references{
-  R.B. Gramacy and D.W. Apley (2014).
+  R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
-    experiments.} Journal of Computational and Graphical Statistics, \emph{to appear};
-  preprint available on arXiv:1303.0383; 
+    experiments.} Journal of Computational and Graphical Statistics, 
+  24(2), pp. 561-678; preprint on arXiv:1303.0383; 
   \url{http://arxiv.org/abs/1303.0383}
 
   R.B. Gramacy, J. Niemi, R.M. Weiss (2014). 
   \emph{Massively parallel approximate Gaussian process regression.}
-  SIAM/ASA Journal on Uncertainty Quantification, \emph{to appear};
-  preprint on arXiv:1310.5182
+  SIAM/ASA Journal on Uncertainty Quantification, 2(1), pp. 568-584;
+  preprint on arXiv:1310.5182;
   \url{http://arxiv.org/abs/1310.5182}
 
-  R.B. Gramacy and B. Haaland (2014).
+  R.B. Gramacy and B. Haaland (2015).
   \emph{Speeding up neighborhood search in local Gaussian process prediction.}
-  Preprint on arXiv:1409.0074 
+  Technometrics, \emph{to appear};
+  preprint on arXiv:1409.0074 
   \url{http://arxiv.org/abs/1409.0074}
 }
 \author{
   Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
 }
 \note{
+  \code{aGPsep} provides the same functionality as \code{aGP} but deploys
+  a separable covariance function.  However criteria (\code{method}s) EFI and
+  MSPE are not supported.  This is considered \dQuote{beta} functionality
+  at this time.
+
  Note that using \code{method="NN"} gives the same result as specifying
  \code{start=end}, however at some extra computational expense.
 
@@ -293,7 +317,12 @@ model run, and a \code{var} column, which at this time is zero
  for the subset of predictive locations \code{XX} jointly, i.e.,
  providing a matrix \code{Xref} to \code{\link{laGP}}.
 
- Only (local) isotropic GPs are supported at this time.
+ The use of OpenMP threads with \code{aGPsep} is not as efficient as with
+ \code{aGP} when calculating MLEs with respect to the lengthscale (i.e.,
+ \code{d=list(mle=TRUE, ...)}).  The reason is that the \code{lbfgsb} C
+ entry point uses static variables, and is therefore not thread safe.  
+ To circumvent this problem, an OpenMP \code{critical} pragma is used,
+ which can create a bottle neck
 }
 
 \seealso{
@@ -324,7 +353,6 @@ Z <- f2d(X)
 
 ## predictive grid with NN=400 locations,
 ## change NN to 10K (length=100) to mimic setup in Gramacy & Apley (2014)
-## recommend NN >= 100 (length=10) for pretty results below;
 ## the low NN set here is for fast CRAN checks
 xx <- seq(-1.975, 1.975, length=10)
 XX <- as.matrix(expand.grid(xx, xx))

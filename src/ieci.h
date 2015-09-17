@@ -16,10 +16,21 @@ void calc_ktKikx(double *ktKik, const int m, double **k, const int n,
 		 double *ktGmui_util, double *ktKikx);
 void rbetter_R(int *n_in, int *m_in, double *rect_in, double *ystar_in, 
 	       double *X_out);
-void calc_al_eiey(unsigned int nc, unsigned int nn, double *mu, double *s,
-  double onorm, double **cmu, double **cs, double *cnorms, double *lambda, 
-  double *alpha, double fmin, int nomax, unsigned int N, double *eys, 
-  double *eis);
+void MC_al_eiey(const unsigned int nc, const unsigned int nn, double *mu, 
+	double *s, const double fnorm, double **cmu, double **cs, double *cnorms, 
+	double *lambda, const double alpha, const double ymin, const int nomax,
+	const unsigned int N, double *eys, double *eis);
+void MC_alslack_eiey(const unsigned int nc, const unsigned int nn, double *mu, 
+	double *s, const double fnorm, double **cmu, double **cs, double *cnorms, 
+	double *lambda, const double alpha, double fmin, const unsigned int N, 
+	double *eys, double *eis);
+void calc_alslack_eiey(const unsigned int nc, const unsigned int nn, 
+	double *mu, double *s, const double fnorm, double **cmu, double **cs, 
+	double *cnorms, double *lambda, const double alpha, const double ymin,
+	double *eys, double *eis);
+void draw_slacks(const unsigned int nc, const unsigned int nn, 
+  double **cmu, double **cs, double *cnorms, double *lambda, 
+  const double alpha, double **slacks);
 
 #endif
 

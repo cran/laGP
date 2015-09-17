@@ -24,15 +24,15 @@ distance(X1, X2 = NULL)
 }
 \details{
     If \code{X2 = NULL} distances between \code{X1} and itself are
-    calculated, resulting in an \code{nrow(X1) x nrow(X1)} distance 
-    matrix.  Otherwise the result is \code{nrow(X1) x nrow(X2)} and
+    calculated, resulting in an \code{nrow(X1)}-by-\code{nrow(X1)} distance 
+    matrix.  Otherwise the result is \code{nrow(X1)}-by-\code{nrow(X2)} and
     contains distances between \code{X1} and \code{X2}.
 
-    Calling \code{distance(X)} is the same as \code{distance(X,X)}.
+    Calling \code{distance(X)} is the same as \code{distance(X,X)}
 }
 \value{
     The output is a \code{matrix}, whose dimensions are described in the Details
-    section above.
+    section above
 }
 
 \author{

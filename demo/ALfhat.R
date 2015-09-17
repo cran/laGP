@@ -26,12 +26,13 @@ f2d <- function(x, y=NULL)
   }
 
 ## new full objective-constraints function modified to use f2d
-aimprob2 <- function(x)
+aimprob2 <- function(X, known.only = FALSE)
 {
-  f <- f2d(4*(x-0.5))
-  if(!is.matrix(x)) x<- matrix(x, ncol=2)
-  c1 <- 1.5 - x[,1] - 2*x[,2] - 0.5*sin(2*pi*(x[,1]^2 - 2*x[,2]))
-  c2 <- x[,1]^2 + x[,2]^2-1.5
+  if(is.null(nrow(X))) X <- matrix(X, nrow=1)
+  if(known.only) stop("no outputs are treated as known")
+  f <- f2d(4*(X-0.5))
+  c1 <- 1.5 - X[,1] - 2*X[,2] - 0.5*sin(2*pi*(X[,1]^2 - 2*X[,2]))
+  c2 <- rowSums(X^2)-1.5
   return(list(obj=f, c=cbind(c1,c2)))
 }
 
@@ -74,7 +75,7 @@ aimprob2.AL <- function(x, B, lambda, rho)
 }
 
 ## loop over AL updates until a valid solution is found
-lambda <- out2$lambda; rho <- out2$rho
+lambda <- out2$lambda[nrow(out2$lambda),]; rho <- out2$rho[length(out2$rho)]
 while(1) {
     o <- optim(xbest, aimprob2.AL, control=list(maxit=15),
       B=B, lambda=lambda, rho=rho)

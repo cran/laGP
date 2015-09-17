@@ -43,8 +43,8 @@ garg(g, y)
   to form weakly informative default priors, and choose initial values,
   for a lengthscale and nugget parameter.  This is useful since the
   likelihood can sometimes be very flat, and even with proper priors
-  inference can be very sensitive to the specification of those priors
-  and any initial search values.  The focus is on avoiding pathologies
+  inference can be sensitive to the specification of those priors
+  and any initial search values.  The focus here is on avoiding pathologies
   while otherwise remaining true to the spirit of MLE calculation.  
 
   \code{darg} output specifies MLE inference (\code{out$mle = TRUE})
@@ -90,7 +90,7 @@ garg(g, y)
 
 \seealso{
 \code{vignette("laGP")}, 
-  \code{\link{laGP}}, \code{\link{aGP}}, \code{\link{laGP}},
+  \code{\link{laGP}}, \code{\link{aGP}},
   \code{\link{mleGP}}, \code{\link{distance}}, \code{\link{llikGP}}
 }
 \examples{

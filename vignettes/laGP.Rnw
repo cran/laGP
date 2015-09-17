@@ -1,4 +1,7 @@
+%!TEX root = laGP.tex
+
 \documentclass[article,nojss]{jss}
+% \documentclass[article]{jss}
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{algorithmic}
@@ -8,6 +11,8 @@
 \newcommand{\mN}[0]{\mathcal{N}}
 \newcommand{\Var}[0]{\mathbb{V}\mathrm{ar}}
 \newcommand{\iidsim}[0]{\stackrel{\mathrm{iid}}{\sim}}
+
+% \SweaveOpts{prefix.string=Figures/laGP}
 
 %\VignetteIndexEntry{a guide to the laGP package}
 %\VignetteKeywords{laGP}
@@ -259,7 +264,7 @@ below obtains the parameters of the predictive equations on a grid
 of new $x$-values \code{XX}, following
 Equations~\ref{eq:predgp}--\ref{eq:preds2}.
 <<cache=TRUE>>=
-XX <- matrix(seq(-1,2*pi+1, length = 499), ncol = ncol(X))
+XX <- matrix(seq(-1, 2 * pi + 1, length = 499), ncol = ncol(X))
 p <- predGP(gp, XX)
 deleteGP(gp)
 @
@@ -305,7 +310,7 @@ $|K_N|$ in Equations~\ref{eq:gpk}--\ref{eq:preds2}.  In practice that limits
 $N$ to the mid-upper thousands for point inference, and lower thousands for
 sampling-based inference like the bootstrap or Bayesian MCMC.  This has pushed
 some practitioners towards wholly new modeling apparatuses, say via trees
-\citep{pratola:etal:2013,gramacy:taddy:wild:2013,chipman:ranjan:wang:2012}.  Although
+\citep{pratola:etal:2014,gramacy:taddy:wild:2013,chipman:ranjan:wang:2012}.  Although
 trees offer an appealing divide-and-conquer approach, their obvious drawback
 is that they struggle to capture the smoothness known, in many cases, to exist
 in the physical and mathematical quantities being modeled.
@@ -339,7 +344,7 @@ library, and when combined with a GPU implementation their method is able to
 cope with $N=173405$. This represents a substantial inroad into retaining
 many of the attractive features of GP regression in larger data applications.
 However, a larger (and thriftier) capability would certainly be welcome.
-\citet{pratola:etal:2013} found it necessary to modify a tree-based approach
+\citet{pratola:etal:2014} found it necessary to modify a tree-based approach
 for distribution over the nodes of a supercomputer in order to handle an
 $N=7$M sized design.
 
@@ -396,7 +401,7 @@ $X_n(x)$ in order to obtain good estimates of correlation hyperparameters like
 $\theta$.  Still, searching for the optimal sub-design, which involves
 choosing $n$ from $N$ things, is a combinatorially huge undertaking.
 
-\citet{gramacy:apley:2014} showed how a greedy search could provide
+\citet{gramacy:apley:2015} showed how a greedy search could provide
 designs $X_n(x)$ where predictors based on $D_n(x)$ out-performed the NN
 alternative out-of-sample, yet required no more computational effort than NN,
 i.e., they worked in $O(n^3)$ time.  The idea is to search iteratively,
@@ -415,7 +420,7 @@ computational and modeling/accuracy advantages.
 
 \subsection{Criterion for local design}
 
-\citeauthor{gramacy:apley:2014} considered two criteria in addition to NN, one being
+\citeauthor{gramacy:apley:2015} considered two criteria in addition to NN, one being
 a special case of the other.  The first is to minimize the empirical Bayes
 mean-square prediction error (MSPE)
 \[
@@ -470,7 +475,7 @@ where $G_j(x') \equiv g_j(x') g_j^\top(x')$, and $g_j(x') = K_j^{-1}
 k_j(x')/v_j(x')$.
 Observe that only $O(j^2)$ calculations are required above. Although known for
  some time in other contexts,
-\citeauthor{gramacy:apley:2014} chose the acronym ALC to denote use
+\citeauthor{gramacy:apley:2015} chose the acronym ALC to denote use
 of that decomposition in local design, recognizing similar approach
  to {\em global} design via a method called {\em active learning Cohn}
 (\citeyear{cohn:1996}).
@@ -491,7 +496,7 @@ hyperthreaded libraries on a 2010 iMac.
 The \code{laGP} function requires a vector of responses to perform local
 design, even though the design itself doesn't directly depend on the
 responses---a point which we will discuss at greater length shortly.  The
-synthetic response \citeauthor{gramacy:apley:2014} used for illustrations 
+synthetic response \citeauthor{gramacy:apley:2015} used for illustrations 
 is coded below, and we shall elucidate the nature of input/output
 relationships therein in due course.
 <<cache=TRUE>>=
@@ -585,7 +590,7 @@ though ALC is about \Sexpr{signif(p.mspe$time/p.alc$time,2)} times faster
 since it doesn't require evaluation of derivatives.  Although a more
 thorough out-of-sample comparison on both time and accuracy fronts is left to
 Section \ref{sec:examples}, the factor of (at least) two speedup in execution time,
-together with the simpler implementation, led \citeauthor{gramacy:apley:2014} to
+together with the simpler implementation, led \citeauthor{gramacy:apley:2015} to
 prefer ALC in most cases.
 
 \subsection{Global inference, prediction and parallelization}
@@ -762,7 +767,7 @@ Several enhancements offer scope for improvement.  One is to explicitly
 accommodate global anisotropy with a separable correlation structure.  A
 simple way to do that is discussed in Section \ref{sec:sep}.  Another is to
 refine the local analysis, enhancing the degree of nonstationarity.
-\citeauthor{gramacy:apley:2014} recommend a two-stage scheme wherein the above
+\citeauthor{gramacy:apley:2015} recommend a two-stage scheme wherein the above
 process is repeated and new $X_n(x)$ are chosen conditional upon
 $\hat{\theta}_n(x)$ values from the first stage. i.e., so that the second
 iteration's local designs use locally estimated parameters. This leads to a
@@ -829,7 +834,7 @@ rmse <- data.frame(alc = sqrt(mean((P.alc$mean - YY)^2)),
 rmse
 @
 This result is not impressive, but it is statistically significant across a
-wide range of examples.  For example \citet{gramacy:apley:2014} provided an
+wide range of examples.  For example \citet{gramacy:apley:2015} provided an
 experiment based on the borehole data [more in Section \ref{sec:examples}]
 showing that the second iteration consistently improves upon predictions from
 the first. Although explicitly facilitating a limited degree of
@@ -1019,7 +1024,7 @@ how large emulations can proceed with relatively little computational effort.
 However, we keep the testing set somewhat smaller so that we can 
 so that we can duplicate part of a Monte Carlo experiment (i.e., multiple
 repeats of random training and testing sets) from 
-\citet{gramacy:apley:2014} without requiring too many compute cycles.
+\citet{gramacy:apley:2015} without requiring too many compute cycles.
 <<cache=TRUE>>=
 N <- 100000
 Npred <- 1000
@@ -1142,7 +1147,7 @@ The two biggest takeaways from the table are that (1) everything is fast on a
 data set of this size by comparison to the state of the art in GP emulation,
 approximately or otherwise; (2) local inference of the lengthscale parameter,
 $\hat{\theta}_n(x)$ leads to substantial improvements in accuracy.  
-\citeauthor{gramacy:apley:2014}'s similar experiments included variations
+\citeauthor{gramacy:apley:2015}'s similar experiments included variations
 on the method of compactly supported covariances (CSC)
 \citep{kaufman:etal:2012} yielding estimators with similar accuracies, but
 requiring at least an order magnitude more compute time.  In fact, they
@@ -1178,7 +1183,7 @@ one parameter, $\theta$, inferential schemes like maximum likelihood via
 Newton methods are vastly simplified.  When deployed for local inference
 over thousands of elements of a vast predictive grid, that simplicity is a near
 necessity from an engineering perspective.  However, the local GP methodology
-is not limited to this choice.  Indeed \citet{gramacy:apley:2014} developed
+is not limited to this choice.  Indeed \citet{gramacy:apley:2015} developed
 all of the relevant equations for a generic choice of separable correlation
 function.  Here, separable means the joint correlation over all input
 directions factors as a product of a simpler one in each direction,
@@ -1189,7 +1194,10 @@ could benefit for allowing differential rate of decay $\theta_k$ in each
 input direction. 
 
 The \pkg{laGP} package contains limited support for a separable correlation
-function in the context of {\em global}, that is canonical, GP inference.
+function.  Functions like \code{laGPsep} and \code{aGPsep} perform the analog
+of \code{laGP} and \code{aGP}, and are currently considered to be {\em beta} 
+functionality.  Release-quality subroutines are provided for separable modeling
+ in the context of {\em global}, that is canonical, GP inference.
 On a data set of size $N=100$K like the one we entertain above, this is
 not a reasonable undertaking.  But we have found it useful on subsets of the data
 for the purpose of obtaining a rough re-scaling of the inputs so that a
@@ -1210,7 +1218,8 @@ for(t in 1:T) {
   
   subs <- sample(1:N, n, replace = FALSE)
 
-  gpsepi <- newGPsep(x[subs, ], y[subs], rep(d2$start, dim), g = 1/1000)
+  gpsepi <- newGPsep(x[subs, ], y[subs], rep(d2$start, dim), g = 1/1000, 
+    dK = TRUE)
   that <- mleGPsep(gpsepi, param = "d", tmin = d2$min, tmax = d2$max, 
     ab = d2$ab, maxit = 200)
   thats[t,] <- that$d
@@ -1417,7 +1426,7 @@ computer simulation---so-called {\em calibration parameter(s)}---but which
 cannot be controlled or observed in the field.  The setup, which we review
 below, has many attractive features, however it scales poorly when simulations
 get large.  We explain how
-\citet{gramacy:bingham:etal:2014} modified that setup using \pkg{laGP} and
+\citet{gramacy:bingham:etal:2015} modified that setup using \pkg{laGP} and
 provide a live demonstration via an example extracted from that paper.
 
 \subsection{A hierarchical model for Bayesian inference}
@@ -1474,7 +1483,7 @@ in isolation, faces a compounded burden when coupled with other processes.
 
 \subsection{Calibration as optimization}
 
-\citet{gramacy:bingham:etal:2014} proposed a thriftier approach pairing
+\citet{gramacy:bingham:etal:2015} proposed a thriftier approach pairing
 local approximate GP models for emulation with a modularized calibration
 framework \citep{liu:bayarri:berger:2009} and derivative free optimization
 \citep{cohn:scheinberg:vincente:2009}.  {\em Modularized} calibration sounds
@@ -1487,7 +1496,7 @@ stemmed from a ``contamination'' concern echoed by other researchers
 scheme, joint inference allows ``pristine'' field observations to be
 contaminated by an imperfect computer model.
 
-\citeauthor{gramacy:bingham:etal:2014} motivate modularization from
+\citeauthor{gramacy:bingham:etal:2015} motivate modularization from
 a more practical perspective, that of de-coupling inference for computational
 tractability in large $N_M$ settings.  They argue that there is little harm in
 doing so for most modern calibration applications, in terms of the quality of
@@ -1502,7 +1511,7 @@ re-development or refinement.
 Combining modularization with local approximate GPs for emulation, and full GP
 regressions (with nugget $\eta$) for estimating bias-plus-noise from a relatively
 small number of field data observations, $N_F$,
-\citeauthor{gramacy:bingham:etal:2014} recommend
+\citeauthor{gramacy:bingham:etal:2015} recommend
 viewing calibration as an optimization, acting as the glue that ``sticks it
 all together''.
 \begin{algorithm}[ht!]
@@ -1576,7 +1585,7 @@ independent local design searches for $\hat{y}^M(x_j^F, u)$ ensures that the
 objective is not continuous in $u$. It can look `noisy', although it is in
 fact deterministic.  This means that optimization with derivatives---even
 numerically approximated ones---is fraught with challenges.
-\citeauthor{gramacy:bingham:etal:2014} suggest a derivative-free 
+\citeauthor{gramacy:bingham:etal:2015} suggest a derivative-free 
 approach via the mesh adaptive direct search (MADS) algorithm \citep{AuDe2006}
 implemented as \pkg{NOMAD} \citep{Le09b}. The authors of the \pkg{crs} package
 \citep{crs} provide \code{snomadr}, an \proglang{R} wrapper to the underlying
@@ -1587,7 +1596,7 @@ optima under very weak regularity conditions; for more details see
 \cite{AuDe2006}.
 
 As MADS is a local solver, \pkg{NOMAD} requires initialization.  
-\citeauthor{gramacy:bingham:etal:2014} recommend choosing starting
+\citeauthor{gramacy:bingham:etal:2015} recommend choosing starting
 $u$-values from the best value(s) of the objective found on a small random
 space-filling design.  We note here that although \pkg{laGP} provides
 functions like \code{fcalib}, \code{aGP.seq} and \code{discrep.est} to
@@ -1655,7 +1664,7 @@ Y <- rep(Zu, reps) + rep(bias(X), reps) +
 @
 The code uses \code{Y} denote field data observations $Y_{N_F}^F$ with $N_F
 =$~\code{2*ny}~$=$~\Sexpr{length(Y)}, storing two replicates at each $X^F_{N_F} =$
-\code{X} location.  \citet{gramacy:bingham:etal:2014} illustrated this example
+\code{X} location.  \citet{gramacy:bingham:etal:2015} illustrated this example
 with ten replicates.  We keep it smaller here for faster execution in live
 demonstration.  Observe that the code uses uses \code{lhs} from the \pkg{tgp}
 library \citep{tgp,tgp2}, rather than from \pkg{lhs}, because the \pkg{tgp}
@@ -1903,11 +1912,11 @@ data.frame(u.hat = rmse, u = rmse.u)
 @
 Indeed, our estimated \code{u.hat}-value leads to better predictions of
 the field data out-of-sample.
-\citet{gramacy:bingham:etal:2014} offer an explanation.  The KOH
+\citet{gramacy:bingham:etal:2015} offer an explanation.  The KOH
 model is, with GPs for emulation and bias, overly flexible and consequently 
 challenges  identification of the unknown parameters.  Authors have
 commented on this before, including KOH to a limited extent.  Interlocking GP
-predictors \citep{bah:joseph:2012} and the introduction of auxiliary inputs
+predictors \citep{ba:joseph:2012} and the introduction of auxiliary inputs
 \citep{bornn:shaddick:zidek:2012}, of which the $u$-values are an example,
 have recently been proposed as deliberate mechanisms for handling
 nonstationary features in response surface models, particularly for computer
@@ -1922,13 +1931,16 @@ the primary aim.
 \section{Ongoing development and extensions}
 \label{sec:hooks}
 
-The \pkg{laGP} package is under active development, and the corpus of code
-was developed with ease of extension in mind.  The calibration application from
-Section \ref{sec:calib} is a perfect example: simple functions
-tap into local GP emulators and full GP discrepancies alike,
-and are paired with existing direct optimizing subroutines from other packages
-for a powerful solution to large scale calibration problems that are becoming
-commonplace in the recent literature.  
+The \pkg{laGP} package is under active development, and the corpus of code was
+developed with ease of extension in mind.  The calibration application from
+Section \ref{sec:calib} is a perfect example: simple functions tap into local
+GP emulators and full GP discrepancies alike, and are paired with existing
+direct optimizing subroutines from other packages for a powerful solution to
+large scale calibration problems that are becoming commonplace in the recent
+literature.  As mentioned in Section \ref{sec:sep}, the implementation of
+separable modeling for local analysis is under active development and testing.
+Many of the associated subroutines (e.g., {\tt laGPsep} and {\tt aGPsep})
+are available for use in the latest version of the package.
 
 The library comprises roughly fifty \proglang{R} functions, although barely
 a fraction of those are elevated to the user's namespace for use in a typical
@@ -2045,9 +2057,21 @@ If not, perhaps it is worth requesting that it be re-compiled as
 there are many benefits to doing so, beyond those that extend to the
 \pkg{laGP} package.  For example, many linear algebra intensive packages,
 of which \pkg{laGP} is one, benefit from linking to MKL libraries from Intel,
-in addition to \pkg{OpenMP}.  Note, however, that some customized  libraries (e.g., \pkg{OpenBLAS}) are not compatible with \pkg{OpenMP}
+in addition to \pkg{OpenMP}.  Note, however, that some customized  libraries 
+(e.g., \pkg{OpenBLAS}) are not compatible with \pkg{OpenMP}
 because they are not (at the time of writing) thread safe.
- 
+
+
+At the time of writing, some incompatibilities between multi-threaded BLAS
+(e.g., Intel MKL) and OpenMP (e.g., non-Intel, like with GCC) are still in the
+process of being resolved.  In some builds and instantiations \pkg{laGP} can
+create nested \pkg{OpenMP} threads of different types (Intel for linear
+algebra, and GCC for parallel local design). Problematic behavior has been
+observed when using \code{aGPsep} with GCC OpenMP and MKL multi-threaded
+linear algebra.  Generally speaking, since \pkg{laGP} uses threads to divvy up
+local design tasks, a threaded linear algebra subroutine library is not
+recommended in combination with these routines.
+
 In the case where you are using a standard \proglang{R} binary, it is still
 possible to compile \pkg{laGP} from source with
 \pkg{OpenMP} features assuming your compiler (e.g., GCC) supports them.  This is a
@@ -2056,9 +2080,10 @@ becoming the standard setup. For those with experience compiling \proglang{R}
 packages from source, the procedure is straightforward and does not require
 installing a bespoke version of
 \proglang{R}.  Obtain the package source (e.g., from CRAN) and, before compiling,
-open up the package and make two small edits to laGP/src/Makevars.  These instructions
-assume a GCC compiler.  For other compilers, please consult documentation for appropriate
-flags.
+open up the package and make two small edits to laGP/src/Makevars.  These
+instructions assume a GCC compiler.  For other compilers, please consult
+documentation for appropriate flags.
+
 
 \begin{enumerate}
 \item Replace \verb!$(SHLIB_OPENMP_CFLAGS)! in the \verb!PKG_CFLAGS! line with \verb!-fopenmp!.  

@@ -39,9 +39,7 @@ deleteGPseps()
 
 \seealso{
 \code{vignette("laGP")}, 
-  \code{\link{newGP}}, \code{\link{newGPsep}},
-  \code{\link{predGP}}, \code{\link{predGPsep}}, 
-  \code{\link{mleGP}}, \code{\link{mleGPsep}}
+  \code{\link{newGP}}, \code{\link{predGP}}, \code{\link{mleGP}} 
 }
 \examples{
 ## see examples for newGP, predGP, or mleGP

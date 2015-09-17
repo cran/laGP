@@ -21,7 +21,7 @@ discrep.est(X, Y, Yhat, d, g, bias = TRUE, clean = TRUE)
   in a pre-processing step
 }
   \item{Y}{
-	a vector values with \code{length(Y) = ncol(X)}
+	a vector of values with \code{length(Y) = ncol(X)}
 	containing the response from field data observations
 	at \code{X}.  A \code{Y}-vector with \code{length(Y) = k*ncol(X)},
 	for positive integer \code{k}, can be supplied in which case
@@ -45,7 +45,7 @@ discrep.est(X, Y, Yhat, d, g, bias = TRUE, clean = TRUE)
     generated. Note that a default/generated list specifies MLE/MAP
     inference for this parameter.  When specifying initial values, a
     vector of length \code{nrow(XX)} can be provided, giving a
-    different initial value for each predictive location
+    different initial value for each predictive location.
 }
   \item{g}{
   a prior or initial setting for the nugget parameter; a 
@@ -54,7 +54,7 @@ discrep.est(X, Y, Yhat, d, g, bias = TRUE, clean = TRUE)
     (default \code{g = 1/1000}) specifies an initial value, causing \code{\link{garg}}
     to only generate the prior; otherwise, a
     list or partial list matching the output of \code{\link{garg}} can be used to
-    specify a custom prior.  In the case of a partial list, the only the
+    specify a custom prior.  In the case of a partial list, only the
     missing entries will be generated. Note that a default/generated list
     specifies \emph{no} inference for this parameter; i.e., it is fixed
     at its starting value, which may be appropriate for emulating 
@@ -73,15 +73,15 @@ discrep.est(X, Y, Yhat, d, g, bias = TRUE, clean = TRUE)
 }
 }
 \details{
-Estimates an isotropic Guassian correlation Gaussian process (GP) discrepency
+Estimates an isotropic Gaussian correlation Gaussian process (GP) discrepancy
 term for the difference between a computer model output (\code{Yhat}) and
-field data obsevations (\code{Y}) at locations \code{X}. The computer model
+field data observations (\code{Y}) at locations \code{X}. The computer model
 predictions would typically come from a GP emulation from simulation data,
 possibly via \code{\link{aGP}} if the computer experiment is large.
 
-This function is used primarly as a subroutine by \code{\link{fcalib}} which
+This function is used primarily as a subroutine by \code{\link{fcalib}} which
 defines an objective function for optimization in order to solve the
-calibration problem via the method described by Gramacy, et al. (2014),
+calibration problem via the method described by Gramacy, et al. (2015),
 designed for large computer experiments.  However, once calibration is
 performed this function can be useful for making comparisons to other methods.
 Examples are provided in the \code{\link{fcalib}} documentation.
@@ -92,16 +92,22 @@ Gaussian error distribution is assumed
 \value{
 The output object is comprised of the output of \code{jmleGP}, applied to a GP
 object built with responses \code{Y - Yhat}.  That object is augmented with
-a log likelihood, in \code{$ll}, and with a GP index \code{$gpu} when
+a log likelihood, in \code{$ll}, and with a GP index \code{$gpi} when
 \code{clean=FALSE}.  When \code{bias = FALSE} the output object retains the
 same form as above, except with dummy zero-values since calling \code{jmleGP} is not
-required.
+required
 }
+
+\note{
+  Note that in principle a separable correlation function could be used 
+  (e.g, via \code{newGPsep}), however this is not implemented at this time
+}
+
 \references{
 R.B. Gramacy, D. Bingham, JP. Holloway, M.J. Grosskopf, C.C. Kuranz, E. Rutter, 
-M. Trantham, and P.R. Drake (2014). \emph{Calibrating a large computer 
-experiment simulating radiative shock hydrodynamics.}
-Preprint on arXiv:1410.3293 
+M. Trantham, P.R. Drake (2015). \emph{Calibrating a large computer 
+experiment simulating radiative shock hydrodynamics.}  
+Annals of Applied Statistics, \emph{to appear}; preprint on arXiv:1410.3293 
 \url{http://arxiv.org/abs/1410.3293}
 
 F. Liu, M. Bayarri and J. Berger (2009). 
