@@ -91,7 +91,7 @@ void deletedKGPsep(GPsep *gpsep)
   unsigned int k;
   if(gpsep->dK) {
     for(k=0; k<gpsep->m; k++) {
-      assert(gpsep->dK[i]);
+      assert(gpsep->dK[k]);
       delete_matrix(gpsep->dK[k]);
     }
     free(gpsep->dK);  
@@ -249,7 +249,7 @@ void calc_ZtKiZ_sep(GPsep *gpsep)
 void newdKGPsep(GPsep *gpsep)
 {
   unsigned int j;
-  assert(gp->dK == NULL);
+  assert(gpsep->dK == NULL);
   gpsep->dK = (double ***) malloc(sizeof(double **) * gpsep->m);
   for(j=0; j<gpsep->m; j++) gpsep->dK[j] = new_matrix(gpsep->n, gpsep->n);
   diff_covar_sep_symm(gpsep->m, gpsep->X, gpsep->n, gpsep->d, gpsep->K, 
@@ -892,7 +892,7 @@ static double fcnnllik_sep(int n, double *p, struct callinfo_sep *info)
   int dsame, k;
 
   /* sanity check */
-  assert(n == info-gpsep->m);
+  assert(n == info->gpsep->m);
 
   /* check if parameters in p are new */
   dsame = 1;
@@ -932,7 +932,7 @@ static void fcnndllik_sep(int n, double *p, double *df, struct callinfo_sep *inf
   int dsame, k;
 
   /* sanity check */
-  assert(n == info-gpsep->m);
+  assert(n == info->gpsep->m);
 
   /* check if parameters in p are new */
   dsame = 1;
@@ -1370,7 +1370,7 @@ void jmleGPsep(GPsep *gpsep, int maxit, double *dmin, double *dmax,
 
     /* sanity checks */
     assert(gab && dab);
-    assert(dmin && dmax && drange);
+    assert(dmin && dmax && grange);
 
     /* auxillary space for d-parameter values(s) */
     d = new_vector(gpsep->m);

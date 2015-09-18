@@ -15,10 +15,10 @@
 }
 \usage{
 optim.auglag(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100, 
-  Xstart = NULL, sep=FALSE, ab = c(3/2, 4), lambda = 1, rho = 1/2, 
-  urate = 10, ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
-  dlim = sqrt(ncol(B)) * c(1/100, 10), Bscale = 1, ey.tol = 0.05, 
-  nomax = FALSE, N = 1000, plotprog = FALSE, verb = 2, ...)
+  Xstart = NULL, sep=FALSE, ab = c(3/2, 4), lambda = 1, rho = 1/2, urate = 10, 
+    ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
+    dlim = sqrt(ncol(B)) * c(1/100, 10), Bscale = 1, ey.tol = 0.05, 
+    nomax = FALSE, N = 1000, plotprog = FALSE, verb = 2, ...)
 optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100, 
   Xstart = NULL, sep = FALSE, ab = c(3/2,4), urate = 10, 
   ncandf = function(t) { t }, dg.start = c(0.1,1e-6), 

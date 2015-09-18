@@ -1,5 +1,5 @@
-a2c1917f7f159661af241b7fa7c225a7 *ChangeLog
-886af5d71a8b8d35686b5e747b6911d7 *DESCRIPTION
+627b5ae256198351adea075c0a45c0a0 *ChangeLog
+2babc821919c98a83cbf320821824def *DESCRIPTION
 b8b6faecf4aeb173380b8c4e6620babb *INSTALL
 dd0898a11fa093a651736012a943c902 *NAMESPACE
 4ba2b710ded46903d11cfd843209b7e2 *R/calib.R
@@ -30,7 +30,7 @@ a1cf8ed841b2dfd50042ecea946589db *man/laGP.Rd
 48637f9d9b3b6832a902adc69f87a532 *man/llikGP.Rd
 570774cf0883bee20980a2945b8bae85 *man/mleGP.Rd
 94b0681dbd298b2bb6d74d985dc94eb7 *man/newGP.Rd
-d4dd58351b0f86cdb80c2cb084df76d8 *man/optim.auglag.Rd
+f50c22b9eb70a07e64f4fe5294f51c27 *man/optim.auglag.Rd
 3419118636155233962cf770ec00a478 *man/predGP.Rd
 34db949d3736dac0d47cfba684ad9b7d *src/Makefile
 69f7c2ceb01fb4099db91be46c3b73b1 *src/Makevars
@@ -46,7 +46,7 @@ ee8ebfcd6c8a0c70a715c6f822213df2 *src/covar_sep.c
 2eb0ab4444dbba030a7eb7a1b5c0a927 *src/gamma.h
 3357da97629fb96586f83a88b9f6184f *src/gp.c
 ef4145ffca896977eb7e0b26fc3fb059 *src/gp.h
-da7572a46b1e71715adc99276302072b *src/gp_sep.c
+b1ceca63b6b30d90d3bdc7434fd4312c *src/gp_sep.c
 5ffb5fc22a8441085fa95d458c689cfc *src/gp_sep.h
 6523068f7a836fb32c7e73070bb01b4a *src/ieci.c
 ae65154638c798c97d80df4021dbb68a *src/ieci.h
