@@ -163,25 +163,30 @@ the purpose of optimization over \code{u}
 }
 
 \references{
-R.B. Gramacy, D. Bingham, JP. Holloway, M.J. Grosskopf, C.C. Kuranz, E. Rutter, 
-M. Trantham, and P.R. Drake (2015). \emph{Calibrating a large computer 
-experiment simulating radiative shock hydrodynamics.} 
-Annals of Applied Statistics, \emph{to appear}; preprint on arXiv:1410.3293 
-\url{http://arxiv.org/abs/1410.3293}
 
-F. Liu, M. Bayarri, and J. Berger (2009). 
-\emph{Modularization in Bayesian analysis, with emphasis on analysis of computer models.} 
-Bayesian Analysis, 4, 1, 119-150.
+  R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
+  Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
+  Software, 72(1), 1-46; or see \code{vignette("laGP")}
 
-S. Le Digabel (2011). 
-\emph{Algorithm 909: NOMAD: Nonlinear Optimization with the MADS algorithm}.
-ACM Transactions on Mathematical Software, 37, 4, 44:1-44:15.
+  R.B. Gramacy, D. Bingham, JP. Holloway, M.J. Grosskopf, C.C. Kuranz, E. Rutter, 
+  M. Trantham, and P.R. Drake (2015). \emph{Calibrating a large computer 
+  experiment simulating radiative shock hydrodynamics.} 
+  Annals of Applied Statistics, 9(3) 1141-1168; preprint on arXiv:1410.3293 
+  \url{http://arxiv.org/abs/1410.3293}
 
-J.S. Racine, Z. and Nie (2012). \pkg{crs}: 
-\emph{Categorical regression splines}. \R package version 0.15-18.
+  F. Liu, M. Bayarri, and J. Berger (2009). 
+  \emph{Modularization in Bayesian analysis, with emphasis on analysis of computer models.} 
+  Bayesian Analysis, 4(1) 119-150.
+
+  S. Le Digabel (2011). 
+  \emph{Algorithm 909: NOMAD: Nonlinear Optimization with the MADS algorithm}.
+  ACM Transactions on Mathematical Software, 37, 4, 44:1-44:15.
+
+  J.S. Racine, Z. and Nie (2012). \pkg{crs}: 
+  \emph{Categorical regression splines}. \R package version 0.15-18.
 }
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~

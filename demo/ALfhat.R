@@ -1,6 +1,6 @@
 ## augmenting the example in ?optim.auglag, here is a
 ## a variation with an unknown objective, where the objective
-## is taken from other laGP experiece, see e.g., ?laGP
+## is taken from other laGP examples, see e.g., ?laGP
 
 ## since the demo is stochastic, we suggest re-running it 
 ## several times to get a sense of typical behavior, especially

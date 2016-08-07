@@ -4,14 +4,14 @@
 \alias{alcrayGP}
 \alias{alcrayGPsep}
 \alias{mspeGP}
-\alias{efiGP}
+\alias{fishGP}
 
 \title{
   Improvement statistics for sequential or local design
 }
 \description{
   Calculate the active learning Cohn (ALC) statistic, mean-squared predictive
-  error (MSPE) or expected Fisher information (EFI) for a Gaussian
+  error (MSPE) or expected Fisher information (fish) for a Gaussian
   process (GP) predictor relative to a set of reference locations, towards
   sequential design or local search for Gaussian process regression
 }
@@ -23,7 +23,7 @@ alcGPsep(gpsepi, Xcand, Xref = Xcand, parallel = c("none", "omp", "gpu"),
 alcrayGP(gpi, Xref, Xstart, Xend, verb = 0)
 alcrayGPsep(gpsepi, Xref, Xstart, Xend, verb = 0)
 mspeGP(gpi, Xcand, Xref = Xcand, fi = TRUE, verb = 0)
-efiGP(gpi, Xcand)
+fishGP(gpi, Xcand)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -71,7 +71,7 @@ efiGP(gpi, Xcand)
   a scalar logical indicating if the expected Fisher information portion
   of the expression (MSPE is essentially \code{ALC + c(x)*EFI}) should be
   calculated (\code{TRUE}) or set to zero (\code{FALSE}).  This flag is mostly
-  for error checking against the other functions, \code{alcGP} and \code{efiGP},
+  for error checking against the other functions, \code{alcGP} and \code{fishGP},
   since the constituent parts are separately available via those functions
 }
 \item{verb}{
@@ -90,7 +90,7 @@ efiGP(gpi, Xcand)
   paper by Gramacy & Haaland (2015).
 
   MSPE and EFI calculations are not supported for separable GP models.  I.e.,
-  there are no \code{mspeGPsep} or \code{efiGPsep} functions.
+  there are no \code{mspeGPsep} or \code{fishGPsep} functions.
 
   \code{alcrayGP} and \code{alcrayGPsep} allows only one reference location 
   (\code{nrow(Xref) = 1}).  
@@ -100,6 +100,11 @@ efiGP(gpi, Xcand)
   corresponding to the desired statistic
 }
 \references{
+
+  R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
+  Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
+  Software, 72(1), 1-46; or see \code{vignette("laGP")}
+
   R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
     experiments.} Journal of Computational and Graphical Statistics, 
@@ -124,7 +129,7 @@ efiGP(gpi, Xcand)
   vol. III, 241-246. IEEE.
 }
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 
 \seealso{
@@ -163,7 +168,7 @@ XX <- as.matrix(expand.grid(xx, xx))
 ## predict
 alc <- alcGP(gpi, XX)
 mspe <- mspeGP(gpi, XX)
-efi <- efiGP(gpi, XX)
+fish <- fishGP(gpi, XX)
 
 ## visualize the result
 par(mfrow=c(1,3))
@@ -171,8 +176,8 @@ image(xx, xx, matrix(sqrt(alc), nrow=length(xx)), col=heat.colors(128),
       xlab="x1", ylab="x2", main="sqrt ALC")
 image(xx, xx, matrix(sqrt(mspe), nrow=length(xx)), col=heat.colors(128),
       xlab="x1", ylab="x2", main="sqrt MSPE")
-image(xx, xx, matrix(log(efi), nrow=length(xx)), col=heat.colors(128),
-      xlab="x1", ylab="x2", main="log EFI")
+image(xx, xx, matrix(log(fish), nrow=length(xx)), col=heat.colors(128),
+      xlab="x1", ylab="x2", main="log fish")
 
 ## clean up
 deleteGP(gpi)

@@ -1,15 +1,16 @@
 Package: laGP
 Title: Local Approximate Gaussian Process Regression
-Version: 1.2-1
-Date: 2015-09-18
-Author: Robert B. Gramacy <rbgramacy@chicagobooth.edu>
+Version: 1.3
+Date: 2016-08-05
+Author: Robert B. Gramacy <rbg@vt.edu>
 Depends: R (>= 2.14)
 Imports: tgp, parallel
-Suggests: mvtnorm, MASS, akima, lhs, crs
-Description: Performs approximate GP regression for large computer experiments and spatial datasets.  The approximation is based on finding small local designs for prediction (independently) at particular inputs. OpenMP and SNOW parallelization are supported for prediction over a vast out-of-sample testing set; GPU acceleration is also supported for an important subroutine.  OpenMP and GPU features may require special compilation.  An interface to lower-level (full) GP inference and prediction is also provided, as are associated wrapper routines for blackbox optimization under constraints via an augmented Lagrangian scheme, and large scale computer model calibration.
-Maintainer: Robert B. Gramacy  <rbgramacy@chicagobooth.edu>
+Suggests: mvtnorm, MASS, akima, lhs, crs, DiceOptim
+Description: Performs approximate GP regression for large computer experiments and spatial datasets.  The approximation is based on finding small local designs for prediction (independently) at particular inputs. OpenMP and SNOW parallelization are supported for prediction over a vast out-of-sample testing set; GPU acceleration is also supported for an important subroutine.  OpenMP and GPU features may require special compilation.  An interface to lower-level (full) GP inference and prediction is also provided, as are associated wrapper routines for blackbox optimization under mixed equality and inequality constraints via an augmented Lagrangian scheme, and for large scale computer model calibration.
+Maintainer: Robert B. Gramacy  <rbg@vt.edu>
 License: LGPL
 URL: http://bobby.gramacy.com/r_packages/laGP
 NeedsCompilation: yes
+Packaged: 2016-08-06 00:44:31 UTC; bobby
 Repository: CRAN
-Date/Publication: 2015-09-18 22:02:26
+Date/Publication: 2016-08-07 09:40:34

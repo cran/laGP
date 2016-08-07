@@ -17,7 +17,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
-# Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+# Questions? Contact Robert B. Gramacy (rbg@vt.edu)
 #
 #*******************************************************************************
 

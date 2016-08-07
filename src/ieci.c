@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301  USA
  *
- * Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+ * Questions? Contact Robert B. Gramacy (rbg@vt.edu)
  *
  ****************************************************************************/
 
@@ -218,7 +218,7 @@ void calc_ktKikx(double *ktKik, const int m, double **k, const int n,
 
 void MC_al_eiey(const unsigned int nc, const unsigned int nn, double *mu, 
   double *s, const double fnorm, double **cmu, double **cs, double *cnorms, 
-  double *lambda, const double alpha, const double ymin, const int nomax, 
+  double *lambda, const double alpha, const double ymin, double *equal, 
   const unsigned int N, double *eys, double *eis)
 {
   double Yc, cl, c2al, ei, ey;
@@ -236,7 +236,7 @@ void MC_al_eiey(const unsigned int nc, const unsigned int nn, double *mu,
         if(cs[j]) Yc = rnorm(cmu[j][k], cs[j][k]) * cnorms[j];
         else Yc = cmu[j][k] * cnorms[j];
         cl += Yc*lambda[j];
-        if(nomax || Yc > 0) c2al += sq(Yc)*alpha;
+        if(equal[j] || Yc > 0) c2al += sq(Yc)*alpha;
       }
       ey = cl + c2al;
       if(!s) ey += mu[k]*fnorm;
@@ -265,8 +265,8 @@ void MC_al_eiey(const unsigned int nc, const unsigned int nn, double *mu,
 
 void MC_alslack_eiey(const unsigned int nc, const unsigned int nn, double *mu, 
   double *s, const double fnorm, double **cmu, double **cs, double *cnorms, 
-  double *lambda, const double alpha, const double ymin, const unsigned int N,
-  double *eys, double *eis)
+  double *lambda, const double alpha, const double ymin, double *equal, 
+  const unsigned int N, double *eys, double *eis)
 {
   double Yc, cl, c2al, ei, ey;
   double **slacks;
@@ -274,7 +274,7 @@ void MC_alslack_eiey(const unsigned int nc, const unsigned int nn, double *mu,
 
   /* generate random slack variables */
   slacks = new_matrix(nc, nn);
-  draw_slacks(nc, nn, cmu, cs, cnorms, lambda, alpha, slacks);
+  draw_slacks(nc, nn, cmu, cs, cnorms, lambda, alpha, equal, slacks, NORM);
 
   /* init */
   zerov(eis, nn);
@@ -316,7 +316,7 @@ void MC_alslack_eiey(const unsigned int nc, const unsigned int nn, double *mu,
 
 void draw_slacks(const unsigned int nc, const unsigned int nn, 
   double **cmu, double **cs, double *cnorms, double *lambda, 
-  const double alpha, double **slacks)
+  const double alpha, double *equal, double **slacks, Stype stype)
 {
   unsigned int j, k;
   double u, l;
@@ -324,25 +324,40 @@ void draw_slacks(const unsigned int nc, const unsigned int nn,
   for(k=0; k<nn; k++) {
     for(j=0; j<nc; j++) {
 
-      #ifdef CUT
-      /* upper bound */
-      u = qnorm(0.01, cmu[j][k], cs[j][k], 1, 0) * cnorms[j];
-      u = 0.0 - u - 0.5*lambda[j]/alpha;
-      if(u < 0.0) u = 0.0;
-      
-      /* lower bound */
-      l = qnorm(0.99, cmu[j][k], cs[j][k], 1, 0) * cnorms[j];
-      l = 0.0 - l - 0.5*lambda[j]/alpha;
-      if(l < 0.0) l = 0.0;
-      
-      /* random draw */
-      if((u-l) < SDEPS) slacks[j][k] = 0.0;
-      else slacks[j][k] = runif(l, u);
-      #endif 
+      if(equal[j]) { slacks[j][k] = 0.0; continue; }
 
-      u = l = 0.0 - cmu[j][k]*cnorms[j] - 0.5*lambda[j]/alpha;
-      if(u > 0) slacks[j][k] = u;
-      else slacks[j][k] = 0.0;
+      if(stype == UL) { /* random uniform in range defined by quantiles
+                           of the constraint predictive distributions */
+
+        /* upper bound */
+        u = qnorm(0.01, cmu[j][k], cs[j][k], 1, 0) * cnorms[j];
+        u = 0.0 - u - 0.5*lambda[j]/alpha;
+        if(u < 0.0) u = 0.0;
+      
+        /* lower bound */
+        l = qnorm(0.99, cmu[j][k], cs[j][k], 1, 0) * cnorms[j];
+        l = 0.0 - l - 0.5*lambda[j]/alpha;
+        if(l < 0.0) l = 0.0;
+      
+        /* random draw */
+        if((u-l) < SDEPS) slacks[j][k] = 0.0;
+        else slacks[j][k] = runif(l, u);
+      
+      } else if(stype == MEAN) { /* same as above but not random; predictive
+                                    mean used instead */
+
+        u = l = 0.0 - cmu[j][k]*cnorms[j] - 0.5*lambda[j]/alpha;
+        if(u > 0) slacks[j][k] = u;
+        else slacks[j][k] = 0.0;
+
+      } else { /* sample each constraint from the predictive distribution and
+                  apply the mean version above */
+
+        u = l = 0.0 - rnorm(cmu[j][k], cs[j][k]) * cnorms[j] - 0.5*lambda[j]/alpha;
+        if(u > 0) slacks[j][k] = u;
+        else slacks[j][k] = 0.0;
+
+      } 
 
     }
   }
@@ -362,7 +377,7 @@ void draw_slacks(const unsigned int nc, const unsigned int nn,
 void calc_alslack_eiey(const unsigned int nc, const unsigned int nn, 
   double *mu, double *s, const double fnorm, double **cmu, double **cs, 
   double *cnorms, double *lambda, const double alpha, const double ymin, 
-  double *eys, double *eis)
+  double *equal, double *eys, double *eis)
 {
   double g, wmin, acc, q, a, cmuj, temp, muk, sigma, lower;
   double **slacks;
@@ -373,7 +388,7 @@ void calc_alslack_eiey(const unsigned int nc, const unsigned int nn,
 
   /* allocate and draw new slack variable */
   slacks = new_matrix(nc, nn);
-  draw_slacks(nc, nn, cmu, cs, cnorms, lambda, alpha, slacks);
+  draw_slacks(nc, nn, cmu, cs, cnorms, lambda, alpha, equal, slacks, MEAN);
 
   /* for qfc call below; NOTE that qfc is not thread safe */
   delta = new_vector(nc);

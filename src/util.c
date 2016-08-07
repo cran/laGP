@@ -1,3 +1,28 @@
+/****************************************************************************
+ *
+ * Local Approximate Gaussian Process Regression
+ * Copyright (C) 2013, The University of Chicago
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301  USA
+ *
+ * Questions? Contact Robert B. Gramacy (rbg@vt.edu)
+ *
+ ****************************************************************************/
+
+
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
@@ -44,7 +69,7 @@ double Brent_fmin(double ax, double bx, double (*f)(double, void *),
     double t2, fu, fv, fw, fx, xm, eps, tol1, tol3;
 
 /*  eps is approximately the square root of the relative machine precision. */
-    eps = DBL_EPSILON;
+    eps = DOUBLE_EPS;
     tol1 = eps + 1.;/* the smallest 1.000... > 1 */
     eps = sqrt(eps);
 

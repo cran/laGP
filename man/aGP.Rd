@@ -16,27 +16,27 @@ Localized Approximate GP Regression For Many Predictive Locations
   equations, and indices into the design, thus obtained
 }
 \usage{
-aGP(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
-    method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
+aGP(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
+    method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
     close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
     numrays = ncol(X), num.gpus = 0, gpu.threads = num.gpus, 
     omp.threads = if (num.gpus > 0) 0 else 1, 
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
 aGP.parallel(cls, XX, chunks = length(cls), X, Z, start = 6, end = 50, 
-    d = NULL, g = 1/1000, method = c("alc", "alcray", "mspe", "nn", "efi"), 
+    d = NULL, g = 1/10000, method = c("alc", "alcray", "mspe", "nn", "fish"), 
     Xi.ret = TRUE, close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
     numrays = ncol(X), num.gpus = 0, gpu.threads = num.gpus, 
     omp.threads = if (num.gpus > 0) 0 else 1,
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
-aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
-      method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
+aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
+      method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
       close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
       numrays = ncol(X), laGP=laGP.R, verb = 1)
-aGPsep(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
+aGPsep(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
       method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
       close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
       numrays = ncol(X),  omp.threads = 1, verb = 1)
-aGPsep.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/1000,
+aGPsep.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
       method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
       close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
       numrays = ncol(X), laGPsep=laGPsep.R, verb = 1)
@@ -83,16 +83,19 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
   a prior or initial setting for the nugget parameter; a 
     \code{NULL} value causes a sensible regularization (prior) and
     initial setting to be generated via \code{\link{garg}}; a scalar
-    (default \code{g = 1/1000}) specifies an initial value, causing \code{\link{garg}}
+    (default \code{g = 1/10000}) specifies an initial value, causing \code{\link{garg}}
     to only generate the prior; otherwise, a
     list or partial list matching the output of \code{\link{garg}} can be used to
     specify a custom prior.  In the case of a partial list, only the
     missing entries will be generated. Note that a default/generated list
     specifies \emph{no} inference for this parameter; i.e., it is fixed
-    at its starting value, which may be appropriate for emulating 
-    deterministic computer code output. When specifying initial values, a
-    vector of length \code{nrow(XX)} can be provided, giving a
-    different initial value for each predictive location
+    at its starting or default value, which may be appropriate for
+    emulating deterministic computer code output. In such situations a 
+    value much smaller than the default may work even better (i.e., 
+    yield better out-of-sample predictive performance).  
+    The default was chosen conservatively. When specifying non-default
+    initial values, a vector of length \code{nrow(XX)} can be provided,
+    giving a different initial value for each predictive location
 }
   \item{method}{
     specifies the method by which \code{end-start} candidates from
@@ -102,7 +105,7 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
     from the reference location(s); MSPE
     (\code{"mspe"}) augments ALC with extra derivative information to
     minimize mean-squared prediction error (requires extra computation);
-    NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"efi"}) uses
+    NN (\code{"nn"}) uses nearest neighbor; and (\code{"fish"}) uses
     the expected Fisher information - essentially \code{1/G} from
     Gramacy & Apley (2015) - which is global heuristic, i.e., not
     localized to each row of \code{XX}}
@@ -283,6 +286,11 @@ is a data frame with a \code{mean} column indicating the output of the computer
 model run, and a \code{var} column, which at this time is zero
 }
 \references{
+
+  R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
+  Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
+  Software, 72(1), 1-46; or see \code{vignette("laGP")}
+
   R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
     experiments.} Journal of Computational and Graphical Statistics, 
@@ -302,7 +310,7 @@ model run, and a \code{var} column, which at this time is zero
   \url{http://arxiv.org/abs/1409.0074}
 }
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 \note{
   \code{aGPsep} provides the same functionality as \code{aGP} but deploys

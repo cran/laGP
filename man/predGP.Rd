@@ -61,7 +61,7 @@ as returned by \code{\link{newGPsep}}}
   & Williams \emph{Gaussian Processes for Machine Learning}
 }
 \author{
-    Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+    Robert B. Gramacy \email{rbg@vt.edu}
 }
 
 \seealso{

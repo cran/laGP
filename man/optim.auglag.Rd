@@ -1,6 +1,6 @@
 \name{optim.auglag}
 \alias{optim.auglag}
-\alias{optim.eic}
+\alias{optim.efi}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
     Optimize an objective function under
@@ -14,14 +14,15 @@
     on EI with constraints is also provided
 }
 \usage{
-optim.auglag(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100, 
-  Xstart = NULL, sep=FALSE, ab = c(3/2, 4), lambda = 1, rho = 1/2, urate = 10, 
-    ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
-    dlim = sqrt(ncol(B)) * c(1/100, 10), Bscale = 1, ey.tol = 0.05, 
-    nomax = FALSE, N = 1000, plotprog = FALSE, verb = 2, ...)
-optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100, 
-  Xstart = NULL, sep = FALSE, ab = c(3/2,4), urate = 10, 
-  ncandf = function(t) { t }, dg.start = c(0.1,1e-6), 
+optim.auglag(fn, B, fhat = FALSE, equal = FALSE, ethresh = 1e-2, 
+  slack = FALSE, cknown = NULL, start = 10, end = 100, 
+  Xstart = NULL, sep = TRUE, ab = c(3/2, 8), lambda = 1, rho = NULL, 
+  urate = 10, ncandf = function(t) { t }, dg.start = c(0.1, 1e-06), 
+  dlim = sqrt(ncol(B)) * c(1/100, 10), Bscale = 1, ey.tol = 1e-2, 
+  N = 1000, plotprog = FALSE, verb = 2, ...)
+optim.efi(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100, 
+  Xstart = NULL, sep = TRUE, ab = c(3/2,8), urate = 10, 
+  ncandf = function(t) { t }, dg.start = c(0.1, 1e-6), 
   dlim = sqrt(ncol(B))*c(1/100,10), Bscale = 1, plotprog = FALSE, 
   verb = 2, ...)
 }
@@ -44,6 +45,17 @@ optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100,
   be modeled with a GP surrogate.  The default of \code{FALSE} assumes a known
   linear objective scaled by \code{Bscale}.  Using \code{TRUE} is an \dQuote{alpha}
   feature at this time}
+\item{equal}{ an optional vector containing zeros and ones, whose length equals the number of
+constraints, specifying which should be treated as equality constraints (\code{0}) and 
+which as inequality (\code{1}) }
+\item{ethresh}{ a threshold used for equality constraints to determine validity for 
+progress measures; ignored if there are no equality constraints }
+\item{slack}{ A scalar logical indicating if slack variables, and thus exact EI 
+  calculations should be used.  The default of \code{slack = FALSE} results in Monte 
+  Carlo EI approximation.  
+  One can optionally specify \code{slack = 2} to get the \code{slack = TRUE} behavior,
+  with a second-stage L-BFGS-B optimization of the EI acquisition applied at the end,
+  starting from the best value found on the random search grid }
 \item{cknown}{ A optional positive integer vector specifying which of the constraint
   values returned by \code{fn} should be treated as \dQuote{known}, i.e., not modeled
   with Gaussian processes}
@@ -63,9 +75,8 @@ optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100,
      have \code{ncol(Xstart) = nrow(B)}
 }
   \item{sep}{
-    if \code{sep = TRUE} then separable GPs (i.e., via \code{\link{newGPsep}}, etc.)
-    are used to model the constraints.  Otherwise the default is to use isotropic
-    ones
+    The default \code{sep = TRUE} uses separable GPs (i.e., via \code{\link{newGPsep}}, etc.)
+    to model the constraints and objective; otherwise the isotropic GPs are used
   }
   \item{ab}{
     prior parameters; see \code{\link{darg}} describing the prior used on the
@@ -75,7 +86,7 @@ optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100,
     \code{m}-dimensional initial Lagrange multiplier parameter for \code{m}-constraints
 }
   \item{rho}{
-    positive scalar initial quadratic penalty parameter in the augmented Lagrangian
+    positive scalar initial quadratic penalty parameter in the augmented Lagrangian; the default setting of \code{rho = NULL} causes an automatic starting value to be chosen; see rejoinder to Gramacy, et al. (2016) or supplementary material to Picheny, et al. (2016)
 }
   \item{urate}{
     positive integer indicating  how many optimization trials should pass before
@@ -107,13 +118,6 @@ optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100,
      that metric to guide search, reducing to an EY-based search instead 
      [choosing that proportion to be zero forces EY-based search]
 }
-  \item{nomax}{
-    one of \code{c{-1,0,1}} indicating if the max should be removed from the 
-    augmented lagrangian (AL): not at all (0),
-    in the evaluation of EI or EY (1).  Specifying a negative number (e.g., \code{-1})
-    invokes the slack variable implementation of AL, which is \dQuote{alpha}
-     functionality at this time
-}
   \item{N}{
     positive scalar integer indicating the number of Monte Carlo samples to be
     used for calculating EI and EY
@@ -139,7 +143,7 @@ optim.eic(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100,
 \details{
 In its current form, this is a \dQuote{beta} code illustrating the suite of
 methods used to optimize two challenging constrained optimization problems
-from Gramacy, et al. (2015); see references below.  
+from Gramacy, et al. (2016); and from Picheny, et al., (2016) see references below.  
 
 That scheme hybridizes Gaussian process based surrogate modeling and expected
 improvement (EI; Jones, et., al, 2008) with the additive penalty method (APM)
@@ -155,24 +159,31 @@ posterior mean surface, or the EI of, the following composite objective
 }{ Y(x) = f(x) + lambda \%*\% Yc(x) + 1/(2rho) sum(max(0, Yc(x))^2)}  
 where \eqn{\lambda}{lambda} and \eqn{\rho}{rho} follow updating equations that
 guarantee convergence to a valid solution minimizing the objective.  For more
-details, see Gramacy, et al. (2015).
+details, see Gramacy, et al. (2016).
 
-The \code{nomax} argument indicates whether or not the \code{max} is present
-in the AL formula above.  Setting \code{nomax > 0} can lead to a more
-aggressive search nearby the boundary between feasible and infeasible regions.
-See Gramacy, et al. (2015) for more details. 
+A slack variable implementation that allows for exact EI calculations and can 
+accommodate equality constraints, and mixed (equality and inequality) constraints,
+ is also provided.  For further details, see Picheny, et al. (2016).  Details
+will be added to the documentation here at a later time.
 
-The example below illustrates a variation on the toy problem considered in that paper,
-which bases sampling on EI.
+The example below illustrates a variation on the toy problem considered in both papers,
+which bases sampling on EI.  For examples making used of equality constraints, 
+following the Picheny, et al (2016) papers; see the demos listed in the 
+\dQuote{See Also} section below, about which we now offer the following via an
+explanation of further, somewhat tangential, functionality provided by the library:
 
-The latest version of this function allows an unknown objective function to
+Although it is off by default, this function allows an unknown objective function to
 be modeled (\code{fhat = TRUE}), rather than assuming a known linear one.  This
-is \dQuote{alpha} functionality at this time.  For an example, see
-\code{demo("ALfhat")}.
+is \dQuote{beta} functionality at this time.  For examples see
+\code{demo("ALfhat")} and \code{demo("GSBP")} which illustrate the AL and comparators
+in inequality and mixed constraints setups, respectively.
 
-The \code{optim.eic} function is provided as a comparator.  This method uses
+The \code{optim.efi} function is provided as a comparator.  This method uses
 the same underlying GP models to with the hybrid EI and probability of satisfying
-the constraints heuristic from Schonlau, et al., (1998).
+the constraints heuristic from Schonlau, et al., (1998).  See \code{demo("GSBP")}
+and \code{demo("LAH")} for \code{optim.efi} examples and comparisons between 
+the original AL, the slack variable enhancement(s) on mixed constraint
+problems with known and blackbox objectives, respectively
 }
 \value{
 The output is a \code{list} summarizing the progress of the evaluations of the
@@ -196,9 +207,15 @@ loop iteration }
 }
 \references{
 
-Gramacy, R.B, Gray, G.A, Lee, H.K.H, Le Digabel, S., Ranjan P., Wells, G., Wild, S.M. (2015)
+Picheny, V., Gramacy, R.B., Wild, S.M., Le Digabel, S. (2016). 
+\dQuote{Bayesian optimization under mixed constraints
+with a slack-variable augmented Lagrangian}. Preprint available on arXiv:1605.09466;
+\url{http://arxiv.org/abs/1605.09466}
+
+Gramacy, R.B, Gray, G.A, Lee, H.K.H, Le Digabel, S., Ranjan P., Wells, G., Wild, S.M. (2016)
 \dQuote{Modeling an Augmented Lagrangian for Improved
-  Blackbox Constrained Optimization}, Preprint available on arXiv:1403.4890;
+  Blackbox Constrained Optimization}, \emph{Technometrics} (with discussion), 
+  58(1), 1-11. Preprint available on arXiv:1403.4890;
   \url{http://arxiv.org/abs/1403.4890}
 
 Jones, D., Schonlau, M., and Welch, W. J. (1998). 
@@ -214,23 +231,30 @@ Nocedal, J. and Wright, S.J. (2006). \emph{Numerical Optimization.}
 
 }
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 \note{
 This function is under active development, especially the newest features
-including separable GP surrogate modeling, and surrogate modeling of a
-blackbox objective. Also note that, compared with earlier versions, it is now
+including separable GP surrogate modeling, surrogate modeling of a
+blackbox objective, and the use of slack variables for exact EI calculations and
+the support if equality constraints. Also note that, compared with earlier versions, it is now
 required to augment your blackbox function (\code{fn}) with an argument named
 \code{known.only}. This allows the user to specify if a potentially different
 object 
 (with a subset of the outputs, those that are \dQuote{known}) gets returned in
 certain circumstances. For example, the objective is treated as known in our
 examples. When a non-null \code{cknown} object is used, the \code{known.only}
-flag can be used to return only the outputs which are known.}
+flag can be used to return only the outputs which are known.
+
+Older versions of this function provided an argument called \code{nomax}.
+The NoMax feature is no longer supported
+}
 
 
 \seealso{
 \code{vignette("laGP")}, \code{demo("ALfhat")} for blackbox objective,
+\code{demo("GSBP")} for a mixed constraints problem with blackbox objective,
+\code{demo("LAH")} for mix constraints with known objective,
 \code{\link[tgp]{optim.step.tgp}} for unconstrained optimization;\cr
 \code{optim} with \code{method="L-BFGS-B"} for box constraints, or
 \code{optim} with \code{method="SANN"} for simulated annealing
@@ -257,12 +281,22 @@ B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
 ## optimization (primarily) by EI, change 25 to 100 for
 ## 99% chance of finding the global optimum with value 0.6
 library(akima) ## for plotprog=interp
-out <- optim.auglag(aimprob, B, ab=c(3/2,8), end=25, plotprog=interp)
+out <- optim.auglag(aimprob, B, end=25, plotprog=interp)
+
+## using the slack variable implementation which is a little slower
+## but more precise; slack=2 augments random search with L-BFGS-B
   
+out2 <- optim.auglag(aimprob, B, end=25, slack=TRUE)
+\dontrun{
+out3 <- optim.auglag(aimprob, B, end=25, slack=2)
+}
+
+## for more slack examples and comparison to optim.efi on problems
+## involving equality and mixed (equality and inequality) constraints,
+## see demo("ALfhat"), demo("GSBP") and demo("LAH")
 
 ## for comparison, here is a version that uses simulated annealing
-## where the Additive Penalty Method (APM) is used to handle
-## the constraints
+## with the Additive Penalty Method (APM) for constraints
 \dontrun{
 aimprob.apm <- function(x, B=matrix(c(rep(0,2),rep(1,2)),ncol=2))
 { 
@@ -282,10 +316,10 @@ aimprob.apm <- function(x, B=matrix(c(rep(0,2),rep(1,2)),ncol=2))
 
 ## use SA; specify control=list(maxit=100), say, to control max 
 ## number of iterations; does not easily facilitate plotting progress
-out <- optim(runif(2), aimprob.apm, method="SANN") 
+out4 <- optim(runif(2), aimprob.apm, method="SANN") 
 ## check the final value, which typically does not satisfy both
 ## constraints
-aimprob(out$par)
+aimprob(out4$par)
 }
 
 ## for a version with a modeled objective see demo("ALfhat")

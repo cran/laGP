@@ -17,7 +17,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
-# Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+# Questions? Contact Robert B. Gramacy (rbg@vt.edu)
 #
 #*******************************************************************************
 
@@ -297,7 +297,7 @@ mleGP.switch <- function(gpi, method, d, g, verb)
     if(!(d$mle || g$mle)) return(NULL)
 
     ## calculate derivatives
-    if(d$mle && method != "mspe" && method != "efi") buildKGP(gpi)
+    if(d$mle && method != "mspe" && method != "fish") buildKGP(gpi)
 
     ## switch
     if(d$mle && g$mle) { 
@@ -570,7 +570,7 @@ alcrayGP <- function(gpi, Xref, Xstart, Xend, verb=0)
 ## and constraint GP (gpi) predictive surfaces
 
 alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin, 
-                 nomax=FALSE, N=100, fn=NULL, Bscale=1)
+                 slack=FALSE, equal=rep(FALSE,length(Cgpis)), N=100, fn=NULL, Bscale=1)
   {
     ## dimensions
     m <- ncol(XX)
@@ -583,7 +583,7 @@ alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin,
     if(length(alpha) != 1) stop("length(alpha) != 1")
 
     ## checking scalars
-    if(length(nomax) != 1) stop("nomax should be a scalar logical or negative nuumber")
+    if(length(equal) != length(Cgpis)) stop("equal should be a vector of length(Cgpis)")
     if(length(N) != 1 || N <= 0) stop("N should be a positive integer scalar")
     if(length(ymin) != 1) stop("ymin should be a scalar")
     if(length(fnorm) != 1) stop("fnorm should be a scalar")
@@ -615,7 +615,8 @@ alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin,
       lambda = as.double(lambda),
       alpha = as.double(alpha),
       ymin = as.double(ymin),
-      nomax = as.integer(nomax),
+      slack = as.integer(slack),
+      equal = as.double(equal),
       N = as.integer(N),
       eys = double(nn),
       eis = double(nn),
@@ -626,14 +627,14 @@ alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin,
   }
 
 
-## eicGP:
+## efiGP:
 ##
 ## calculate EI(f) and p(Y(c) <= 0) for known linear or esitmated
 ## objective f and vectorized constraints C via isotropic GP (gpsi)
 ## predictive surfaces; returns log probabilities (lplex) and 
 ## EIs on the original scale
 
-eicGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, fmin, fn=NULL, Bscale=1)
+efiGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, fmin, fn=NULL, Bscale=1)
   {
     ## doms
     m <- ncol(XX)
@@ -741,13 +742,13 @@ dmus2GP <- function(gpi, XX)
   }
 
 
-## efiGP:
+## fishGP:
 ##
 ## obtain the expected (approx) Fisher information for
 ## the fitted GP model; returns the absolute value (i.e.,
 ## determinant)
 
-efiGP <- function(gpi, Xcand)
+fishGP <- function(gpi, Xcand)
   {
     nn <- nrow(Xcand)
 

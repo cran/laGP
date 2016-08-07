@@ -17,7 +17,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
-# Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+# Questions? Contact Robert B. Gramacy (rbg@vt.edu)
 #
 #*******************************************************************************
 
@@ -542,7 +542,7 @@ updateGPsep <- function(gpsepi, X, Z, verb=0)
 ## predictive surfaces
 
 alGPsep <- function(XX, fgpsepi, fnorm, Cgpsepis, Cnorms, lambda, alpha, ymin, 
-                 nomax=FALSE, N=100, fn=NULL, Bscale=1)
+                    slack=FALSE, equal=rep(FALSE, length(Cgpsepis)), N=100, fn=NULL, Bscale=1)
   {
     ## dims
     m <- ncol(XX)
@@ -555,7 +555,7 @@ alGPsep <- function(XX, fgpsepi, fnorm, Cgpsepis, Cnorms, lambda, alpha, ymin,
     if(length(alpha) != 1) stop("length(alpha) != 1")
 
     ## checking scalars
-    if(length(nomax) != 1) stop("nomax should be a scalar logical or negative number")
+    if(length(equal) != length(Cgpsepis)) stop("equal should be a vector of length(Cgpsepis)")
     if(length(N) != 1 || N <= 0) stop("N should be a positive integer scalar")
     if(length(ymin) != 1) stop("ymin should be a scalar")
     if(length(fnorm) != 1) stop("fnorm should be a scalar")
@@ -589,7 +589,8 @@ alGPsep <- function(XX, fgpsepi, fnorm, Cgpsepis, Cnorms, lambda, alpha, ymin,
       lambda = as.double(lambda),
       alpha = as.double(alpha),
       ymin = as.double(ymin),
-      nomax = as.integer(nomax),
+      slack = as.integer(slack),
+      equal = as.double(equal),
       N = as.integer(N),
       eys = double(nn),
       eis = double(nn),
@@ -600,14 +601,14 @@ alGPsep <- function(XX, fgpsepi, fnorm, Cgpsepis, Cnorms, lambda, alpha, ymin,
   }
 
 
-## eicGPsep:
+## efiGPsep:
 ##
 ## calculate EI(f) and p(Y(c) <= 0) for known linear or esitmated
 ## objective f and vectorized constraints C via separable GP (gpsepi)
 ## predictive surfaces; returns log probabilities (lplex) and 
 ## and log EIs
 
-eicGPsep <- function(XX, fgpsepi, fnorm, Cgpsepis, Cnorms, fmin, fn=NULL, Bscale=1)
+efiGPsep <- function(XX, fgpsepi, fnorm, Cgpsepis, Cnorms, fmin, fn=NULL, Bscale=1)
   {
     ## doms
     m <- ncol(XX)

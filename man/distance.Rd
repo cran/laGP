@@ -36,7 +36,7 @@ distance(X1, X2 = NULL)
 }
 
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~

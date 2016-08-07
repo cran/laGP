@@ -42,7 +42,7 @@ llikGPsep(gpsepi, dab = c(0, 0), gab = c(0, 0))
 }
 
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 
 \seealso{

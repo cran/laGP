@@ -1,3 +1,28 @@
+/****************************************************************************
+ *
+ * Local Approximate Gaussian Process Regression
+ * Copyright (C) 2013, The University of Chicago
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301  USA
+ *
+ * Questions? Contact Robert B. Gramacy (rbg@vt.edu)
+ *
+ ****************************************************************************/
+
+
 #include "matrix.h"
 #include "linalg.h"
 #include <assert.h>
@@ -44,7 +69,7 @@ void covar_sep_symm(const int col, double **X, const int n,
  */
 
 void covar_sep(const int col, double **X1, const int n1, double **X2,
-     const int n2, double *d, double g, double **K)
+     const int n2, double *d, double **K)
 {
   int i, j, k;
 
@@ -53,8 +78,7 @@ void covar_sep(const int col, double **X1, const int n1, double **X2,
     for(j=0; j<n2; j++) {
       K[i][j] = 0.0;
       for(k=0; k<col; k++) K[i][j] += sq(X1[i][k] - X2[j][k])/d[k];
-      if(K[i][j] == 0.0) K[i][j] = 1.0 + g;
-      else K[i][j] = exp(0.0 - K[i][j]);
+      K[i][j] = exp(0.0 - K[i][j]);
     }
 }
 
@@ -125,7 +149,7 @@ void diff_covar_sep_symm(const int col, double **X, const int n,
 
 void calc_g_mui_kxy_sep(const int col, double *x, double **X, 
         const int n, double **Ki, double **Xref, 
-        const int m, double *d, const double g, double *gvec, 
+        const int m, double *d, double g, double *gvec, 
         double *mui, double *kx, double *kxy)
 {
   double mu_neg;
@@ -135,9 +159,9 @@ void calc_g_mui_kxy_sep(const int col, double *x, double **X,
   if(m == 0) assert(!kxy && !Xref);
 
   /* kx <- drop(covar(X1=pall$X, X2=x, d=Zt$d, g=Zt$g)) */
-  covar_sep(col, &x, 1, X, n, d, g, &kx);
+  covar_sep(col, &x, 1, X, n, d, &kx);
   /* kxy <- drop(covar(X1=x, X2=Xref, d=Zt$d, g=0)) */
-  if(m > 0) covar_sep(col, &x, 1, Xref, m, d, 0.0, &kxy);
+  if(m > 0) covar_sep(col, &x, 1, Xref, m, d, &kxy);
 
   /* Kikx <- drop(util$Ki %*% kx) stored in gvex */
   linalg_dsymv(n,1.0,Ki,n,kx,1,0.0,gvec,1);

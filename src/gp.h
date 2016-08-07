@@ -130,7 +130,7 @@ void mspeGP_R(int *gpi_in, int *m_in, double *Xcand_in, int *ncand_in, double *X
        int *nref_in, int *fi_in, int *verb_in, double *mspe_out);
 void alGP_R(int *m_in, double *XX_in, int *nn_in, int *fgpi_in, double *fnorm_in,
       int *ngpis_in, int *cgpis_in, double *cnorms_in, double *lambda_in, 
-      double *alpha_in, double *fmin_in, int *nomax_in, int *N_in, double *eys_out, 
-      double *eis_out);
+      double *alpha_in, double *fmin_in, int *slack_in, double *equal_in, 
+    int *N_in, double *eys_out, double *eis_out);
 
 #endif

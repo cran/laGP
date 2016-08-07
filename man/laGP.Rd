@@ -14,20 +14,20 @@ Localized Approximate GP Prediction At a Single Input Location
   into the local design
 }
 \usage{
-laGP(Xref, start, end, X, Z, d = NULL, g = 1/1000,
-     method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
+laGP(Xref, start, end, X, Z, d = NULL, g = 1/10000,
+     method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
      alc.gpu = FALSE, numrays = ncol(X), rect = NULL, verb = 0)
-laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
-     method = c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret = TRUE,
+laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
+     method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
      pall = FALSE, close = min(1000*if(method=="alcray") 10 else 1, nrow(X)),  
      parallel = c("none", "omp", "gpu"), numrays = ncol(X), rect = NULL, 
      verb = 0)
-laGPsep(Xref, start, end, X, Z, d = NULL, g = 1/1000, 
+laGPsep(Xref, start, end, X, Z, d = NULL, g = 1/10000, 
      method = c("alc", "alcray", "nn"), Xi.ret = TRUE, 
      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
      numrays = ncol(X), rect = NULL, verb = 0)
-laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
+laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
        method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
        pall = FALSE, close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),  
        parallel = c("none", "omp"), numrays = ncol(X), rect = NULL, 
@@ -73,14 +73,17 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     a prior or initial setting for the nugget parameter; a 
     \code{NULL} value causes a sensible regularization (prior) and
     initial setting to be generated via \code{\link{garg}}; a scalar
-    (default \code{g = 1/1000}) specifies an initial value, causing \code{\link{garg}}
-    to only generate the prior; otherwise, a
-    list or partial list matching the output of \code{\link{garg}} can be used to
-    specify a custom prior.  In the case of a partial list, only the
-    missing entries will be generated. Note that a default/generated list
-    specifies \emph{no} inference for this parameter; i.e., it is fixed
-    at its starting value, which may be appropriate for emulating 
-    deterministic computer code output
+    (default \code{g = 1/10000}) specifies an initial value, 
+    causing \code{\link{garg}} to only generate the prior; otherwise, a
+    list or partial list matching the output of \code{\link{garg}} 
+    can be used to specify a custom prior.  In the case of a partial list,
+    only the missing entries will be generated. Note that a 
+    default/generated list specifies \emph{no} inference for this
+    parameter; i.e., it is fixed at its starting or default value, 
+    which may be appropriate for emulating 
+    deterministic computer code output.  In such situations a 
+    value much smaller than the default may work even better (i.e., 
+    yield better out-of-sample predictive performance).  The default was chosen conservatively
 }
 \item{method}{
     Specifies the method by which \code{end-start} candidates from
@@ -91,7 +94,7 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/1000,
     MSPE (\code{"mspe"}) augments ALC 
     with extra derivative information to minimize mean-squared prediction 
     error (requires extra computation);
-    NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"efi"}) uses
+    NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"fish"}) uses
     the expected Fisher information - essentially \code{1/G} from
     Gramacy & Apley (2015) - which is global heuristic, i.e., not
     localized to \code{Xref}
@@ -209,6 +212,11 @@ The output is a \code{list} with the following components.
 \item{close }{ a copy of the input argument }
 }
 \references{
+
+  R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
+  Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
+  Software, 72(1), 1-46; or see \code{vignette("laGP")}
+
   R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
     experiments.} Journal of Computational and Graphical Statistics, 
@@ -228,7 +236,7 @@ The output is a \code{list} with the following components.
   \url{http://arxiv.org/abs/1409.0074}
 }
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 \note{
   \code{laGPsep} provides the same functionality as \code{laGP} but deploys

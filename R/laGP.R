@@ -17,7 +17,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
-# Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+# Questions? Contact Robert B. Gramacy (rbg@vt.edu)
 #
 #*******************************************************************************
 
@@ -26,8 +26,8 @@
 ##
 ## C-version of sequential design loop for prediction at Xref
 
-laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
-                 method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
+laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
+                 method=c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret=TRUE, 
                  close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
                  alc.gpu=FALSE, numrays=ncol(X), rect=NULL, verb=0)
   {
@@ -36,7 +36,7 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     if(method == "alc") imethod <- 1
     else if(method == "alcray") imethod <- 2
     else if(method == "mspe") imethod <- 3
-    else if(method == "efi") imethod <- 4
+    else if(method == "fish") imethod <- 4
     else imethod <- 5
 
     ## massage Xref
@@ -57,7 +57,8 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     if(start < 6 || end <= start) stop("must have 6 <= start < end")
     if(ncol(Xref) != ncol(X)) stop("bad dims")
     if(length(Z) != nrow(X)) stop("bad dims")
-    if(nrow(X) <= end) stop("nrow(X) <= end so nothing to do")
+    if(start >= end || nrow(X) <= end) 
+      stop("start >= end or nrow(X) <= end, so nothing to do")
 
     ## process the d argument
     d <- darg(d, X)
@@ -131,8 +132,8 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 ## much slower than the C-version (laGP) is that it must pass/copy
 ## a big X-matrix each time it is called
 
-laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
-                   method=c("alc", "alcray", "mspe", "nn", "efi"), 
+laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
+                   method=c("alc", "alcray", "mspe", "nn", "fish"), 
                    Xi.ret=TRUE, pall=FALSE, 
                    close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
                    parallel=c("none", "omp", "gpu"), numrays=ncol(X), 
@@ -149,7 +150,8 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
     if(start < 6 || end <= start) stop("must have 6 <= start < end")
     if(ncol(Xref) != ncol(X)) stop("bad dims")
     if(length(Z) != nrow(X)) stop("bad dims")
-    if(nrow(X) <= end) stop("nrow(X) <= end so nothing to do")
+    if(start >= end || nrow(X) <= end) 
+      stop("start >= end or nrow(X) <= end, so nothing to do")
 
     ## calculate rectangle if using alcray
     if(method == "alcray") {
@@ -223,7 +225,7 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
                        verb=verb-2)
         else if(method == "mspe") 
           als <- 0.0 - mspeGP(gpi, X[cands,,drop=FALSE], Xref, verb=verb-2)
-        else if(method == "efi") als <- efiGP(gpi, X[cands,,drop=FALSE])
+        else if(method == "fish") als <- fishGP(gpi, X[cands,,drop=FALSE])
         else als <- c(1, rep(0, length(cands)-1)) ## nearest neighbor
         als[!is.finite(als)] <- NA
         w <- which.max(als)
@@ -273,8 +275,8 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 ## the main reason this is much slower than the C-version (aGPsep) is 
 ## that it must pass/copy a big X-matrix each time it is called
 
-aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
-                  method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
+aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
+                  method=c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret=TRUE, 
                   close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
                   numrays=ncol(X), laGP=laGP.R, verb=1)
   {
@@ -282,7 +284,8 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
     nn <- nrow(XX)
     if(ncol(XX) != ncol(X)) stop("mismatch XX and X cols")
     if(nrow(X) != length(Z)) stop("length(Z) != nrow(X)")
-    if(end-start <= 0) stop("nothing to do")
+    if(start >= end || nrow(X) <= end) 
+      stop("start >= end or nrow(X) <= end, so nothing to do")
 
     ## check method argument
     method <- match.arg(method)
@@ -384,8 +387,8 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
 ## using C: loops over all predictive locations XX and obtains adaptive
 ## approx kriging equations for each based on localized subsets of (X,Z)
 
-aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
-                method=c("alc", "alcray", "mspe", "nn", "efi"), Xi.ret=TRUE, 
+aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
+                method=c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret=TRUE, 
                 close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
                 numrays=ncol(X), num.gpus=0, gpu.threads=num.gpus,
                 omp.threads=if(num.gpus > 0) 0 else 1, 
@@ -395,14 +398,15 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
     nn <- nrow(XX)
     if(ncol(XX) != ncol(X)) stop("mismatch XX and X cols")
     if(nrow(X) != length(Z)) stop("length(Z) != nrow(X)")
-    if(end-start <= 0) stop("nothing to do")
+    if(start >= end || nrow(X) <= end) 
+      stop("start >= end or nrow(X) <= end, so nothing to do")
 
     ## numerify method
     method <- match.arg(method)
     if(method == "alc") imethod <- 1
     else if(method == "alcray") imethod <- 2
     else if(method == "mspe") imethod <- 3
-    else if(method == "efi") imethod <- 4
+    else if(method == "fish") imethod <- 4
     else imethod <- 5
 
     ## calculate rectangle if using alcray

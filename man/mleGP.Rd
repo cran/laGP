@@ -152,7 +152,7 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   & Williams \emph{Gaussian Processes for Machine Learning};
 }
 \author{
-    Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+    Robert B. Gramacy \email{rbg@vt.edu}
 }
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 

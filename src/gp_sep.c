@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301  USA
  *
- * Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+ * Questions? Contact Robert B. Gramacy (rbg@vt.edu)
  *
  ****************************************************************************/
 
@@ -319,7 +319,6 @@ GPsep* buildGPsep(GPsep *gpsep, const int dK)
 #endif
     MYprintf(MYstdout, "d = ");
     printVector(gpsep->d, m, MYstdout, HUMAN);
-    MYprintf(MYstdout, "\n");
     error("bad Cholesky decomp (info=%d), g=%g", 
           info, gpsep->g);
   }
@@ -558,9 +557,8 @@ void dllikGPsep(GPsep *gpsep, double *ab, double *dllik)
  *
  * batch calculation of the first derivative
  * of the log likelihood of a gp, with respect to the 
- * NUGGET parameter, d
+ * NUGGET parameter, g
  *
- * cut code from dllikGP_nug involving 2nd derivative
  */
 
 void dllikGPsep_nug(GPsep *gpsep, double *ab, double *dllik, double *d2llik)
@@ -808,7 +806,6 @@ void newparamsGPsep(GPsep* gpsep, double *d, const double g)
 #endif
     MYprintf(MYstdout, "d =");
     printVector(gpsep->d, m, MYstdout, HUMAN);
-    MYprintf(MYstdout, "\n");
     error("bad Cholesky decomp (info=%d), g=%g", info, g);
   }
   gpsep->ldetK = log_determinant_chol(Kchol, n);
@@ -1081,7 +1078,7 @@ void mleGPsep_R(/* inputs */
     error("derivative info not in gpsep; use newGPsep with dK=TRUE");  
 
   /* call C-side MLE */
-  dupv(mle_out, gpsep->d, gpsep->m);
+  /* dupv(mle_out, gpsep->d, gpsep->m); */ /* duplicated first thing in mleGPsep */ 
   mleGPsep(gpsep, dmin_in, dmax_in, ab_in, *maxit_in, *verb_in, mle_out,
            its_out, *msg_out, conv_out, 1);
 }
@@ -1627,7 +1624,7 @@ void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *mean,
 
   /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
   k = new_matrix(n, nn);
-  covar_sep(m, gpsep->X, n, XX, nn, gpsep->d, 0.0, k);
+  covar_sep(m, gpsep->X, n, XX, nn, gpsep->d, k);
   /* Sigma <- covar(X1=XX, d=Zt$d, g=Zt$g) */
   covar_sep_symm(m, XX, nn, gpsep->d, gpsep->g, Sigma);
   
@@ -1651,7 +1648,7 @@ void new_predutilGPsep_lite(GPsep *gpsep, unsigned int nn, double **XX,
 {
   /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
   *k = new_matrix(gpsep->n, nn);
-  covar_sep(gpsep->m, gpsep->X, gpsep->n, XX, nn, gpsep->d, 0.0, *k);
+  covar_sep(gpsep->m, gpsep->X, gpsep->n, XX, nn, gpsep->d, *k);
   
   /* call generic function that would work for all GP covariance specs */
   new_predutil_generic_lite(gpsep->n, gpsep->Ki, nn, *k, ktKi, ktKik);
@@ -1690,6 +1687,8 @@ void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, double *mean,
   /* *df = n - m - 1.0; */  /* only if estimating beta */
   if(sigma2) {
     phidf = gpsep->phi/(*df);
+    // printVector(ktKik, nn, MYstdout, MACHINE);
+    // MYprintf(MYstdout, "phi=%g, df=%g, phidf=%g, g=%g\n", gpsep->phi, *df, phidf, gpsep->g);
     for(i=0; i<nn; i++) sigma2[i] = phidf * (1.0 + gpsep->g - ktKik[i]);
   }
 
@@ -1782,7 +1781,8 @@ void alGPsep_R(/* inputs */
        double *lambda_in,
        double *alpha_in,
        double *ymin_in,
-       int *nomax_in,
+       int *slack_in,
+       double *equal_in,
        int *N_in,
        
        /* outputs */
@@ -1850,15 +1850,15 @@ void alGPsep_R(/* inputs */
   GetRNGstate();
 
   /* use mu and s to calculate EI and EY */
-  if(*nomax_in >= 0) {
+  if(!(*slack_in)) {
     MC_al_eiey(ncgpseps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
-      lambda_in, *alpha_in, *ymin_in, *nomax_in, *N_in, eys_out, eis_out);
+      lambda_in, *alpha_in, *ymin_in, equal_in, *N_in, eys_out, eis_out);
   } else {
     /* MC_alslack_eiey(ncgpseps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
-      lambda_in, alpha_in, *ymin_in, *N_in, eys_out, eis_out); */
+      lambda_in, alpha_in, *ymin_in, equal_in, *N_in, eys_out, eis_out); */
     if(nknown > 0) error("slack not implemented for nknown > 0");
     calc_alslack_eiey(ncgpseps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
-      lambda_in, *alpha_in, *ymin_in, eys_out, eis_out);
+      lambda_in, *alpha_in, *ymin_in, equal_in, eys_out, eis_out);
   }
 
   PutRNGstate();
@@ -1908,7 +1908,7 @@ void alcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand,
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
-  covar_sep(m, Xref, nref, gpsep->X, n, gpsep->d, 0.0, k);
+  covar_sep(m, Xref, nref, gpsep->X, n, gpsep->d, k);
   
   /* utility allocations */
   Gmui = new_matrix(n, n);
@@ -2023,7 +2023,7 @@ void alcGPsep_omp(GPsep *gpsep, unsigned int ncand, double **Xcand, unsigned int
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
-  covar_sep(m, Xref, nref, gpsep->X, n, gpsep->d, 0.0, k);
+  covar_sep(m, Xref, nref, gpsep->X, n, gpsep->d, k);
   
   #pragma omp parallel
   {
@@ -2242,7 +2242,7 @@ double* alcrayGPsep(GPsep *gpsep, double **Xref, const unsigned int nump,
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   info.k = new_matrix(1, n);
-  covar_sep(m, Xref, 1, gpsep->X, n, gpsep->d, 0.0, info.k);
+  covar_sep(m, Xref, 1, gpsep->X, n, gpsep->d, info.k);
   
   /* utility allocations */
   info.Gmui = new_matrix(n, n);

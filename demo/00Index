@@ -1,2 +1,4 @@
 calib	modularized calibration example from vignette
-ALfhat	augmented Lagrangian method with unknown objective
+ALfhat	2d "toy" AL problem augmented with unknown objective
+GSBP	2d slack AL with unknown objective and mixed constraints
+LAH	4d slack AL with mixed constraints

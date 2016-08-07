@@ -19,7 +19,7 @@
 %\VignetteDepends{laGP,MASS,lhs,akima,tgp}
 %\VignettePackage{laGP}
 
-\author{Robert B. Gramacy\\The University of Chicago\\Booth School of Business}
+\author{Robert B. Gramacy\\Virginia Tech\\Department of Statistics}
 \title{\pkg{laGP}: Large-Scale Spatial Modeling via Local 
 Approximate Gaussian Processes in \proglang{R}}
 
@@ -64,12 +64,12 @@ Approximate Gaussian Processes in \proglang{R}}
 %% in the following format:
 \Address{
   Robert B. Gramacy\\
-  Booth School of Business\\
-  The University of Chicago\\
-  5807 S.~Woodlawn Ave\\
-  Chicago, IL 60605 USA\\
-  E-mail: \email{rbgramacy@chicagobooth.edu}\\
-  URL: \url{http://faculty.chicagobooth.edu/robert.gramacy/}
+  Department of Statistics\\
+  Virginia Tech\\
+  250 Drillfield Drive\\
+  Blacksburg, VA 24061 USA\\
+  E-mail: \email{rbg@vt.edu}\\
+  URL: \url{http://bobby.gramacy.com}
 }
 %% It is also possible to add a telephone and fax number
 %% before the e-mail in the following format:
@@ -388,7 +388,7 @@ smaller, $n$-sized, matrices will bring a big computational savings with
 little impact on accuracy.
 
 This is a sensible idea:  It can be shown to induce a valid stochastic process
-\citep{datta:etal:2014}; when $n \ll 1000$ the method is fast and accurate,
+\citep{datta:etal:2015}; when $n \ll 1000$ the method is fast and accurate,
 and as $n$ grows the predictions increasingly resemble their full $N$-data
 counterparts; and, for smaller $n$, $V_n(x)$ is organically inflated relative
 to $V_N(x)$, acknowledging greater uncertainty in approximation.  The simplest
@@ -546,7 +546,7 @@ are in the upper-left quadrant of the space.
 It is perhaps intriguing that the greedy local designs differ from NN ones. An
 exponentially decaying $K_\theta(\cdot, \cdot)$, like our isotropic Gaussian
 choice, should substantially devalue locations far from $x$.
-\citet{gramacy:haaland:2014} offer an explanation, which surprisingly has
+\citet{gramacy:haaland:2015} offer an explanation, which surprisingly has
 little to do with the particular choice of $K_\theta$. The explanation lies
 the form of Equation~\ref{eq:dxy}. Although quadratic in $K_\theta(x_{j+1},
 x)$, the ``distance'' between the $x$ and the potential new local design
@@ -885,7 +885,7 @@ the \pkg{laGP} package.  For more details see Appendix \ref{sec:gpu}. For best
 results, enabling \code{OpenMP} support [Appendix \ref{sec:omp}] is also
 recommended.
 
-Finally, \citet{gramacy:haaland:2014} suggested that the discrete and exhaustive
+Finally, \citet{gramacy:haaland:2015} suggested that the discrete and exhaustive
 nature of search could be bypassed all together.  They studied the topology
 of the reduction in variance landscape---the spatial surface searched in Step 2(b)
 via Equation \ref{eq:dxy}---and observed that many regularities persist over choices
@@ -935,7 +935,7 @@ p <- rbind(p, c(p.alcray$mean, p.alcray$s2, p.alcray$df))
 rownames(p)[3] <- c("alcray")
 p
 @
-\citeauthor{gramacy:haaland:2014} recommend using $p$ rays per greedy search
+\citeauthor{gramacy:haaland:2015} recommend using $p$ rays per greedy search
 iteration, where $p$ is the dimension of the input space.  However this can be
 adjusted with the \code{numrays} argument, fine-tuning the exhaustiveness of
 search relative to the computational expense.
@@ -1155,7 +1155,7 @@ commented that $N=10000$ was the limit that CSC could accommodate on their
 machine due to memory swapping issues.  Moreover, the \code{laGP} method,
 despite restrictions to local isotropy, is competitive with, and often
 outperforms, comparators which model spatial correlations separably.  CSC is
-one example.  \citet{gramacy:haaland:2014} provide a detailed case study along
+one example.  \citet{gramacy:haaland:2015} provide a detailed case study along
 these lines, including hybrid global/local approaches like those described in
 the following subsection.
 
@@ -1163,7 +1163,7 @@ The best methods, based on a larger local neighborhood and ray-based search,
 point to an impressive emulation capability. In a time that is comparable to a
 plain NN-based emulation strategy (with local inference for
 $\hat{\theta}_n(x)$; i.e., \code{nn} in the table), a greedy design is three
-times more accurate out-of-sample.  \citet{gramacy:haaland:2014} show that the
+times more accurate out-of-sample.  \citet{gramacy:haaland:2015} show that the
 trend continues as $N$ is increased, indicating the potential for extremely
 accurate emulation on testing and training sets of size $N > 1$M in a few
 hours.  Pairing with cluster-style distribution, across 96 16-CPU nodes, that
@@ -1978,6 +1978,11 @@ objective and two constraints with GP predictors, together with an EI
 calculation on an AL predictive composite.  The demo shows how the new,
 statistical, AL method outperforms the non-statistical analog.
 
+\section*{Acknowledgments}
+
+Most of the work for this article was completed while the author was in the
+Booth School of Business at The University of Chicago.  The author
+is grateful for partial support from National Science Foundation grant DMS-1521702.
 
 \appendix
 
@@ -2031,7 +2036,7 @@ Here we provide hints for enabling the parallelization hooks, via \pkg{OpenMP}
 for multi-core machines and \proglang{CUDA} for graphics cards.  The package
 also includes some wrapper functions, like \code{aGP.parallel}, which allow a
 large predictive set to be divvied up amongst multiple nodes in a cluster
-established via the \pkg{parallel} \citep{parallel} or \pkg{snow} \citep{snow}
+established via the \pkg{parallel} or \pkg{snow} \citep{snow}
 packages.
 
 \subsection[With OpenMP support for parallelization]{With \pkg{OpenMP} for SMP parallelization}

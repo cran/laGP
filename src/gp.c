@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301  USA
  *
- * Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+ * Questions? Contact Robert B. Gramacy (rbg@vt.edu)
  *
  ****************************************************************************/
 
@@ -1252,7 +1252,7 @@ void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
 
     /* calculate the Bartlet quantities */
     calc_g_mui_kxy(m, x, gp->X, n, gp->Ki, NULL, 0, gp->d, 
-		               gp->g, gvec, &mui, kx, NULL);
+		   gp->g, gvec, &mui, kx, NULL);
 
     /* Gmui = g %*% t(g)/mu */
     linalg_dgemm(CblasNoTrans,CblasTrans,n,n,1,
@@ -1405,7 +1405,7 @@ void predGP(GP* gp, const unsigned int nn, double **XX, double *mean,
 
   /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
   k = new_matrix(n, nn);
-  covar(m, gp->X, n, XX, nn, gp->d, 0.0, k);
+  covar(m, gp->X, n, XX, nn, gp->d, k);
 
   /* Sigma <- covar(X1=XX, d=Zt$d, g=Zt$g) */
   covar_symm(m, XX, nn, gp->d, gp->g, Sigma);
@@ -1468,7 +1468,7 @@ void new_predutilGP_lite(GP *gp, unsigned int nn, double **XX, double ***k,
 {
   /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
   *k = new_matrix(gp->n, nn);
-  covar(gp->m, gp->X, gp->n, XX, nn, gp->d, 0.0, *k);
+  covar(gp->m, gp->X, gp->n, XX, nn, gp->d, *k);
   
   /* call generic function that would work for all GP covariance specs */
   new_predutil_generic_lite(gp->n, gp->Ki, nn, *k, ktKi, ktKik);
@@ -1713,7 +1713,7 @@ double* alcrayGP(GP *gp, double **Xref, const unsigned int nump,
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   info.k = new_matrix(1, n);
-  covar(m, Xref, 1, gp->X, n, gp->d, 0.0, info.k);
+  covar(m, Xref, 1, gp->X, n, gp->d, info.k);
   
   /* utility allocations */
   info.Gmui = new_matrix(n, n);
@@ -1929,7 +1929,7 @@ void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
-  covar(m, Xref, nref, gp->X, n, gp->d, 0.0, k);
+  covar(m, Xref, nref, gp->X, n, gp->d, k);
   
   /* utility allocations */
   Gmui = new_matrix(n, n);
@@ -1943,7 +1943,7 @@ void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
     
     /* calculate the g vector, mui, and kxy */
     calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d, 
-		               gp->g, gvec, &mui, kx, kxy);
+		   gp->g, gvec, &mui, kx, kxy);
 
     /* skip if numerical problems */
     if(mui <= SDEPS) {
@@ -1991,7 +1991,7 @@ void alcGP_omp(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
-  covar(m, Xref, nref, gp->X, n, gp->d, 0.0, k);
+  covar(m, Xref, nref, gp->X, n, gp->d, k);
   
   #pragma omp parallel
   {
@@ -2023,7 +2023,7 @@ void alcGP_omp(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
     
       /* calculate the g vector, mui, and kxy */
       calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d, 
-                    gp->g, gvec, &mui, kx, kxy);
+                     gp->g, gvec, &mui, kx, kxy);
 
       /* skip if numerical problems */
       if(mui <= SDEPS) {
@@ -2112,7 +2112,7 @@ void alcGP_gpu(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, gp->n);
-  covar(gp->m, Xref, nref, gp->X, gp->n, gp->d, 0.0, k);
+  covar(gp->m, Xref, nref, gp->X, gp->n, gp->d, k);
 
   alc_gpu(gp->d, gp->g, gp->phi, gp->m, gp->n, *(gp->X), *(gp->Ki), ncand, 
           *Xcand, nref, *Xref, *k, alc, omp_threadnum);
@@ -2353,7 +2353,8 @@ void alGP_R(/* inputs */
        double *lambda_in,
        double *alpha_in,
        double *ymin_in,
-       int *nomax_in,
+       int *slack_in,
+       double *equal_in,
        int *N_in,
        
        /* outputs */
@@ -2411,14 +2412,14 @@ void alGP_R(/* inputs */
   GetRNGstate();
 
   /* use mu and s to calculate EI and EY */
-  if(*nomax_in >= 0) {
+  if(!(*slack_in)) {
     MC_al_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
-      lambda_in, *alpha_in, *ymin_in, *nomax_in, *N_in, eys_out, eis_out);
+      lambda_in, *alpha_in, *ymin_in, equal_in, *N_in, eys_out, eis_out);
   } else {
     /* MC_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
-      lambda_in, *alpha_in, *ymin_in, *N_in, eys_out, eis_out); */
+      lambda_in, *alpha_in, *ymin_in, equal_in, *N_in, eys_out, eis_out); */
     calc_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
-      lambda_in, *alpha_in, *ymin_in, eys_out, eis_out);
+      lambda_in, *alpha_in, *ymin_in, equal_in, eys_out, eis_out);
   } 
 
   PutRNGstate();

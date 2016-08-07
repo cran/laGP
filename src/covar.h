@@ -5,7 +5,7 @@
 void covar_symm(const int col, double **X, const int n, 
                 double d, double g, double **K);
 void covar(const int col, double **X1, const int n1, double **X2,
-	   const int n2, double d, double g, double **K);
+	   const int n2, double d, double **K);
 void diff_covar_symm(const int col, double **X, const int n, 
                      double d, double **dK, double **d2K);
 void diff_covar(const int col, double **X1, const int n1, double **X2,
@@ -21,7 +21,7 @@ void dist2covar_symm_R(double *D_in, int *n_in, double *d_in,
 		       double *g_in, double *K_out);
 void calc_g_mui_kxy(const int col, double *x, double **X, 
 		    const int n, double **Ki, double **Xref, 
-		    const int m, double d, const double g, double *gvec, 
-        	double *mui, double *kx, double *kxy);
+		    const int m, double d, double g, double *gvec, 
+        	    double *mui, double *kx, double *kxy);
 #endif
 

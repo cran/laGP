@@ -1,0 +1,20 @@
+bibentry(bibtype = "Article",
+  title        = "{laGP}: Large-Scale Spatial Modeling via Local Approximate Gaussian Processes in {R}",
+  author       = person(given = c("Robert", "B."),
+                        family = "Gramacy",
+                        email = "rbg@vt.edu"),
+  journal      = "Journal of Statistical Software",
+  year         = "2016",
+  volume       = "72",
+  number       = "1",
+  pages        = "1--46",
+  doi          = "10.18637/jss.v072.i01",
+
+  header       = "To cite laGP in publications use:",
+  textVersion  =
+  paste("Robert B. Gramacy (2016).",
+        "laGP: Large-Scale Spatial Modeling via Local Approximate Gaussian Processes in R.",
+        "Journal of Statistical Software, 72(1), 1-46.",
+        "doi:10.18637/jss.v072.i01")
+)
+

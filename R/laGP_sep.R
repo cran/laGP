@@ -17,7 +17,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 #
-# Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+# Questions? Contact Robert B. Gramacy (rbg@vt.edu)
 #
 #*******************************************************************************
 
@@ -27,7 +27,7 @@
 ##
 ## C-version of sequential design loop for prediction at Xref
 
-laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
+laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
                  method=c("alc", "alcray", "nn"), Xi.ret=TRUE, 
                  close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
                  numrays=ncol(X), rect=NULL, verb=0)
@@ -138,7 +138,7 @@ laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 ## much slower than the C-version (laGPsep) is that it must pass/copy
 ## a big X-matrix each time it is called
 
-laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
+laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
                    method=c("alc", "alcray", "nn"), 
                    Xi.ret=TRUE, pall=FALSE, 
                    close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
@@ -275,7 +275,7 @@ laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/1000,
 ## the main reason this is much slower than the C-version (aGPsep) is 
 ## that it must pass/copy a big X-matrix each time it is called
 
-aGPsep.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
+aGPsep.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
                   method=c("alc", "alcray", "nn"), Xi.ret=TRUE, 
                   close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
                   numrays=ncol(X), laGPsep=laGPsep.R, verb=1)
@@ -392,7 +392,7 @@ aGPsep.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
 ## using C: loops over all predictive locations XX and obtains adaptive
 ## approx kriging equations for each based on localized subsets of (X,Z)
 
-aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/1000,
+aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
                 method=c("alc", "alcray", "nn"), Xi.ret=TRUE, 
                 close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
                 numrays=ncol(X), omp.threads=1, verb=1)

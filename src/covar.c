@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301  USA
  *
- * Questions? Contact Robert B. Gramacy (rbgramacy@chicagobooth.edu)
+ * Questions? Contact Robert B. Gramacy (rbg@vt.edu)
  *
  ****************************************************************************/
 
@@ -68,7 +68,7 @@ void covar_symm(const int col, double **X, const int n,
  */
 
 void covar(const int col, double **X1, const int n1, double **X2,
-	   const int n2, double d, double g, double **K)
+	   const int n2, double d, double **K)
 {
   int i, j, k;
 
@@ -77,8 +77,7 @@ void covar(const int col, double **X1, const int n1, double **X2,
     for(j=0; j<n2; j++) {
       K[i][j] = 0.0;
       for(k=0; k<col; k++) K[i][j] += sq(X1[i][k] - X2[j][k]);
-      if(K[i][j] == 0.0) K[i][j] = 1.0 + g;
-      else K[i][j] = exp(0.0 - K[i][j]/d);
+      K[i][j] = exp(0.0 - K[i][j]/d);
     }
 }
 
@@ -221,7 +220,7 @@ void distance_symm_R(double *X_in, int *n_in, int *m_in, double *D_out)
     for(j=i+1; j<n; j++) {
       D[i][j] = 0.0;
       for(k=0; k<m; k++) 
-	      D[i][j] += sq(X[i][k] - X[j][k]);
+	D[i][j] += sq(X[i][k] - X[j][k]);
         D[j][i] = D[i][j];
     }
   }
@@ -322,7 +321,7 @@ void dist2covar_symm_R(double *D_in, int *n_in, double *d_in,
 
 void calc_g_mui_kxy(const int col, double *x, double **X, 
         const int n, double **Ki, double **Xref, 
-        const int m, double d, const double g, double *gvec, 
+        const int m, double d, double g, double *gvec, 
         double *mui, double *kx, double *kxy)
 {
   double mu_neg;
@@ -332,9 +331,9 @@ void calc_g_mui_kxy(const int col, double *x, double **X,
   if(m == 0) assert(!kxy && !Xref);
 
   /* kx <- drop(covar(X1=pall$X, X2=x, d=Zt$d, g=Zt$g)) */
-  covar(col, &x, 1, X, n, d, g, &kx);
+  covar(col, &x, 1, X, n, d, &kx);
   /* kxy <- drop(covar(X1=x, X2=Xref, d=Zt$d, g=0)) */
-  if(m > 0) covar(col, &x, 1, Xref, m, d, 0.0, &kxy);
+  if(m > 0) covar(col, &x, 1, Xref, m, d, &kxy);
 
   /* Kikx <- drop(util$Ki %*% kx) stored in gvex */
   linalg_dsymv(n,1.0,Ki,n,kx,1,0.0,gvec,1);

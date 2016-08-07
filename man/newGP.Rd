@@ -87,7 +87,7 @@ updateGPsep(gpsepi, X, Z, verb = 0)
   \url{http://arxiv.org/abs/1303.0383}
 }
 \author{
-  Robert B. Gramacy \email{rbgramacy@chicagobooth.edu}
+  Robert B. Gramacy \email{rbg@vt.edu}
 }
 
 \seealso{
