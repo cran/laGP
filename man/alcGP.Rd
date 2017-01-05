@@ -5,6 +5,8 @@
 \alias{alcrayGPsep}
 \alias{mspeGP}
 \alias{fishGP}
+\alias{ieciGP}
+\alias{ieciGPsep}
 
 \title{
   Improvement statistics for sequential or local design
@@ -22,6 +24,8 @@ alcGPsep(gpsepi, Xcand, Xref = Xcand, parallel = c("none", "omp", "gpu"),
       verb = 0)
 alcrayGP(gpi, Xref, Xstart, Xend, verb = 0)
 alcrayGPsep(gpsepi, Xref, Xstart, Xend, verb = 0)
+ieciGP(gpi, Xcand, fmin, Xref = Xcand, w = NULL, verb = 0)
+ieciGPsep(gpsepi, Xcand, fmin, Xref = Xcand, w = NULL, verb = 0)
 mspeGP(gpi, Xcand, Xref = Xcand, fi = TRUE, verb = 0)
 fishGP(gpi, Xcand)
 }
@@ -41,6 +45,12 @@ fishGP(gpi, Xcand)
    (or other) criteria is (are) evaluated.  In the context of
    \code{\link{laGP}}, these are the possible locations for adding
    into the current local design
+}
+\item{fmin}{ for \code{ieci*} only: a scalar value indicating the 
+  value of the best minimum found so far.  This is usually set to 
+  the minimum of the \code{Z}-values stored in the \code{gpi} or 
+  \code{gpsepi} reference (for deterministic/low nugget settings),
+  or otherwise the predicted mean value at the \code{X} locations  
 }
 \item{Xref}{
    a \code{matrix} or \code{data.frame} containing a design of
@@ -74,6 +84,8 @@ fishGP(gpi, Xcand)
   for error checking against the other functions, \code{alcGP} and \code{fishGP},
   since the constituent parts are separately available via those functions
 }
+\item{w}{ weights on the reference locations \code{Xref} for IECI calculations;
+  IECI is not fully documented at this time}
 \item{verb}{
   a positive integer specifying the verbosity level; \code{verb = 0}
   is quiet, and larger values cause more progress information to be
@@ -94,6 +106,9 @@ fishGP(gpi, Xcand)
 
   \code{alcrayGP} and \code{alcrayGPsep} allows only one reference location 
   (\code{nrow(Xref) = 1}).  
+
+  Note that \code{ieciGP} and \code{ieciGPsep} are alpha functionality and are
+  not fully documented at this time
 }
 \value{
   A vector of length \code{nrow(Xcand)} is returned filled with values

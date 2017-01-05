@@ -343,7 +343,7 @@ mleGPsep <- function(gpsepi, param=c("d", "g"),
                 ab = as.double(ab),
                 par = double(m),
                 counts = integer(2),
-                msg = character(1),
+                msg = strrep("0", 60),
                 convergence = integer(1),
                 package = "laGP")
 
@@ -700,6 +700,43 @@ alcGPsep <- function(gpsepi, Xcand, Xref=Xcand,
     
     return(out$alcs)
   }
+
+
+## ieciGPsep:
+##
+## wrapper used to calculate the IECIs in C using
+## the pre-stored separable GP representation.  
+
+ieciGPsep <- function(gpsepi, Xcand, fmin, Xref=Xcand, w=NULL, verb=0)
+  {
+    m <- ncol(Xcand)
+    if(ncol(Xref) != m) stop("Xcand and Xref have mismatched cols")
+    ncand <- nrow(Xcand)
+    nref <- nrow(Xref)
+    if(is.null(w)) wb <- 0
+    else {
+      wb <- 1
+      if(length(w) != nref || any(w < 0)) 
+        stop("w must be a non-negative vector of length nrow(Xref)")
+    }
+
+    out <- .C("ieciGPsep_R",
+              gpsepi = as.integer(gpsepi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              fmin = as.double(fmin),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(nref),
+              w = as.double(w),
+              wb = as.integer(wb),
+              verb = as.integer(verb),
+              iecis = double(ncand),
+              PACKAGE = "laGP")
+    
+    return(out$iecis)
+  }
+
 
 
 ## mleGPsep.switch:

@@ -116,7 +116,7 @@ progress measures; ignored if there are no equality constraints }
     a scalar proportion indicating how many of the EIs
     at \code{ncandf(t)} candidate locations must be non-zero to \dQuote{trust}
      that metric to guide search, reducing to an EY-based search instead 
-     [choosing that proportion to be zero forces EY-based search]
+     [choosing that proportion to be one forces EY-based search]
 }
   \item{N}{
     positive scalar integer indicating the number of Monte Carlo samples to be

@@ -1875,6 +1875,145 @@ void alGPsep_R(/* inputs */
 
 
 /*
+ * ieciGPsep:
+ *
+ * calculate the integrated expected conditional improvement 
+ * at locations Xcand averaging over reference locations Xref: 
+ * similar structure to ALC, except with expected improvement
+ * rather than reduction invariance
+ */
+
+void ieciGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand, 
+  double fmin, unsigned int nref, double **Xref, double *w, int verb, double *ieci)
+{
+  unsigned int m, n;
+  int i;
+  double **k, **Gmui;
+  double *kx, *kxy, *gvec, *ktKik, *ktKikx, *ktGmui, *pmref;
+  double mui, df;
+  double s2p[2] = {0, 0};
+
+  /* degrees of freedom */
+  m = gpsep->m;
+  n = gpsep->n;
+  /* df = (double) n; */
+
+  /* allocate g, kxy, and ktKikx vectors */
+  gvec = new_vector(n);
+  kxy = new_vector(nref);
+  kx = new_vector(n);
+  ktKikx = new_vector(nref);
+
+  /* calculate Xref predictive quantities */
+  pmref = new_vector(nref);
+  ktKik = new_vector(nref);
+  /* this is a little inefficit since both ktKik and k (used below) are 
+   * calculated inside predGPsep_lite as intermediate steps */
+  predGPsep_lite(gpsep, nref, Xref, pmref, ktKik, &df, NULL);
+  for(i=0; i<nref; i++) ktKik[i] = 1.0 + gpsep->g - (df/gpsep->phi)*ktKik[i];
+
+  /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
+  k = new_matrix(nref, n);
+  covar_sep(m, Xref, nref, gpsep->X, n, gpsep->d, k);
+  
+  /* utility allocations */
+  Gmui = new_matrix(n, n);
+  ktGmui = new_vector(n);
+
+  /* calculate the ALC for each candidate */
+  for(i=0; i<ncand; i++) {
+
+    /* progress meter */
+    if(verb > 0) MYprintf(MYstdout, "calculating ALC for point %d of %d\n", 
+                    verb, i, ncand);
+    
+    /* calculate the g vector, mui, and kxy */
+    calc_g_mui_kxy_sep(m, Xcand[i], gpsep->X, n, gpsep->Ki, Xref, nref, 
+      gpsep->d, gpsep->g, gvec, &mui, kx, kxy);
+
+    /* skip if numerical problems */
+    if(mui <= SDEPS) {
+      ieci[i] = 1e300 * 1e300;
+      continue;
+    }
+
+    /* use g, mu, and kxy to calculate ktKik.x */
+    calc_ktKikx(ktKik, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
+        
+    /* calculate the IECI */
+    ieci[i] = calc_ieci(nref, ktKikx, s2p, gpsep->phi, gpsep->g, NULL, pmref, df, fmin, w);
+  }
+
+  /* clean up */
+  delete_matrix(Gmui);
+  free(ktGmui);
+  free(ktKikx);
+  free(gvec);
+  free(kx);
+  free(kxy);
+  free(pmref);
+  free(ktKik);
+  delete_matrix(k);
+}
+
+
+/*
+ * ieciGPsep_R:
+ *
+ * R interface to C-side function that calculates the 
+ * integrated expected conditional improvement 
+ * at locations Xcand averaging over reference locations Xref: 
+ * similar structure to ALC, except with expected improvement
+ * rather than reduction invariance
+ */
+
+void ieciGPsep_R(
+      /* inputs */
+      int *gpsepi_in,
+      int *m_in,
+      double *Xcand_in,
+      int *ncand_in,
+      double *fmin_in,
+      double *Xref_in,
+      int *nref_in,
+      double *w_in,
+      int *wb_in,
+      int *verb_in,
+       
+       /* outputs */
+      double *ieci_out)
+{
+  GPsep *gpsep;
+  unsigned int gpsepi;
+  double **Xcand, **Xref;
+
+  /* get the gp */
+  gpsepi = *gpsepi_in;
+  if(gpseps == NULL || gpsepi >= NGPsep || gpseps[gpsepi] == NULL) 
+    error("gpsep %d is not allocated\n", gpsepi);
+  gpsep = gpseps[gpsepi];
+  if((unsigned) *m_in != gpsep->m) 
+    error("ncol(X)=%d does not match GPsep/C-side (%d)", *m_in, gpsep->m);
+
+  /* check for null w */
+  if(! *wb_in) w_in = NULL;
+
+  /* make matrix bones */
+  Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
+  Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
+
+  /* call the C-only function */
+  ieciGPsep(gpsep, *ncand_in, Xcand, *fmin_in, *nref_in, Xref,
+    w_in, *verb_in, ieci_out);
+
+  /* clean up */
+  free(Xcand);
+  free(Xref);
+}
+
+
+
+/*
  * alcGPsep:
  *
  * return s2' component of the ALC calculation of the

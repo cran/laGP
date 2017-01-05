@@ -1603,6 +1603,145 @@ void predGP_R(/* inputs */
 }
 
 
+
+/*
+ * ieciGP:
+ *
+ * calculate the integrated expected conditional improvement 
+ * at locations Xcand averaging over reference locations Xref: 
+ * similar structure to ALC, except with expected improvement
+ * rather than reduction invariance
+ */
+
+void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
+  unsigned int nref, double **Xref, double *w, int verb, double *ieci)
+{
+  unsigned int m, n;
+  int i;
+  double **k, **Gmui;
+  double *kx, *kxy, *gvec, *ktKik, *ktKikx, *ktGmui, *pmref;
+  double mui, df;
+  double s2p[2] = {0, 0};
+
+  /* degrees of freedom */
+  m = gp->m;
+  n = gp->n;
+  /* df = (double) n; */
+
+  /* allocate g, kxy, and ktKikx vectors */
+  gvec = new_vector(n);
+  kxy = new_vector(nref);
+  kx = new_vector(n);
+  ktKikx = new_vector(nref);
+
+  /* calculate Xref predictive quantities */
+  pmref = new_vector(nref);
+  ktKik = new_vector(nref);
+  /* this is a little inefficit since both ktKik and k (used below) are 
+   * calculated inside predGP_lite as intermediate steps */
+  predGP_lite(gp, nref, Xref, pmref, ktKik, &df, NULL);
+  for(i=0; i<nref; i++) ktKik[i] = 1.0 + gp->g - (df/gp->phi)*ktKik[i];
+
+  /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
+  k = new_matrix(nref, n);
+  covar(m, Xref, nref, gp->X, n, gp->d, k);
+  
+  /* utility allocations */
+  Gmui = new_matrix(n, n);
+  ktGmui = new_vector(n);
+
+  /* calculate the ALC for each candidate */
+  for(i=0; i<ncand; i++) {
+
+    /* progress meter */
+    if(verb > 0) MYprintf(MYstdout, "calculating ALC for point %d of %d\n", 
+                    verb, i, ncand);
+    
+    /* calculate the g vector, mui, and kxy */
+    calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, 
+      gp->d, gp->g, gvec, &mui, kx, kxy);
+
+    /* skip if numerical problems */
+    if(mui <= SDEPS) {
+      ieci[i] = 1e300 * 1e300;
+      continue;
+    }
+
+    /* use g, mu, and kxy to calculate ktKik.x */
+    calc_ktKikx(ktKik, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
+        
+    /* calculate the IECI */
+    ieci[i] = calc_ieci(nref, ktKikx, s2p, gp->phi, gp->g, NULL, pmref, df, fmin, w);
+  }
+
+  /* clean up */
+  delete_matrix(Gmui);
+  free(ktGmui);
+  free(ktKikx);
+  free(gvec);
+  free(kx);
+  free(kxy);
+  free(pmref);
+  free(ktKik);
+  delete_matrix(k);
+}
+
+
+/*
+ * ieciGP_R:
+ *
+ * R interface to C-side function that calculates the 
+ * integrated expected conditional improvement 
+ * at locations Xcand averaging over reference locations Xref: 
+ * similar structure to ALC, except with expected improvement
+ * rather than reduction invariance
+ */
+
+void ieciGP_R(
+      /* inputs */
+      int *gpi_in,
+      int *m_in,
+      double *Xcand_in,
+      int *ncand_in,
+      double *fmin_in,
+      double *Xref_in,
+      int *nref_in,
+      double *w_in,
+      int *wb_in,
+      int *verb_in,
+       
+       /* outputs */
+       double *alc_out)
+{
+  GP *gp;
+  unsigned int gpi;
+  double **Xcand, **Xref;
+
+  /* get the gp */
+  gpi = *gpi_in;
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+    error("gp %d is not allocated\n", gpi);
+  gp = gps[gpi];
+  if((unsigned) *m_in != gp->m) 
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
+
+  /* check for null w */
+  if(! *wb_in) w_in = NULL;
+
+  /* make matrix bones */
+  Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
+  Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
+
+  /* call the C-only function */
+  ieciGP(gp, *ncand_in, Xcand, *fmin_in, *nref_in, Xref,
+    w_in, *verb_in, alc_out);
+
+  /* clean up */
+  free(Xcand);
+  free(Xref);
+}
+
+
 /*
  * utility structure for fcnnalc and defined below
  * for use with Brent_fmin (R's optimize) or uniroot

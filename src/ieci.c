@@ -117,7 +117,8 @@ double calc_ieci(const int m, double *ktKik, double *s2p, const double phi,
   ieci = 0.0;
   for(i=0; i<m; i++) {
     zphi = (s2p[1] + phi)*(1.0 + g - ktKik[i]);
-    ts2 = badj[i] * zphi / (s2p[0] + tdf);
+    if(badj) ts2 = badj[i] * zphi / (s2p[0] + tdf);
+    else ts2 = zphi / (s2p[0] + tdf);
     eci = EI(tm[i], ts2, tdf, fmin);
     if(w) ieci += w[i]*eci;
     else ieci += eci;

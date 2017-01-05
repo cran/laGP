@@ -46,7 +46,7 @@ fv[out$c[,1] > 0 | out$c[,2] > 0] <- NA
 fi <- out$obj
 fi[!(out$c[,1] > 0 | out$c[,2] > 0)] <- NA
 plot(0, 0, type="n", xlim=B[1,], ylim=B[2,], xlab="x1", ylab="x2",
-  main="optim.auglag: blue/diamonds; optim: black/triangles")
+  main="AL blue/bullseye/diamonds; optim black/triangles")
 contour(x, x, matrix(out$c[,1], ncol=length(x)), nlevels=1, levels=0, 
   drawlabels=FALSE, add=TRUE, lwd=2)
 contour(x, x, matrix(out$c[,2], ncol=length(x)), nlevels=1, levels=0, 
@@ -62,6 +62,7 @@ v <- apply(out2$C, 1, function(x) { all(x <= 0) })
 X <- out2$X[v,]
 obj <- out2$obj[v]
 xbest <- X[which.min(obj),]
+points(xbest[1], xbest[2], pch=10, col="blue", cex=1.5)
 
 ## Optionally, wrap up by drilling down with a standard AL approach
 

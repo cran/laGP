@@ -389,6 +389,42 @@ predGP <- function(gpi, XX, lite=FALSE)
   }
 
 
+## ieciGP:
+##
+## wrapper used to calculate the IECIs in C using
+## the pre-stored isotropic GP representation.  
+
+ieciGP <- function(gpi, Xcand, fmin, Xref=Xcand, w=NULL, verb=0)
+  {
+    m <- ncol(Xcand)
+    if(ncol(Xref) != m) stop("Xcand and Xref have mismatched cols")
+    ncand <- nrow(Xcand)
+    nref <- nrow(Xref)
+    if(is.null(w)) wb <- 0
+    else {
+      wb <- 1
+      if(length(w) != nref || any(w < 0)) 
+        stop("w must be a non-negative vector of length nrow(Xref)")
+    } 
+
+    out <- .C("ieciGP_R",
+              gpi = as.integer(gpi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              fmin = as.double(fmin),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(ncand),
+              w = as.double(w),
+              wb = as.integer(wb),
+              verb = as.integer(verb),
+              iecis = double(ncand),
+              PACKAGE = "laGP")
+    
+    return(out$iecis)
+  }
+
+
 ## alcGP:
 ##
 ## wrapper used to calculate the ALCs in C using
@@ -593,7 +629,7 @@ alGP <- function(XX, fgpi, fnorm, Cgpis, Cnorms, lambda, alpha, ymin,
       if(is.null(fn)) stop("fn must be provided when fgpi or Cgpis < -1")
       out <- fn(XX*Bscale, known.only=TRUE)
       if(fgpi < 0) {
-        if(is.null(out$obj)) stop("fgpsepi < 0 but out$obj from fn() is NULL")
+        if(is.null(out$obj)) stop("fgpi < 0 but out$obj from fn() is NULL")
         obj <- out$obj
       } else obj <- NULL
       if(any(Cgpis < 0)) {

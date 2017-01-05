@@ -634,8 +634,8 @@ points(uinit)
 points(fcalib.save[,1:2], col = 3, pch = 18)
 u.hat <- outi$solution
 points(u.hat[1], u.hat[2], col = 4, pch = 18)
-abline(v = u[2], lty = 2)
-abline(h = u[1], lty = 2)
+abline(v = u[1], lty = 2)
+abline(h = u[2], lty = 2)
 
 
 ###################################################
@@ -658,7 +658,7 @@ data.frame(u.hat = -outi$objective, u = cmle.u$ll)
 ### code chunk number 58: laGP.Rnw:1864-1868
 ###################################################
 nny <- 1000  
-XX <- lhs(nny, rect[1:2,],)
+XX <- lhs(nny, rect[1:2,])
 ZZu <- M(XX, matrix(u, nrow = 1)) 
 YYtrue <- ZZu + bias(XX) 
 
