@@ -1,10 +1,10 @@
-b35b179f581ba1e1a07896103e878e96 *ChangeLog
-106d14e594924b0b0c829f4a7c0a3bac *DESCRIPTION
+b42164a60a49b08a30a67e7fed02036c *ChangeLog
+8569b9bab4876c358d6e3abd4abec39f *DESCRIPTION
 b8b6faecf4aeb173380b8c4e6620babb *INSTALL
 da378ba8570e5e18da1fe7c3f59265e6 *NAMESPACE
 28369c80bb9d7aa72a4001b3ab83e8ef *R/calib.R
 85c087dcdf9ca4f85966c262645ff2a9 *R/gp.R
-c144d4e5d1a7518d6dc6ad873e6e6f88 *R/gp_sep.R
+dd1fd8c21f35b880be113987e3fd4da5 *R/gp_sep.R
 59507628d1cb8926ed2783e8be5178b4 *R/laGP.R
 f99743c8c777ace636db3b5b7938cbda *R/laGP_sep.R
 4b1b6253f53a8ad2009235b8755a69f1 *R/optim.R
@@ -12,7 +12,7 @@ f99743c8c777ace636db3b5b7938cbda *R/laGP_sep.R
 83a1280c510f6970d6fb7ac2f0966e9e *R/prior.R
 b2841b694e539e3b1e7c2a045f261041 *R/util.R
 6e6e22fb3735c4d55313525891e281b3 *README
-f1ced08199605a1868811e167d410eaa *build/vignette.rds
+162485836d14dabe5442936326cb5b14 *build/vignette.rds
 b30934bc88aa91825e7cd26188d78137 *demo/00Index
 96a778e6cefe06294ea52caad392ebd1 *demo/ALfhat.R
 0951e5d661d8ecddc624570e87fa5de6 *demo/GSBP.R
@@ -21,7 +21,7 @@ ca8e2436107a309e9fc812fe930fb1cd *demo/calib.R
 7e0eea88216babaa052bccd3c4f1a126 *inst/CITATION
 a9e732f0f0f346d364b1ec293bf6f3f2 *inst/doc/laGP.R
 cf0af322b907ec337b02b19d2118be48 *inst/doc/laGP.Rnw
-f34823bb6abf2616dbc9cb0230a957bc *inst/doc/laGP.pdf
+82032125b00d2de9215cfca794afedb4 *inst/doc/laGP.pdf
 2ad0ede6fd83669be893be652bc11153 *man/aGP.Rd
 ec287e1f0cbbc251359801b267fe07d8 *man/alcGP.Rd
 f36b6d848d16d9886bcf6112bdfc347d *man/darg.Rd

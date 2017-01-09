@@ -343,7 +343,7 @@ mleGPsep <- function(gpsepi, param=c("d", "g"),
                 ab = as.double(ab),
                 par = double(m),
                 counts = integer(2),
-                msg = strrep("0", 60),
+                msg = paste(rep(0,60), collapse=""), ## strrep("0", 60), only R > 3.3
                 convergence = integer(1),
                 package = "laGP")
 
