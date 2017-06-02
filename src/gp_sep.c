@@ -868,7 +868,8 @@ void newparamsGPsep_R(/* inputs */
 
 struct callinfo_sep {
   GPsep *gpsep;
-  double *ab;
+  double *dab;
+  double *gab;
   int its;  /* updated but not used since lbfgsb counts fmin and gr evals */
   int verb;
 };
@@ -886,35 +887,88 @@ struct callinfo_sep {
 static double fcnnllik_sep(int n, double *p, struct callinfo_sep *info)
 {
   double llik;
-  int dsame, k;
+  int psame, k, m;
 
   /* sanity check */
-  assert(n == info->gpsep->m);
+  m = info->gpsep->m;
+  assert(n == m || n == m + 1);
+  if(n == m+1) assert(info->gpsep->gab != NULL);
+  else assert(info->gpsep->gab == NULL);
 
   /* check if parameters in p are new */
-  dsame = 1;
-  for(k=0; k<n; k++) if(p[k] != info->gpsep->d[k]) { dsame = 0; break; }
+  psame = 1;
+  for(k=0; k<n; k++) {
+    if(k < m && p[k] != info->gpsep->d[k]) { psame = 0; break; }
+    else if(k >= m && p[k] != info->gpsep->g) { psame = 0; break; }
+  }
 
   /* update GP with new parameters */
-  if(!dsame) {
+  if(!psame) {
     (info->its)++;
-    newparamsGPsep(info->gpsep, p, info->gpsep->g);
+    if(n == m) newparamsGPsep(info->gpsep, p, info->gpsep->g);
+    else newparamsGPsep(info->gpsep, p, p[m]);
   }
 
   /* evaluate likelihood with potentially new paramterization */
-  llik = llikGPsep(info->gpsep, info->ab, NULL);
+  llik = llikGPsep(info->gpsep, info->dab, info->gab);
 
   /* progress meter */
   if(info->verb > 0) {
     MYprintf(MYstdout, "fmin it=%d, d=(%g", info->its, info->gpsep->d[0]);
-    for(k=1; k<n; k++) MYprintf(MYstdout, " %g", info->gpsep->d[k]);
-    MYprintf(MYstdout, "), llik=%g\n", llik);
+    for(k=1; k<m; k++) MYprintf(MYstdout, " %g", info->gpsep->d[k]);
+    if(n == m) MYprintf(MYstdout, "), llik=%g\n", llik);
+    else MYprintf(MYstdout, "), g=%g, llik=%g\n", info->gpsep->g, llik);
   }
 
   /* done */
   return 0.0-llik;
 }
- 
+
+
+/*
+ * fcnngradllik_sep:
+ * 
+ * a utility function for lbfgsb (R's optim with "L-BFGS-B" method) 
+ * evaluating the derivative of separable GP log likelihood after 
+ * changes to the lengthscale and nugget parameter 
+ */
+
+static void fcnngradllik_sep(int n, double *p, double *df, struct callinfo_sep *info)
+{
+  int psame, k, m;
+
+  /* sanity check */
+  m = info->gpsep->m;
+  assert(n == m + 1); 
+
+  /* check if parameters in p are new */
+  psame = 1;
+  for(k=0; k<m; k++) if(p[k] != info->gpsep->d[k]) { psame = 0; break; }
+  if(psame) if(p[m] != info->gpsep->g) { psame = 0; } 
+
+  /* update GP with new parameters */
+  if(!psame) {
+    (info->its)++;
+    newparamsGPsep(info->gpsep, p, p[m]);
+  }
+
+  /* evaluate likelihood with potentially new paramterization */
+  dllikGPsep(info->gpsep, info->dab, df);
+  dllikGPsep_nug(info->gpsep, info->gab, df+m, NULL); 
+
+  /* negate values */
+  for(k=0; k<n; k++) df[k] = 0.0-df[k];
+
+  /* progress meter */
+  if(info->verb > 1) {
+    MYprintf(MYstdout, "grad it=%d, d=(%g", info->its, info->gpsep->d[0]);
+    for(k=1; k<m; k++) MYprintf(MYstdout, " %g", info->gpsep->d[k]);
+    MYprintf(MYstdout, "), g=%g, dd=(%g", info->gpsep->g, df[0]);
+    for(k=1; k<m; k++) MYprintf(MYstdout, " %g", df[k]);
+    MYprintf(MYstdout, "), dg=%g, \n", df[m]);
+  }
+}  
+
 
 /*
  * fcnndllik_sep:
@@ -942,7 +996,7 @@ static void fcnndllik_sep(int n, double *p, double *df, struct callinfo_sep *inf
   }
 
   /* evaluate likelihood with potentially new paramterization */
-  dllikGPsep(info->gpsep, info->ab, df);
+  dllikGPsep(info->gpsep, info->dab, df);
 
   /* negate values */
   for(k=0; k<n; k++) df[k] = 0.0-df[k];
@@ -956,6 +1010,140 @@ static void fcnndllik_sep(int n, double *p, double *df, struct callinfo_sep *inf
     MYprintf(MYstdout, ")\n");
   }
 } 
+
+
+/*
+ * mleGPsep_both:
+ *
+ * update the separable GP to use its MLE separable
+ * lengthscale and multiple nugget parameterization using the current data,
+ * via the lbfgsb function 
+ */
+
+void mleGPsep_both(GPsep* gpsep, double* tmin, double *tmax, double *ab, 
+  const unsigned int maxit, int verb, double *p, int *its, char *msg, 
+  int *conv, int fromR)
+{
+  double rmse;
+  int k, lbfgs_verb;
+  double *told;
+
+  /* create structure for lbfgsb */
+  struct callinfo_sep info;
+  info.gpsep = gpsep;
+  info.dab = ab;
+  info.gab = ab+2;
+  info.its = 0;
+  info.verb = verb-6;
+
+  /* copy the starting value */
+  dupv(p, gpsep->d, gpsep->m);
+  p[gpsep->m] = gpsep->g;
+  told = new_dup_vector(p, gpsep->m + 1);
+
+  if(verb > 0) {
+    MYprintf(MYstdout, "(theta=[%g", p[0]);
+    for(k=1; k<gpsep->m+1; k++) MYprintf(MYstdout, ",%g", p[k]);
+    MYprintf(MYstdout, "], llik=%g) ", llikGPsep(gpsep, ab, ab+2));
+  }
+
+  /* set ifail argument and verb/trace arguments */
+  *conv = 0;
+  if(verb <= 1) lbfgs_verb = 0;
+  else lbfgs_verb = verb - 1;
+
+  /* call the C-routine behind R's optim function with method = "L-BFGS-B" */
+  MYlbfgsb(gpsep->m+1, p, tmin, tmax, 
+         (double (*)(int, double*, void*)) fcnnllik_sep, 
+         (void (*)(int, double *, double *, void *)) fcnngradllik_sep,
+         conv, &info, its, maxit, msg, lbfgs_verb, fromR);
+
+  /* check if parameters in p are new */
+  rmse = 0.0;
+  for(k=0; k<gpsep->m; k++) rmse += sq(p[k] - gpsep->d[k]);
+  if(sqrt(rmse/((double) gpsep->m)) > SDEPS) warning("stored d not same as d-hat");
+  rmse = fabs(p[gpsep->m] - gpsep->g);
+  if(rmse > SDEPS) warning("stored g not same as g-hat");
+  rmse = 0.0;
+  for(k=0; k<gpsep->m+1; k++) rmse += sq(p[k] - told[k]);
+  if(sqrt(rmse/((double) (gpsep->m + 1))) < SDEPS) {
+    sprintf(msg, "lbfgs initialized at minima");
+    *conv = 0;
+    its[0] = its[1] = 0;
+  }
+
+  /* print progress */
+  if(verb > 0) {
+    MYprintf(MYstdout, "-> %d lbfgsb its -> (theta=[%g", its[1], p[0]);
+    for(k=1; k<gpsep->m+1; k++) MYprintf(MYstdout, ",%g", p[k]);
+    MYprintf(MYstdout, "], llik=%g)\n", llikGPsep(gpsep, ab, ab+2));
+  }
+
+  /* clean up */
+  free(told);
+}
+
+
+/*
+ * mleGPsep_both_R:
+ *
+ * R-interface to update the separable GP to use its MLE 
+ * separable lengthscale and multiple nugget 
+ * parameterization using the current data
+ */
+
+void mleGPsep_both_R(/* inputs */
+       int *gpsepi_in,
+       int *maxit_in,
+       int *verb_in,
+       double *tmin_in,
+       double *tmax_in,
+       double *ab_in,
+
+       /* outputs */
+       double *mle_out,
+       int *its_out,
+       char **msg_out,
+       int *conv_out)
+{
+  GPsep *gpsep;
+  unsigned int gpsepi, j;
+
+  /* get the cloud */
+  gpsepi = *gpsepi_in;
+  if(gpseps == NULL || gpsepi >= NGPsep || gpseps[gpsepi] == NULL) 
+    error("gpsep %d is not allocated\n", gpsepi);
+  gpsep = gpseps[gpsepi];
+
+  /* check d against tmax and tmin */
+  for(j=0; j<gpsep->m; j++) { 
+    if(tmin_in[j] <= 0) tmin_in[j] = SDEPS;
+    if(tmax_in[j] <= 0) tmax_in[j] = sq((double) gpsep->m);
+    if(gpsep->d[j] > tmax_in[j]) 
+      error("d[%d]=%g > tmax[%d]=%g\n", j, gpsep->d[j], j, tmax_in[j]);
+    else if(gpsep->d[j] < tmin_in[j]) 
+      error("d[%d]=%g < tmin[%d]=%g\n", j, gpsep->d[j], j, tmin_in[j]);
+  }
+
+  /* check g and tmax */
+  if(tmin_in[gpsep->m] <= 0) tmin_in[gpsep->m] = SDEPS;
+  if(gpsep->g >= tmax_in[gpsep->m]) error("g=%g >= tmax=%g\n", gpsep->g, tmax_in[gpsep->m]);
+  else if(gpsep->g <= tmin_in[gpsep->m]) error("g=%g <= tmin=%g\n", gpsep->g, tmin_in[gpsep->m]);
+
+  /* check a & b */
+  if(ab_in[0] < 0 || ab_in[1] < 0 || ab_in[2] < 0 || ab_in[3] < 0) 
+    error("ab_in must be a positive 4-vector");
+
+  /* double check that derivatives have been calculated */
+  if(!gpsep->dK) 
+    error("derivative info not in gpsep; use newGPsep with dK=TRUE");  
+
+  /* call C-side MLE */
+  /* dupv(mle_out, gp->d, gp->m);
+  dupv(mle_out+gp->m, gp->g, gp->glen); */ /* already done inside mleGP_both */
+  mleGPsep_both(gpsep, tmin_in, tmax_in, ab_in, *maxit_in, *verb_in, mle_out,
+            its_out, *msg_out, conv_out, 1);
+}
 
 
 /*
@@ -978,7 +1166,8 @@ void mleGPsep(GPsep* gpsep, double* dmin, double *dmax, double *ab,
   /* create structure for Brent_fmin */
   struct callinfo_sep info;
   info.gpsep = gpsep;
-  info.ab = ab;
+  info.dab = ab;
+  info.gab = NULL;
   info.its = 0;
   info.verb = verb-6;
 
@@ -1214,7 +1403,7 @@ double mleGPsep_nug(GPsep* gpsep, double tmin, double tmax, double *ab,
 
   while(1) { /* checking for improved llik */
     while(1) {  /* Newton step(s) */
-      llik_new = 0.0-1e300*1e300;
+      llik_new = R_NegInf;
       while(1) {  /* Newton proposal */
 
         /* calculate first and second derivatives */
@@ -1281,7 +1470,7 @@ newtondone:
     llik_new = llikGPsep(gpsep, dab, gab);
     if(llik_new < llik_init-SDEPS) { 
       if(verb > 0) MYprintf(MYstdout, "llik_new = %g\n", llik_new);
-      llik_new = 0.0-1e300*1e300;
+      llik_new = R_NegInf;
       if(!gpsep->dK && restoredKGP == 0) { 
         deletedKGPsep(gpsep); restoredKGP = 1; 
       }
@@ -1337,6 +1526,7 @@ void mleGPsep_nug_R(/* inputs */
 
   /* check theta and tmax */
   if(*tmin_in <= 0) *tmin_in = SDEPS; 
+  if(*tmax_in <= 0) *tmax_in = R_PosInf; 
   if(gpsep->g >= *tmax_in) error("g=%g >= tmax=%g\n", gpsep->g, *tmax_in);
   else if(gpsep->g <= *tmin_in) error("g=%g <= tmin=%g\n", gpsep->g, *tmin_in);
 
@@ -1933,7 +2123,7 @@ void ieciGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand,
 
     /* skip if numerical problems */
     if(mui <= SDEPS) {
-      ieci[i] = 1e300 * 1e300;
+      ieci[i] = R_PosInf;
       continue;
     }
 
@@ -2066,7 +2256,7 @@ void alcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand,
 
     /* skip if numerical problems */
     if(mui <= SDEPS) {
-      alc[i] = 0.0 - 1e300 * 1e300;
+      alc[i] = R_NegInf;
       continue;
     }
 
@@ -2199,7 +2389,7 @@ void alcGPsep_omp(GPsep *gpsep, unsigned int ncand, double **Xcand, unsigned int
 
       /* skip if numerical problems */
       if(mui <= SDEPS) {
-        alc[i] = 0.0 - 1e300 * 1e300;
+        alc[i] = R_NegInf;
         continue;
       }
 
@@ -2321,7 +2511,7 @@ static double fcnnalcsep(double x, struct alcsepinfo *info)
     1, info->gpsep->d, info->gpsep->g, info->gvec, &(info->mui), info->kx, info->kxy);
 
   /* skip if numerical problems */
-  if(info->mui <= SDEPS) alc = 0.0 - 1e300 * 1e300;
+  if(info->mui <= SDEPS) alc = R_NegInf;
   else {
     /* use g, mu, and kxy to calculate ktKik.x */
     calc_ktKikx(NULL, 1, info->k, n, info->gvec, info->mui, info->kxy, info->Gmui, 

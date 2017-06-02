@@ -410,7 +410,7 @@ boxplot(thats, main = "distribution of thetas", xlab = "input",
 
 
 ###################################################
-### code chunk number 37: laGP.Rnw:1275-1281
+### code chunk number 37: laGP.Rnw:1280-1286
 ###################################################
 scales <- sqrt(apply(thats, 2, median))
 xs <- x; xpreds <- xpred
@@ -421,19 +421,19 @@ for(j in 1:ncol(xs)) {
 
 
 ###################################################
-### code chunk number 38: laGP.Rnw:1285-1286
+### code chunk number 38: laGP.Rnw:1290-1291
 ###################################################
 out14 <- aGP(xs, y, xpreds, d=list(start=1, max=20), method="alcray")
 
 
 ###################################################
-### code chunk number 39: laGP.Rnw:1291-1292
+### code chunk number 39: laGP.Rnw:1296-1297
 ###################################################
 sqrt(mean((out14$mean - ypred.0)^2))
 
 
 ###################################################
-### code chunk number 40: laGP.Rnw:1317-1324
+### code chunk number 40: laGP.Rnw:1322-1329
 ###################################################
 library("MASS")
 d <- darg(NULL, mcycle[, 1, drop = FALSE])
@@ -445,7 +445,7 @@ jmleGP(motogp, drange = c(d$min, d$max), grange = c(d$min, d$max),
 
 
 ###################################################
-### code chunk number 41: laGP.Rnw:1329-1334
+### code chunk number 41: laGP.Rnw:1334-1339
 ###################################################
 XX <- matrix(seq(min(mcycle[ ,1]), max(mcycle[ ,1]), length = 100), 
   ncol = 1)
@@ -471,7 +471,7 @@ lines(XX, q2, lty = 2, col = 2, lwd = 2)
 
 
 ###################################################
-### code chunk number 43: laGP.Rnw:1376-1380
+### code chunk number 43: laGP.Rnw:1381-1385
 ###################################################
 X <- matrix(rep(mcycle[ ,1], 10), ncol = 1)
 X <- X + rnorm(nrow(X), sd = 1)
@@ -492,7 +492,7 @@ lines(XX, q2, col = 2, lty = 2, lwd = 2)
 
 
 ###################################################
-### code chunk number 45: laGP.Rnw:1628-1638
+### code chunk number 45: laGP.Rnw:1633-1643
 ###################################################
 M <- function(x,u) 
   {
@@ -507,7 +507,7 @@ M <- function(x,u)
 
 
 ###################################################
-### code chunk number 46: laGP.Rnw:1642-1648
+### code chunk number 46: laGP.Rnw:1647-1653
 ###################################################
 bias <- function(x) 
   {
@@ -518,7 +518,7 @@ bias <- function(x)
 
 
 ###################################################
-### code chunk number 47: laGP.Rnw:1653-1663
+### code chunk number 47: laGP.Rnw:1658-1668
 ###################################################
 library("tgp")
 rect <- matrix(rep(0:1, 4), ncol = 2, byrow = 2)
@@ -533,7 +533,7 @@ Y <- rep(Zu, reps) + rep(bias(X), reps) +
 
 
 ###################################################
-### code chunk number 48: laGP.Rnw:1675-1685
+### code chunk number 48: laGP.Rnw:1680-1690
 ###################################################
 nz <- 10000
 XU <- lhs(nz, rect)
@@ -548,7 +548,7 @@ Z <- M(XU[ ,1:2], XU[ ,3:4])
 
 
 ###################################################
-### code chunk number 49: laGP.Rnw:1697-1701
+### code chunk number 49: laGP.Rnw:1702-1706
 ###################################################
 bias.est <- TRUE
 methods <- rep("alc", 2)
@@ -557,7 +557,7 @@ g <- garg(list(mle = TRUE), Y)
 
 
 ###################################################
-### code chunk number 50: laGP.Rnw:1712-1721
+### code chunk number 50: laGP.Rnw:1717-1726
 ###################################################
 beta.prior <- function(u, a = 2, b = 2, log = TRUE)
 {
@@ -571,7 +571,7 @@ beta.prior <- function(u, a = 2, b = 2, log = TRUE)
 
 
 ###################################################
-### code chunk number 51: laGP.Rnw:1729-1741
+### code chunk number 51: laGP.Rnw:1734-1746
 ###################################################
 initsize <- 10*ncol(X)
 imesh <- 0.1
@@ -588,7 +588,7 @@ for(i in 1:nrow(uinit)) {
 
 
 ###################################################
-### code chunk number 52: laGP.Rnw:1760-1763
+### code chunk number 52: laGP.Rnw:1765-1768
 ###################################################
 library("crs")
 opts <- list("MAX_BB_EVAL" = 1000, "INITIAL_MESH_SIZE" = imesh, 
@@ -596,7 +596,7 @@ opts <- list("MAX_BB_EVAL" = 1000, "INITIAL_MESH_SIZE" = imesh,
 
 
 ###################################################
-### code chunk number 53: laGP.Rnw:1777-1792
+### code chunk number 53: laGP.Rnw:1782-1797
 ###################################################
 its <- 0
 o <- order(llinit)
@@ -616,7 +616,7 @@ while(its < 10) {
 
 
 ###################################################
-### code chunk number 54: laGP.Rnw:1804-1809
+### code chunk number 54: laGP.Rnw:1809-1814
 ###################################################
 Xp <- rbind(uinit, as.matrix(fcalib.save[ ,1:2]))
 Zp <- c(-llinit, fcalib.save[ ,3])
@@ -639,7 +639,7 @@ abline(h = u[2], lty = 2)
 
 
 ###################################################
-### code chunk number 56: laGP.Rnw:1843-1848
+### code chunk number 56: laGP.Rnw:1848-1853
 ###################################################
 Xu <- cbind(X, matrix(rep(u, ny), ncol = 2, byrow = TRUE))
 Mhat.u <- aGP.seq(XU, Z, Xu, da, methods, ncalib = 2, omp.threads = nth, 
@@ -649,13 +649,13 @@ cmle.u$ll <- cmle.u$ll + beta.prior(u)
 
 
 ###################################################
-### code chunk number 57: laGP.Rnw:1851-1852
+### code chunk number 57: laGP.Rnw:1856-1857
 ###################################################
 data.frame(u.hat = -outi$objective, u = cmle.u$ll)
 
 
 ###################################################
-### code chunk number 58: laGP.Rnw:1864-1868
+### code chunk number 58: laGP.Rnw:1869-1873
 ###################################################
 nny <- 1000  
 XX <- lhs(nny, rect[1:2,])
@@ -664,7 +664,7 @@ YYtrue <- ZZu + bias(XX)
 
 
 ###################################################
-### code chunk number 59: laGP.Rnw:1872-1879
+### code chunk number 59: laGP.Rnw:1877-1884
 ###################################################
 XXu <- cbind(XX, matrix(rep(u, nny), ncol = 2, byrow = TRUE))
 Mhat.oos.u <- aGP.seq(XU, Z, XXu, da, methods, ncalib = 2, 
@@ -676,7 +676,7 @@ deleteGP(cmle.u$gp)
 
 
 ###################################################
-### code chunk number 60: laGP.Rnw:1886-1891
+### code chunk number 60: laGP.Rnw:1891-1896
 ###################################################
 Xu <- cbind(X, matrix(rep(u.hat, ny), ncol = 2, byrow = TRUE))
 Mhat <- aGP.seq(XU, Z, Xu, da, methods, ncalib = 2, omp.threads = nth, 
@@ -686,13 +686,13 @@ cmle$ll <- cmle$ll + beta.prior(u.hat)
 
 
 ###################################################
-### code chunk number 61: laGP.Rnw:1896-1897
+### code chunk number 61: laGP.Rnw:1901-1902
 ###################################################
 print(c(cmle$ll, -outi$objective))
 
 
 ###################################################
-### code chunk number 62: laGP.Rnw:1901-1907
+### code chunk number 62: laGP.Rnw:1906-1912
 ###################################################
 XXu <- cbind(XX, matrix(rep(u.hat, nny), ncol = 2, byrow = TRUE))
 Mhat.oos <- aGP.seq(XU, Z, XXu, da, methods, ncalib = 2, 
@@ -703,7 +703,7 @@ rmse <- sqrt(mean((YY.pred - YYtrue)^2))
 
 
 ###################################################
-### code chunk number 63: laGP.Rnw:1910-1911
+### code chunk number 63: laGP.Rnw:1915-1916
 ###################################################
 data.frame(u.hat = rmse, u = rmse.u)
 

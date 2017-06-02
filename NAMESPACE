@@ -1,5 +1,5 @@
 # Load the shared object
-useDynLib(laGP)
+useDynLib(laGP, .registration=TRUE)
 
 # Exports
 export(aGP, aGP.R, aGP.parallel, laGP, laGP.R, newGP, updateGP, predGP, mleGP, 

@@ -18,8 +18,8 @@
 \usage{
 mleGP(gpi, param = c("d", "g"), tmin=sqrt(.Machine$double.eps), 
   tmax = -1, ab = c(0, 0), verb = 0)
-mleGPsep(gpsepi, param=c("d", "g"), tmin=sqrt(.Machine$double.eps), 
-  tmax=-1, ab=c(0,0), maxit=100, verb=0)
+mleGPsep(gpsepi, param=c("d", "g", "both"), tmin=rep(sqrt(.Machine$double.eps), 2),
+  tmax=c(-1,1), ab=rep(0,4), maxit=100, verb=0)
 mleGPsep.R(gpsepi, param=c("d", "g"), tmin=sqrt(.Machine$double.eps), 
   tmax=-1, ab=c(0,0), maxit=100, verb=0)
 jmleGP(gpi, drange=c(sqrt(.Machine$double.eps),10), 
@@ -89,7 +89,9 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
 }
 \details{
   \code{mleGP} and \code{mleGPsep} perform marginal (or profile) inference
-  for the specified \code{param}, either the lengthscale or the nugget. 
+  for the specified \code{param}, either the lengthscale or the nugget.  
+  \code{mleGPsep} can perform simultaneous lengthscale and nugget inference via
+  a common gradient with \code{param = "both"}.  More details are provided below.
 
   For the lengthscale, \code{mleGP} uses a Newton-like scheme with analytic first 
   and second derivatives (more below) to find the scalar parameter for the isotropic
@@ -104,7 +106,7 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   entry point \code{lbfgsb}.
 
   For the nugget, both \code{mleGP} and \code{mleGPsep} utilize a (nearly 
-  identical) Newton-like scheme leveraging derivatives.
+  identical) Newton-like scheme leveraging first and second derivatives.
 
   \code{jmleGP} and \code{jmleGPsep} provide joint inference by iterating
   over the marginals of lengthscale and nugget.  The \code{jmleGP.R} function
@@ -112,6 +114,17 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   \code{mleGP} (which is primarily in C), whereas \code{jmleGP} is
   primarily in C but should give answers but with reduced output and 
   with hard-coded \code{N=100}.  The same is true for \code{jmleGPsep}.
+
+  \code{mleGPsep} provides a \code{param = "both"} alternative to \code{jmleGPsep} 
+  leveraging a common gradient. It can be helful to supply a larger \code{maxit} 
+  argument compared to \code{jmleGPsep} as the latter may do up to 100 outer
+  iterations, cycling over lengthscale and nugget.  \code{mleGPsep} usually requries
+  many fewer total iterations, unless one of the lengthscale or nugget is 
+  already converged. In anticipation of \code{param = "both"} the 
+  \code{mleGPsep} function has longer default values for its bounds and prior 
+  arguments.  These longer arguments are 
+  ignored when \code{param != "both"}.  At this time \code{mleGP} does not have a 
+  \code{param = "both"} option.
 
   All methods are initialized at the value of the parameter(s) currently
   stored by the C-side object referenced by \code{gpi} or \code{gpsepi}.  It is
@@ -214,18 +227,23 @@ library(tgp)
 n <- 50 ## change to 100 or 1000 for more interesting demo
 B <- rbind(c(0,1), c(0,1))
 X <- dopt.gp(n, Xcand=lhs(10*n, B))$XX
-## this differes from GP_fit in that we use the log response
+## this differs from GP_fit in that we use the log response
 Y <- log(f(X))
 
 ## get sensible ranges
 d <- darg(NULL, X)
 g <- garg(list(mle=TRUE), Y)
 
-## build GP and optimize
+## build GP and jointly optimize via profile mehtods
 gpisep <- newGPsep(X, Y, d=rep(d$start, 2), g=g$start, dK=TRUE)
 jmleGPsep(gpisep, drange=c(d$min, d$max), grange=c(g$min, g$max))
 
 ## clean up
+deleteGPsep(gpisep)
+
+## alternatively, we can optimize via a combined gradient
+gpisep <- newGPsep(X, Y, d=rep(d$start, 2), g=g$start, dK=TRUE)
+mleGPsep(gpisep, param="both", tmin=c(d$min, g$min), tmax=c(d$max, d$max))
 deleteGPsep(gpisep)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

@@ -187,7 +187,7 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 
     ## building a new GP with closest Xs to Xref
     gpi <- newGP(X[Xi,,drop=FALSE], Z[Xi], d=d$start, g=g$start, 
-                 dK=(method != "alc" && method != "alcray"))
+                 dK=!(method %in% c("alc", "alcray", "nn")))
 
     ## for the output object
     if(!is.null(Xi.ret)) Xi.ret[1:start] <- Xi

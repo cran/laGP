@@ -224,7 +224,7 @@ jmleGP <- function(gpi, drange=c(sqrt(.Machine$double.eps), 10),
             g = double(1),
             dits = integer(1),
             gits = integer(1),
-            package = "laGP")
+            PACKAGE = "laGP")
 
     return(data.frame(d=r$d, g=r$g, tot.its=r$dits+r$gits,
                       dits=r$dits, gits=r$gits))
@@ -257,7 +257,7 @@ mleGP <- function(gpi, param=c("d", "g"),
             ab = as.double(ab),
             theta = double(1),
             its = integer(1),
-            package = "laGP")
+            PACKAGE = "laGP")
 
     if(param == 1) return(list(d=r$theta, its=r$its))
     else return(list(g=r$theta, its=r$its))
@@ -273,15 +273,24 @@ mleGP <- function(gpi, param=c("d", "g"),
 dllikGP <- function(gpi, ab=c(0,0), param=c("d", "g"))
   {
     param <- match.arg(param)
-    if(param == "d") cf <- "dllikGP_R"
-    else cf <- "dllikGP_nug_R"
+    if(param == "d") {
 
-    r <- .C(cf,
+      r <- .C("dllikGP_R",
             gpi = as.integer(gpi),
             ab = as.double(ab),
             d = double(1),
             d2 = double(1),
-            package = "laGP")
+            PACKAGE = "laGP")
+
+    } else {
+
+      r <- .C("dllikGP_nug_R",
+            gpi = as.integer(gpi),
+            ab = as.double(ab),
+            d = double(1),
+            d2 = double(1),
+            PACKAGE = "laGP")
+    }
 
     return(data.frame(d=r$d, d2=r$d2))
   }
@@ -439,11 +448,22 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
     ncand <- nrow(Xcand)
 
     parallel <- match.arg(parallel)
-    if(parallel == "omp") cf <- "alcGP_omp_R"
-    else if(parallel == "gpu") cf <- "alcGP_gpu_R"
-    else cf <- "alcGP_R"
+    if(parallel == "omp") {
+      
+      out <- .C("alcGP_omp_R",
+              gpi = as.integer(gpi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(nrow(Xref)),
+              verb = as.integer(verb),
+              alcs = double(ncand),
+              PACKAGE = "laGP")
 
-    out <- .C(cf,
+    } else if(parallel == "gpu") {
+
+      out <- .C("alcGP_gpu_R",
               gpi = as.integer(gpi),
               m = as.integer(m),
               Xcand = as.double(t(Xcand)),
@@ -454,6 +474,20 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
               alcs = double(ncand),
               PACKAGE = "laGP")
     
+    } else {
+
+      out <- .C("alcGP_R",
+              gpi = as.integer(gpi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(nrow(Xref)),
+              verb = as.integer(verb),
+              alcs = double(ncand),
+              PACKAGE = "laGP")
+    }
+
     return(out$alcs)
   }
 

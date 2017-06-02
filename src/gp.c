@@ -925,7 +925,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
 
   while(1) { /* checking for improved llik */
     while(1) {  /* Newton step(s) */
-      llik_new = 0.0-1e300*1e300;
+      llik_new = R_NegInf;
       while(1) {  /* Newton proposal */
 
 	      /* calculate first and second derivatives */
@@ -990,7 +990,7 @@ newtondone:
     llik_new = llikGP(gp, dab, gab);
     if(llik_new < llik_init-SDEPS) { 
       if(verb > 0) MYprintf(MYstdout, "llik_new = %g\n", llik_new);
-      llik_new = 0.0-1e300*1e300;
+      llik_new = R_NegInf;
       if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
       th = Ropt(gp, theta, tmin, tmax, ab, "[dir]", its, verb); 
       goto mledone;
@@ -1055,6 +1055,7 @@ void mleGP_R(/* inputs */
     if(gp->d >= *tmax_in) error("d=%g >= tmax=%g\n", gp->d, *tmax_in);
     else if(gp->d <= *tmin_in) error("d=%g <= tmin=%g\n", gp->d, *tmin_in);
   } else {
+    if(*tmax_in <= 0) *tmax_in = R_PosInf;
     if(gp->g >= *tmax_in) error("g=%g >= tmax=%g\n", gp->g, *tmax_in);
     else if(gp->g <= *tmin_in) error("g=%g <= tmin=%g\n", gp->g, *tmin_in);
   }
@@ -1663,7 +1664,7 @@ void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
 
     /* skip if numerical problems */
     if(mui <= SDEPS) {
-      ieci[i] = 1e300 * 1e300;
+      ieci[i] = R_PosInf;
       continue;
     }
 
@@ -1793,7 +1794,7 @@ static double fcnnalc(double x, struct alcinfo *info)
     1, info->gp->d, info->gp->g, info->gvec, &(info->mui), info->kx, info->kxy);
 
   /* skip if numerical problems */
-  if(info->mui <= SDEPS) alc = 0.0 - 1e300 * 1e300;
+  if(info->mui <= SDEPS) alc = R_NegInf;
   else {
     /* use g, mu, and kxy to calculate ktKik.x */
     calc_ktKikx(NULL, 1, info->k, n, info->gvec, info->mui, info->kxy, info->Gmui, 
@@ -1963,7 +1964,7 @@ int convex_index(double *s, const unsigned int rmin, const unsigned int offset,
 
     /* find the candidate closest to Xstar (Xend) */
     mini = -1;
-    mind = 1e300*1e300;
+    mind = R_PosInf;
     eoff = offset + nr; /* explicitly avoid searcing over Xstart locations */
     if(eoff >= ncand) eoff = 0;  /* unless there aren't any candidates left */
     for(i=eoff; i<ncand; i++) {
@@ -2086,7 +2087,7 @@ void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 
     /* skip if numerical problems */
     if(mui <= SDEPS) {
-      alc[i] = 0.0 - 1e300 * 1e300;
+      alc[i] = R_NegInf; 
       continue;
     }
 
@@ -2166,7 +2167,7 @@ void alcGP_omp(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 
       /* skip if numerical problems */
       if(mui <= SDEPS) {
-        alc[i] = 0.0 - 1e300 * 1e300;
+        alc[i] = R_NegInf; 
         continue;
       }
 

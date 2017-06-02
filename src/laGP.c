@@ -111,7 +111,7 @@ void aGP_R(/* inputs */
   if(*gputhreads_in > mxth) {
     MYprintf(MYstdout, "NOTE: GPU threads(%d) > max(%d), using %d\n", 
       *gputhreads_in, mxth,   mxth);
-    *gputhreads = mxth;
+    *gputhreads_in = mxth;
   }
   if(*nngpu_in < *nn_in && *ompthreads_in < 1)
     error("must have non-zero ompthreads (%d) when nngpu (%d) < nn (%d)", 

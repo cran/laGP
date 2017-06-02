@@ -94,7 +94,7 @@ void predGPsep_R(int *gpsepi_in, int *m_in, int *nn_in, double *XX_in,
         double *llik_out);
 void alcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand, 
         unsigned int nref, double **Xref,  int verb, double *alc);
-void alcGP_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in, 
+void alcGPsep_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in, 
         double *Xref_in, int *nref_in, int *verb_in, double *alc_out);
 #ifdef _OPENMP
 void alcGPsep_omp(GPsep *gpsep, unsigned int ncand, double **Xcand, 

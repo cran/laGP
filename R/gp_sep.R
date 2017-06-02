@@ -45,7 +45,7 @@ newGPsep <- function(X, Z, d, g, dK=FALSE)
               g = as.double(g),
               dK = as.integer(dK),
               gpsepi = integer(1),
-              package = "laGP")
+              PACKAGE = "laGP")
 
     ## return C-side GP index
     return(out$gpsepi)
@@ -85,7 +85,7 @@ deletedkGPsep <- function(gpsepi)
 deleteGPsep <- function(gpsepi)
   {
     .C("deleteGPsep_R",
-       gpsepi = as.integer(gpsepi), package="laGP")
+       gpsepi = as.integer(gpsepi), PACKAGE="laGP")
     invisible(NULL)
   }
 
@@ -96,7 +96,7 @@ deleteGPsep <- function(gpsepi)
 
 deleteGPseps <- function()
   {
-    .C("deleteGPseps_R", package="laGP")
+    .C("deleteGPseps_R", PACKAGE="laGP")
     invisible(NULL)
   }
 
@@ -112,7 +112,7 @@ llikGPsep <- function(gpsepi, dab=c(0,0), gab=c(0,0))
             dab = as.double(dab),
             gab = as.double(gab),
             llik = double(1),
-            package = "laGP")
+            PACKAGE = "laGP")
 
     return(r$llik)
   }
@@ -126,7 +126,7 @@ llikGPsep <- function(gpsepi, dab=c(0,0), gab=c(0,0))
 
 getmGPsep <- function(gpsepi)
   {
-    .C("getmGPsep_R", gpsepi = as.integer(gpsepi), m = integer(1), package="laGP")$m
+    .C("getmGPsep_R", gpsepi = as.integer(gpsepi), m = integer(1), PACKAGE="laGP")$m
   }
 
 
@@ -139,7 +139,7 @@ getmGPsep <- function(gpsepi)
 getdGPsep <- function(gpsepi)
   {
     m <- getmGPsep(gpsepi) 
-    .C("getdGPsep_R", gpsepi = as.integer(gpsepi), d = double(m), package="laGP")$d
+    .C("getdGPsep_R", gpsepi = as.integer(gpsepi), d = double(m), PACKAGE="laGP")$d
   }
 
 
@@ -151,7 +151,7 @@ getdGPsep <- function(gpsepi)
 
 getgGPsep <- function(gpsepi)
   { 
-    .C("getgGPsep_R", gpsepi = as.integer(gpsepi), g = double(1), package="laGP")$g
+    .C("getgGPsep_R", gpsepi = as.integer(gpsepi), g = double(1), PACKAGE="laGP")$g
   }
 
 
@@ -173,7 +173,7 @@ dllikGPsep <- function(gpsepi, ab=c(0,0), param=c("d", "g"), d2nug=FALSE)
             gpsepi = as.integer(gpsepi),
             ab = as.double(ab),
             d = double(dim),
-            package = "laGP")
+            PACKAGE = "laGP")
       return(r$d)
     } else {
       if(d2nug) d2 <- 1
@@ -183,7 +183,7 @@ dllikGPsep <- function(gpsepi, ab=c(0,0), param=c("d", "g"), d2nug=FALSE)
             ab = as.double(ab),
             d = double(1),
             d2 = as.double(d2),
-            package = "laGP")
+            PACKAGE = "laGP")
       if(d2nug) return(list(d=r$d, d2=r$r2))
       else return(r$d)
     }
@@ -206,7 +206,7 @@ newparamsGPsep <- function(gpsepi, d, g=-1)
             gpi = as.integer(gpsepi),
             d = as.double(d),
             g = as.double(g),
-            package = "laGP")
+            PACKAGE = "laGP")
 
     invisible(NULL)
   }
@@ -296,7 +296,7 @@ mleGPsep.R <- function(gpsepi, param=c("d", "g"),
             ab = as.double(ab),
             g = double(1),
             its = integer(1),
-            package = "laGP")
+            PACKAGE = "laGP")
     }
 
     ## build object for returning
@@ -318,20 +318,48 @@ mleGPsep.R <- function(gpsepi, param=c("d", "g"),
 ##
 ## this is a mostly C verision
 
-mleGPsep <- function(gpsepi, param=c("d", "g"), 
-                  tmin=sqrt(.Machine$double.eps), 
-                  tmax=-1, ab=c(0,0), maxit=100, verb=0)
+mleGPsep <- function(gpsepi, param=c("d", "g", "both"), 
+                  tmin=rep(sqrt(.Machine$double.eps), 2), 
+                  tmax=c(-1,1), ab=rep(0,4), maxit=100, verb=0)
   {
     param <- match.arg(param)
 
-    if(param == "d") { ## lengthscale with L-BFGS-B given nugget
+    if(param == "both") { ## lengthscale and multiple nugget jointly with L-BFGS-B
+
+      ## sanity checking, and length checking for tmax and tmin
+      m <- getmGPsep(gpsepi)
+      if(length(tmax) == 2) tmax <- c(rep(tmax[1], m), tmax[2])
+      else if(length(tmax) != m+1) stop("length(tmax) should be 2 or m+1")
+      if(length(tmin) == 2) tmin <- c(rep(tmin[1], m), tmin[2])
+      else if(length(tmin) != m+1) stop("length(tmin) should be 2 or m+1")
+      if(length(ab) != 4 || any(ab < 0)) stop("ab should be a positive 4-vector")
+
+      out <- .C("mleGPsep_both_R",
+                gpsepi = as.integer(gpsepi),
+                maxit = as.integer(maxit),
+                verb = as.integer(verb),
+                tmin = as.double(tmin),
+                tmax = as.double(tmax),
+                ab = as.double(ab),
+                par = double(m+1),
+                counts = integer(2),
+                msg = paste(rep(0,60), collapse=""),
+                convergence = integer(1),
+                PACKAGE = "laGP")
+
+      ## sanity check completion of scheme
+      if(sqrt(mean((out$par - c(getdGPsep(gpsepi), getgGPsep(gpsepi)))^2)) > sqrt(.Machine$double.eps))
+        warning("stored theta not same as theta-hat")
+
+    } else if(param == "d") { ## lengthscale with L-BFGS-B given nugget
 
       ## sanity checking
       m <- getmGPsep(gpsepi)
-      if(length(tmax) == 1) tmax <- rep(tmax, m)
+      if(length(tmax) == 1 || (length(tmax) == 2 && m != 2)) tmax <- rep(tmax[1], m)
       else if(length(tmax) != m) stop("length(tmax) should be 1 or m")
-      if(length(tmin) == 1) tmin <- rep(tmin, m)
+      if(length(tmin) == 1 || (length(tmin) == 2 && m != 2)) tmin <- rep(tmin[1], m)
       else if(length(tmin) != m) stop("length(tmin) should be 1 or m")
+      if(length(ab) == 4 && all(ab == 0)) ab <- ab[1:2]
       if(length(ab) != 2 || any(ab < 0)) stop("ab should be a positive 2-vector")   
 
       out <- .C("mleGPsep_R",
@@ -343,9 +371,9 @@ mleGPsep <- function(gpsepi, param=c("d", "g"),
                 ab = as.double(ab),
                 par = double(m),
                 counts = integer(2),
-                msg = paste(rep(0,60), collapse=""), ## strrep("0", 60), only R > 3.3
+                msg = paste(rep(0,60), collapse=""),
                 convergence = integer(1),
-                package = "laGP")
+                PACKAGE = "laGP")
 
       ## sanity check completion of scheme
       if(sqrt(mean((out$par - getdGPsep(gpsepi))^2)) > sqrt(.Machine$double.eps))
@@ -354,6 +382,7 @@ mleGPsep <- function(gpsepi, param=c("d", "g"),
     else { ## nugget conditionally on lengthscale
 
       ## sanity check
+      if(length(ab) == 4 && all(ab == 0)) ab <- ab[1:2]
       if(length(ab) != 2 || any(ab < 0)) stop("ab should be a positive 2-vector");
 
       r <- .C("mleGPsep_nug_R",
@@ -364,11 +393,12 @@ mleGPsep <- function(gpsepi, param=c("d", "g"),
             ab = as.double(ab),
             g = double(1),
             its = integer(1),
-            package = "laGP")
+            PACKAGE = "laGP")
     }
 
     ## build object for returning
-    if(param == "d") return(list(d=out$par, its=max(out$counts), msg=out$msg, conv=out$convergence))
+    if(param == "both") return(list(theta=out$par, its=max(out$counts), msg=out$msg, conv=out$convergence))
+    else if(param == "d") return(list(d=out$par, its=max(out$counts), msg=out$msg, conv=out$convergence))
     else return(list(g=r$g, its=r$its))
   }
 
@@ -683,11 +713,9 @@ alcGPsep <- function(gpsepi, Xcand, Xref=Xcand,
     ncand <- nrow(Xcand)
 
     parallel <- match.arg(parallel)
-    if(parallel == "omp") cf <- "alcGPsep_omp_R"
-    else if(parallel == "gpu") stop("not implemented") ## cf <- "alcsepGP_gpu_R"
-    else cf <- "alcGPsep_R"
+    if(parallel == "omp") {
 
-    out <- .C(cf,
+      out <- .C("alcGPsep_omp_R",
               gpsepi = as.integer(gpsepi),
               m = as.integer(m),
               Xcand = as.double(t(Xcand)),
@@ -697,6 +725,21 @@ alcGPsep <- function(gpsepi, Xcand, Xref=Xcand,
               verb = as.integer(verb),
               alcs = double(ncand),
               PACKAGE = "laGP")
+
+    } else if(parallel == "gpu") { stop("alcGPsep_gpu_R not implemented") 
+    } else {
+
+      out <- .C("alcGPsep_R",
+              gpsepi = as.integer(gpsepi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(nrow(Xref)),
+              verb = as.integer(verb),
+              alcs = double(ncand),
+              PACKAGE = "laGP")
+    }
     
     return(out$alcs)
   }

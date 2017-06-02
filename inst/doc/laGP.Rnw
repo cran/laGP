@@ -1239,7 +1239,12 @@ regularize and determine initial values for the MLE calculations, see Appendix
 The package also offers \code{jmleGPsep}, an analog of
 \code{jmleGP}, automating a profile approach to iterating over
 $\theta | \eta$ and $\eta | \theta$ where the latter is performed with a
-Newton-like scheme leveraging first and second derivatives.  We do not
+Newton-like scheme leveraging first and second derivatives.\footnote{Newer versions of the package also provide a \code{param = "both"} option to \code{mleGPsep}, leveraging a gradient over both separable lengthscale and nugget parameters for joint inference; i.e., not taking a profile approach. 
+This setup usually requires fewer total
+iterations to converge unless one of the two parameters sets is already
+very close to the MLE setting.  See the package documentation for more
+details.  Unfortunately an analog in \code{mleGP}
+is not available at this time.}  We do not
 demonstrate \code{jmleGPsep} on this example since the large data subset
 ($n=1000$) combined with very smooth deterministic outputs from moderately
 size (8-dim) inputs, via \code{borehole}, leads to estimating
