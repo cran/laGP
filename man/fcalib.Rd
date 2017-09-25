@@ -112,7 +112,7 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
   used in that environment will be \code{fcalib.save}.  Otherwise \code{save.global = FALSE}
   will skip saving the information}
   \item{verb}{
-    a positive integer specifying the verbosity level; \code{verb = 0}
+    a non-negative integer specifying the verbosity level; \code{verb = 0}
     is quiet, whereas a larger value causes each evaluation to be printed
     to the screen}
 }

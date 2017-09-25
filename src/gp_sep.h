@@ -42,14 +42,13 @@ typedef struct gpsep {
 } GPsep;
 
 
-GPsep* newGPsep(const unsigned int m, const unsigned int n, double **X,
-    double *Z, double *d, const double g, const int dK);
-GPsep* newGPsep_sub(const unsigned int m, const unsigned int n, int *p, 
-    double **X, double *Z, double *d, const double g, const int dK);
-void newGPsep_R(int *m_in, int *n_in, double *X_in, double *Z_in,
-    double *d_in, double *g_in, int *dK_in, int *gp_index);
-void updateGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *ZZ, 
-    int verb);
+GPsep* newGPsep(const unsigned int m, const unsigned int n, double **X, double *Z, 
+  double *d, const double g, const int dK);
+GPsep* newGPsep_sub(const unsigned int m, const unsigned int n, int *p, double **X, 
+  double *Z, double *d, const double g, const int dK);
+void newGPsep_R(int *m_in, int *n_in, double *X_in, double *Z_in, double *d_in, 
+  double *g_in, int *dK_in, int *gp_index);
+void updateGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *ZZ, int verb);
 unsigned int get_gpsep(void);
 void deletedKGPsep(GPsep *gpsep);
 void deleteGPsep(GPsep* gpsep);
@@ -61,51 +60,64 @@ void calc_ZtKiZ_sep(GPsep *gpsep);
 void newdKGPsep(GPsep *gpsep);
 GPsep* buildGPsep(GPsep *gpsep, const int dK);
 double llikGPsep(GPsep *gpsep, double *dab, double *gab);
-void llikGPsep_R(int *gpsepi_in, double *dab_in, double *gab_in,
-        double *llik_out);
+void llikGPsep_R(int *gpsepi_in, double *dab_in, double *gab_in, double *llik_out);
 void dllikGPsep(GPsep *gpsep, double *ab, double *dllik);
 void dllikGPsep_nug(GPsep *gpsep, double *ab, double *dllik, double *d2llik);
 void dllikGPsep_R(int *gpsepi_in, double *ab_in, double *dllik_out);
-void dllikGPsep_nug_R(int *gpsepi_in, double *ab_in, double *dllik_out,
-        double *d2llik_out);
+void dllikGPsep_nug_R(int *gpsepi_in, double *ab_in, double *dllik_out, 
+  double *d2llik_out);
 void getmGPsep_R(int *gpsepi_in, int *m_out);
 void getgGPsep_R(int *gpsepi_in, double *g_out);
 void getdGPsep_R(int *gpsepi_in, double *d_out);
 void newparamsGPsep(GPsep* gpsep, double *d, const double g);
 void newparamsGPsep_R(int *gpsepi_in, double *d_in, double *g_in);
-void jmleGPsep(GPsep *gpsep, int maxit, double *dmin, double *dmax, 
-      double *grange, double *dab, double *gab, int verb, 
-      int *dits, int *gits, int *dconv, int fromR);
+void jmleGPsep(GPsep *gpsep, int maxit, double *dmin, double *dmax, double *grange, 
+  double *dab, double *gab, int verb, int *dits, int *gits, int *dconv, int fromR);
 void mleGPsep(GPsep* gpsep, double* dmin, double *dmax, double *ab, 
-      const unsigned int maxit, int verb, double *p, int *its, 
-      char *msg, int *conv, int fromR);
-double mleGPsep_nug(GPsep* gpsep, double tmin, double tmax, double *ab, 
-      int verb, int *its);
-void mleGPsep_nug_R(int *gpsepi_in, int *verb_in, double *tmin_in,
-       double *tmax_in, double *ab_in, double *mle_out, int *its_out);
+  const unsigned int maxit, int verb, double *p, int *its, char *msg, int *conv, 
+  int fromR);
+double mleGPsep_nug(GPsep* gpsep, double tmin, double tmax, double *ab, int verb, 
+  int *its);
+void mleGPsep_nug_R(int *gpsepi_in, int *verb_in, double *tmin_in, double *tmax_in, 
+  double *ab_in, double *mle_out, int *its_out);
 void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *mean, 
-      double **Sigma, double *df, double *llik);
+  double **Sigma, double *df, double *llik);
 void new_predutilGPsep_lite(GPsep *gpsep, unsigned int nn, double **XX, 
-      double ***k, double ***ktKi, double **ktKik);
+  double ***k, double ***ktKi, double **ktKik);
 void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, double *mean, 
-     double *sigma2, double *df, double *llik);
+  double *sigma2, double *df, double *llik);
 void predGPsep_R(int *gpsepi_in, int *m_in, int *nn_in, double *XX_in,
-        int *lite_in, double *mean_out, double *Sigma_out, double *df_out,
-        double *llik_out);
-void alcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand, 
-        unsigned int nref, double **Xref,  int verb, double *alc);
+  int *lite_in, double *mean_out, double *Sigma_out, double *df_out, 
+  double *llik_out);
+void alcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand, unsigned int nref, 
+  double **Xref,  int verb, double *alc);
 void alcGPsep_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in, 
-        double *Xref_in, int *nref_in, int *verb_in, double *alc_out);
+  double *Xref_in, int *nref_in, int *verb_in, double *alc_out);
+void dalcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand, unsigned int nref,
+  double **Xref,  int verb, double *alc, double **dalc, void *);
+void dalcGPsep_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in, 
+  double *Xref_in, int *nref_in, int *verb_in, double *alc_out, double *dalc_out);
+void alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper, double **Xref, 
+              const int nref, const unsigned int maxit, int verb, double *p, int *its, 
+              char *msg, int *conv, int fromR);
+void alcoptGPsep_R(int *gpsepi_in, int *maxit_in, int *verb_in, double *start_in,
+                double *lower_in, double *upper_in, int *m_in, double *Xref_in, int *nref_in,
+                double *par_out, int *its_out, char **msg_out, int *conv_out);
+int lalcoptGPsep(GPsep *gpsep, double **Xcand, const unsigned int ncand, double **Xref,
+                 const unsigned int nref, const unsigned int offset, unsigned int numstart, 
+                 double **rect, int maxit, int verb, int fromR);
+void lalcoptGPsep_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in,
+                    double *Xref_in, int *nref_in, int *offset_in, int *numstart_in, double *rect_in,
+                    int *maxit_in, int *verb_in, int *w_out);
 #ifdef _OPENMP
 void alcGPsep_omp(GPsep *gpsep, unsigned int ncand, double **Xcand, 
-        unsigned int nref, double **Xref,  int verb, double *alc);
+  unsigned int nref, double **Xref,  int verb, double *alc);
 void alcGPsep_omp_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in,
-       double *Xref_in, int *nref_in, int *verb_in, double *alc_out);
+  double *Xref_in, int *nref_in, int *verb_in, double *alc_out);
 #endif
 double* alcrayGPsep(GPsep *gpsep, double **Xref, const unsigned int nump, 
   double **Xstart, double **Xend, double *negalc, const unsigned int verb);
 int lalcrayGPsep(GPsep *gpsep, double **Xcand, const unsigned int ncand, 
   double **Xref, const unsigned int offset, unsigned int nr, double **rect, 
   int verb);
-
 #endif

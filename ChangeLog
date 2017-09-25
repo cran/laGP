@@ -1,5 +1,14 @@
+1.5 (22 Sep 2017)
+---
+
+Alpha implementation of derivatives of ALC, along with n^2 
+economy in original ALC and IECI implementations
+
+added bootstrapped block latin hypercube functionality for
+consistent global lengthscale estimation
+
 1.4 (31 May 2017)
-----
+---
 
 Added param = "both" option to mleGPsep for combined 
 gradient MLE calculations to speed convergence

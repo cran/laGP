@@ -471,7 +471,7 @@ for compactness)} \label{eq:dxy} \\ &= k_j^\top(x) G_j(x_{j+1}) v_j(x_{j+1})
 k_j(x) + 2k_j^\top(x) g_j(x_{j+1}) K(x_{j+1},x) + K(x_{j+1},x)^2 /
 v_j(x_{j+1}), \nonumber
 \end{align}
-where $G_j(x') \equiv g_j(x') g_j^\top(x')$, and $g_j(x') = K_j^{-1}
+where $G_j(x') \equiv g_j(x') g_j^\top(x')$, and $g_j(x') = - K_j^{-1}
 k_j(x')/v_j(x')$.
 Observe that only $O(j^2)$ calculations are required above. Although known for
  some time in other contexts,

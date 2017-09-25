@@ -84,7 +84,7 @@ int isZero(double **M, unsigned int m, int sym)
 
 
 /*
- * replace square matrix with identitiy 
+ * replace square matrix with identity 
  */
 
 void id(double **M, unsigned int n)
@@ -137,7 +137,7 @@ int ** new_zero_imatrix(unsigned int n1, unsigned int n2)
 
 /*
  * create a new n1 x n2 matrix which is allocated like
- * and n1*n2 array, but can be referenced as a 2-d array
+ * an n1*n2 array, but can be referenced as a 2-d array
  */
 
 double ** new_matrix(unsigned int n1, unsigned int n2)
@@ -194,7 +194,7 @@ int ** new_imatrix_bones(int *v, unsigned int n1, unsigned int n2)
 
 /*
  * create a new n1 x n2 integer matrix which is allocated like
- * and n1*n2 array, but can be referenced as a 2-d array
+ * an n1*n2 array, but can be referenced as a 2-d array
  */
 
 int ** new_imatrix(unsigned int n1, unsigned int n2)
@@ -217,7 +217,7 @@ int ** new_imatrix(unsigned int n1, unsigned int n2)
 
 /*
  * create a new n2 x n1 integer matrix which is allocated like
- * and n1*n2 array, and copy the TRANSPOSE of n1 x n2 M into it.
+ * an n1*n2 array, and copy the TRANSPOSE of n1 x n2 M into it.
  */
 
 int ** new_t_imatrix(int** M, unsigned int n1, unsigned int n2)
@@ -238,7 +238,7 @@ int ** new_t_imatrix(int** M, unsigned int n1, unsigned int n2)
 
 /*
  * create a new n1 x n2 matrix which is allocated like
- * and n1*n2 array, and copy the of n1 x n2 M into it.
+ * an n1*n2 array, and copy the of n1 x n2 M into it.
  */
 
 double ** new_dup_matrix(double** M, unsigned int n1, unsigned int n2)
@@ -258,7 +258,7 @@ double ** new_dup_matrix(double** M, unsigned int n1, unsigned int n2)
 
 /*
  * create a new n1 x n2 matrix which is allocated like
- * and n1*n2 array, and copy the of n1 x n2 M into it.
+ * an n1*n2 array, and copy the of n1 x n2 M into it.
  */
 
 int ** new_dup_imatrix(int** M, unsigned int n1, unsigned int n2)
@@ -344,7 +344,7 @@ void swap_matrix(double **M1, double **M2, unsigned int n1, unsigned int n2)
 
 /*
  * create a bigger n1 x n2 matrix which is allocated like
- * and n1*n2 array, and copy the of n1 x n2 M into it.
+ * an n1*n2 array, and copy the of n1 x n2 M into it.
  * deletes the old matrix
  */
 
@@ -386,7 +386,7 @@ double ** new_bigger_matrix(double** M, unsigned int n1, unsigned int n2,
 
 /*
  * create a bigger n1 x n2 matrix which is allocated like
- * and n1*n2 array, and copy the of n1 x n2 M into it.
+ * an n1*n2 array, and copy the of n1 x n2 M into it.
  * deletes the old matrix -- integer version
  */
 
@@ -428,7 +428,7 @@ int ** new_bigger_imatrix(int** M, unsigned int n1, unsigned int n2,
 
 /*
  * create a new n1 x n2 matrix which is allocated like
- * and n1*n2 array, and copy the of n1 x n2 M into it.
+ * an n1*n2 array, and copy the of n1 x n2 M into it.
  */
 
 double ** new_normd_matrix(double** M, unsigned int n1, unsigned int n2, 
@@ -443,7 +443,7 @@ double ** new_normd_matrix(double** M, unsigned int n1, unsigned int n2,
 
 /*
  * create a new n2 x n1 matrix which is allocated like
- * and n1*n2 array, and copy the TRANSPOSE of n1 x n2 M into it.
+ * an n1*n2 array, and copy the TRANSPOSE of n1 x n2 M into it.
  */
 
 double ** new_t_matrix(double** M, unsigned int n1, unsigned int n2)
@@ -2092,7 +2092,7 @@ void zerov(double*v, unsigned int n)
 
 
 /*
- * multiple the contents of vector v[n]
+ * multiply the contents of vector v[n]
  * by the scale parameter
  */
 
@@ -2105,7 +2105,7 @@ void scalev(double *v, unsigned int n, double scale)
 
 
 /*
- * multiple the contents of vector v[n]
+ * multiply the contents of vector v[n]
  * by the scale[n] parameter
  */
 

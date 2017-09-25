@@ -43,7 +43,7 @@
  * 
  * R-interface to C-version of R function aGP.R: 
  * uses ALC to adaptively select a small (size n) subset 
- * of (X,Z) from which to predict by (thus a in approx) kriging 
+ * of (X,Z) from which to predict by (thus approx) kriging 
  * equations at eack XX row; returns  mean and variance of 
  * those Student-t equations.
  */
@@ -119,12 +119,12 @@ void aGP_R(/* inputs */
 #endif
 
   /* copy method */
-  method = ALC; /* to guarentee initializaion */
+  method = ALC; /* to guarantee initialization */
   if(*imethod_in == 1) method = ALC;
-  else if(*imethod_in == 2) method = ALCRAY;
-  else if(*imethod_in == 3) method = MSPE;
-  else if(*imethod_in == 4) method = EFI;
-  else if(*imethod_in == 5) method = NN;
+  else if(*imethod_in == 3) method = ALCRAY;
+  else if(*imethod_in == 4) method = MSPE;
+  else if(*imethod_in == 5) method = EFI;
+  else if(*imethod_in == 6) method = NN;
   else error("imethod %d does not correspond to a known method\n", 
     *imethod_in);
 
@@ -232,8 +232,8 @@ void aGP_R(/* inputs */
       /* call C-only code */
       laGP(*m_in, *start_in, *end_in, Xref, 1, *n_in, X, Z_in, dvec,
         gvec, method, *close_in, gpu, *numrays_in, rect, verb-1, Xi, 
-        &(mean_out[i]), &(var_out[i]), &df, dmlei, ditsi, gmlei, gitsi, 
-        &(llik_out[i]));
+        &(mean_out[i]), &(var_out[i]), 1, &df, dmlei, ditsi, gmlei, gitsi, 
+        &(llik_out[i]), 0);
       var_out[i] *= df/(df-2.0);
 
       /* progress meter */
@@ -269,8 +269,8 @@ void aGP_R(/* inputs */
  *
  * returns the close indices into X which are closest (on average) to the
  * element(s) of Xref.  The first start of those indices are the start 
- * closest, otherwise the indecies unordered (unless sorted=true).  
- * Even when sorted=true the incies close+1, ... are not sorted.
+ * closest, otherwise the indices unordered (unless sorted=true).  
+ * Even when sorted=true the indices close+1, ... are not sorted.
  */
 
 int *closest_indices(const unsigned int m, const unsigned int start,
@@ -313,6 +313,46 @@ int *closest_indices(const unsigned int m, const unsigned int start,
 
 
 /*
+ * closest_indices_R:
+ *
+ * R interface to closest indices, primarily for debugging purposes
+ */
+
+void closest_indices_R(
+
+  /* inputs */
+  int *m_in, 
+  int *start_in, 
+  double *Xref_in,
+  int *nref_in, 
+  int *n_in, 
+  double *X_in,
+  int *close_in, 
+  int *sorted_in,
+
+  /* outputs */
+  int *oD_out)
+
+{
+  double **X, **Xref;
+  int *oD;
+
+  /* make matrix bones */
+  X = new_matrix_bones(X_in, *n_in, *m_in);
+  Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
+
+  oD = closest_indices(*m_in, *start_in, Xref, *nref_in, *n_in, X, *close_in, 
+    *sorted_in);
+
+  dupiv(oD_out, oD, *close_in);
+  free(oD);
+
+  free(X);
+  free(Xref);
+}
+
+
+/*
  * laGP:
  * 
  * C-version of R function laGP.R: uses ALC to adaptively
@@ -324,26 +364,28 @@ int *closest_indices(const unsigned int m, const unsigned int start,
 void laGP(const unsigned int m, const unsigned int start, 
   const unsigned int end, double **Xref, const unsigned int nref, 
   const unsigned int n, double **X, double *Z, double *d, double *g, 
-  const Method method, const unsigned int close, const int alc_gpu, 
-  const unsigned int numrays, double **rect, const int verb, 
-  int *Xi, double *mean, double *s2, double *df, double *dmle, int *dits,
-  double *gmle, int *gits, double *llik)
+  const Method method, unsigned int close, const int alc_gpu, 
+  const unsigned int numstart, double **rect, const int verb, 
+  int *Xi, double *mean, double *s2, const unsigned int lite, double *df, 
+  double *dmle, int *dits, double *gmle, int *gits, double *llik, int fromR)
 {
   GP *gp;
-  unsigned int i, j, ncand, w;
+  unsigned int i, j, ncand, w, free_rect;
   int *oD, *cand;
-  double **Xcand, **Xcand_orig, **x; //, **Sigma;
+  double **Xcand, **Xcand_orig, **x, **Sigma;
   double *al;
 
   /* temporary space */
   x = new_matrix(1, m);
 
   /* special cases for close */
+  if(method == NN && close > end) close = end;
   if(close > 0 && close < n-start) ncand = close-start;
   else ncand = n-start;
 
   /* get the indices of the closest X-locations to Xref */
-  oD = closest_indices(m, start, Xref, nref, n, X, close, method == ALCRAY);
+  oD = closest_indices(m, start, Xref, nref, n, X, close, 
+    method == ALCRAY || method == ALCOPT);
 
   /* build GP with closest start locations */
   gp = newGP_sub(m, start, oD, X, Z, *d, *g, method == MSPE || method == EFI);
@@ -352,6 +394,12 @@ void laGP(const unsigned int m, const unsigned int start,
   /* possibly restricted candidate set */
   cand = oD+start;
   Xcand_orig = Xcand = new_p_submatrix_rows(cand, X, ncand, m, 0);
+
+  /* potentially calculate rect on the fly */
+  if((method == ALCRAY || method == ALCOPT) && rect == NULL) {
+    rect = get_data_rect(Xcand, ncand, m);
+    free_rect = 1;
+  } else free_rect = 0;
 
   /* allocate space for active learning criteria */
   if(method != NN) al = new_vector(ncand);
@@ -364,7 +412,11 @@ void laGP(const unsigned int m, const unsigned int start,
     if(method == ALCRAY) {
       assert(nref == 1);
       int roundrobin = (i-start+1) % ((int) sqrt(i-start+1.0));
-      w = lalcrayGP(gp, Xcand, ncand, Xref, roundrobin, numrays, rect, verb-2);
+      w = lalcrayGP(gp, Xcand, ncand, Xref, roundrobin, numstart, rect, verb-2);
+    } else if(method == ALCOPT) {
+      int roundrobin = (i-start); /* +1) % ((int) sqrt(i-start+1.0)); */
+      w = lalcoptGP(gp, Xcand, ncand, Xref, nref, roundrobin, numstart, rect, 
+        100, verb-2, fromR);
     } else if(method == ALC) {
       if(alc_gpu) {
 #ifdef _GPU
@@ -382,7 +434,7 @@ void laGP(const unsigned int m, const unsigned int start,
     else if(method == MSPE) mspeGP(gp, ncand, Xcand, nref, Xref, 1, verb-2, al);
     
     /* selecting from the evaluated criteria */
-    if(method != ALCRAY) {
+    if(method != ALCRAY && method != ALCOPT) {
       if(method == NN) w = i-start;
       else if(method != MSPE) max(al, ncand, &w);
       else min(al, ncand, &w);
@@ -397,7 +449,7 @@ void laGP(const unsigned int m, const unsigned int start,
 
     /* remove from candidates */
     if(al && w != ncand-1) { 
-      if(method == ALCRAY) { /* preserving distance order */
+      if(method == ALCRAY || method == ALCOPT) { /* preserving distance order */
         if(w == 0) { cand++; Xcand++; }
         else {
           for(j=w; j<ncand-1; j++) { /* by pulling backwards */
@@ -426,19 +478,19 @@ void laGP(const unsigned int m, const unsigned int start,
   }
 
   /* now predict */
-  /* Sigma = new_matrix(nref,nref);
-  predGP(gp, nref, Xref, mean, Sigma, df, llik);
-  for(i=0; i<nref; i++) s2[i] = Sigma[i][i];
-  delete_matrix(Sigma); */
-  predGP_lite(gp, nref, Xref, mean, s2, df, llik); 
-  /* LATER add option to return full covariance matrix when
-     nref > 1 */
+  if(lite) predGP_lite(gp, nref, Xref, mean, s2, df, llik); 
+  else {
+    Sigma = new_matrix_bones(s2, nref, nref);
+    predGP(gp, nref, Xref, mean, Sigma, df, llik);
+    free(Sigma); 
+  }
 
   /* clean up */
   deleteGP(gp);
   delete_matrix(Xcand_orig);
   free(oD);
   if(al) free(al);
+  if(free_rect) delete_matrix(rect);
   delete_matrix(x);
 }
 
@@ -466,8 +518,9 @@ void laGP_R(/* inputs */
          int *imethod_in,
          int *close_in,
          int *alc_gpu_in,
-         int *numrays_in,
+         int *numstart_in,
          double *rect_in,
+         int *lite_in,
          int *verb_in,
          int *Xiret_in,
          
@@ -491,12 +544,13 @@ void laGP_R(/* inputs */
 #endif
 
   /* copy method */
-  method = ALC; /* to guarentee initialization */
+  method = ALC; /* to guarantee initialization */
   if(*imethod_in == 1) method = ALC;
-  else if(*imethod_in == 2) method = ALCRAY;
-  else if(*imethod_in == 3) method = MSPE;
-  else if(*imethod_in == 4) method = EFI;
-  else if(*imethod_in == 5) method = NN;
+  else if(*imethod_in == 2) method = ALCOPT;
+  else if(*imethod_in == 3) method = ALCRAY;
+  else if(*imethod_in == 4) method = MSPE;
+  else if(*imethod_in == 5) method = EFI;
+  else if(*imethod_in == 6) method = NN;
   else error("imethod %d does not correspond to a known method\n", 
     *imethod_in);
 
@@ -509,20 +563,22 @@ void laGP_R(/* inputs */
   Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
 
   /* check rect input */
-  if(method == ALCRAY) {
-    assert(*nref_in == 1);
-    assert(*numrays_in >= 1);
-    rect = new_matrix_bones(rect_in, 2, *m_in);
+  if(method == ALCRAY || method == ALCOPT) {
+    if(method == ALCRAY) assert(*nref_in == 1);
+    assert(*numstart_in >= 1);
+    if(rect_in[0] < rect_in[*m_in]) 
+      rect = new_matrix_bones(rect_in, 2, *m_in);
+    else rect = NULL;
   } else rect = NULL;
 
   /* check Xi input */
   if(! *Xiret_in) Xi_out = NULL;
 
   /* call C-only code */
-  laGP(*m_in, *start_in, *end_in, Xref, *nref_in, *n_in, X, Z_in,
-    d_in, g_in, method, *close_in, *alc_gpu_in, *numrays_in, rect, 
-    *verb_in, Xi_out, mean_out, s2_out, df_out, dmle_out, dits_out, 
-    gmle_out, gits_out, llik_out);
+  laGP(*m_in, *start_in, *end_in, Xref, *nref_in, *n_in, X, Z_in, d_in, g_in, 
+    method, *close_in, *alc_gpu_in, *numstart_in, rect, *verb_in, Xi_out, 
+    mean_out, s2_out, *lite_in, df_out, dmle_out, dits_out, gmle_out, gits_out, 
+    llik_out, 1);
 
   /* clean up */
   free(X);

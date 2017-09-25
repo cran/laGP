@@ -15,23 +15,29 @@ Localized Approximate GP Prediction At a Single Input Location
 }
 \usage{
 laGP(Xref, start, end, X, Z, d = NULL, g = 1/10000,
-     method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
-     close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
-     alc.gpu = FALSE, numrays = ncol(X), rect = NULL, verb = 0)
+     method = c("alc", "alcopt", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
+     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
+     alc.gpu = FALSE, numstart = if(method == "alcray") ncol(X) else 1, 
+     rect = NULL, lite = TRUE, verb = 0)
 laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
-     method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
-     pall = FALSE, close = min(1000*if(method=="alcray") 10 else 1, nrow(X)),  
-     parallel = c("none", "omp", "gpu"), numrays = ncol(X), rect = NULL, 
-     verb = 0)
-laGPsep(Xref, start, end, X, Z, d = NULL, g = 1/10000, 
-     method = c("alc", "alcray", "nn"), Xi.ret = TRUE, 
-     close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
-     numrays = ncol(X), rect = NULL, verb = 0)
+     method = c("alc", "alcopt", "alcray", "mspe", "nn", "fish"), 
+     Xi.ret = TRUE, pall = FALSE, 
+     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)),
+     parallel = c("none", "omp", "gpu"), 
+     numstart = if(method == "alcray") ncol(X) else 1, 
+     rect = NULL, lite = TRUE, verb = 0)
+laGPsep(Xref, start, end, X, Z, d = NULL, g = 1/10000,
+     method = c("alc", "alcopt", "alcray", "nn"), Xi.ret = TRUE, 
+     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
+     alc.gpu = FALSE, numstart = if(method == "alcray") ncol(X) else 1, 
+     rect = NULL, lite = TRUE, verb=0)
 laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
-       method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
-       pall = FALSE, close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),  
-       parallel = c("none", "omp"), numrays = ncol(X), rect = NULL, 
-       verb = 0)
+     method = c("alc", "alcopt", "alcray", "nn"), 
+     Xi.ret = TRUE, pall = FALSE, 
+     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)),
+     parallel = c("none", "omp", "gpu"), 
+     numstart = if(method == "alcray") ncol(X) else 1, 
+     rect = NULL, lite = TRUE, verb = 0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -40,21 +46,21 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
     location; or a \code{matrix} with \code{ncol(Xref) = ncol(X)} containing
     multiple reference locations (unless \code{method = "alcray"}) 
     for simultaneous sub-design and prediction
-}
+   }
   \item{start}{
     the number of Nearest Neighbor (NN) locations for initialization; must
     specify \code{start >= 6}
-}
+   }
   \item{end}{
     the total size of the local designs; must have \code{start < end}
-}
+   }
   \item{X}{
     a \code{matrix} or \code{data.frame} containing
     the full (large) design matrix of input locations
-}
+   }
   \item{Z}{
-    a vector of responses/dependent values with \code{length(Z) = ncol(X)}
-}
+    a vector of responses/dependent values with \code{length(Z) = nrow(X)}
+   }
   \item{d}{
     a prior or initial setting for the lengthscale
     parameter for a Gaussian correlation function; a (default)
@@ -68,8 +74,8 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
     inference for this parameter. With 
     \code{laGPsep}, the starting values can be a 
     \code{ncol(X)}-by-\code{nrow(XX)} \code{matrix} or \code{ncol(X)} vector
-}
-\item{g}{
+   }
+  \item{g}{
     a prior or initial setting for the nugget parameter; a 
     \code{NULL} value causes a sensible regularization (prior) and
     initial setting to be generated via \code{\link{garg}}; a scalar
@@ -83,71 +89,82 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
     which may be appropriate for emulating 
     deterministic computer code output.  In such situations a 
     value much smaller than the default may work even better (i.e., 
-    yield better out-of-sample predictive performance).  The default was chosen conservatively
-}
-\item{method}{
+    yield better out-of-sample predictive performance).  
+    The default was chosen conservatively
+   }
+  \item{method}{
     Specifies the method by which \code{end-start} candidates from
     \code{X} are chosen in order to predict at \code{Xref}. In brief, ALC
     (\code{"alc"}, default) minimizes predictive variance; ALCRAY 
     (\code{"alcray")}) executes a thrifty ALC-based search focused on 
     rays emanating from the reference location [must have \code{nrow(Xref) = 1}]; 
+    ALCOPT (\code{"alcopt"}) optimizes a continuous ALC analog via derivatives to
+    and snaps the solution back to the candidate grid; 
     MSPE (\code{"mspe"}) augments ALC 
     with extra derivative information to minimize mean-squared prediction 
     error (requires extra computation);
     NN (\code{"nn"}) uses nearest neighbor; and EFI (\code{"fish"}) uses
     the expected Fisher information - essentially \code{1/G} from
     Gramacy & Apley (2015) - which is global heuristic, i.e., not
-    localized to \code{Xref}
-}
+    localized to \code{Xref}.  
+    }
   \item{Xi.ret}{
-    A scalar logical indicating whether or not a vector of indices
-    into \code{X}, specifying the chosen sub-design, should be returned on
-    output
+   A scalar logical indicating whether or not a vector of indices
+   into \code{X}, specifying the chosen sub-design, should be returned on
+   output
   }
   \item{pall}{a scalar logical (for \code{laGP.R} only) offering the
-    ability to obtain predictions after every update (for progress
-    indication and debugging), rather than after just the last update}
+   ability to obtain predictions after every update (for progress
+   indication and debugging), rather than after just the last update}
   \item{close}{
-    a non-negative integer specifying the number of NNs
-    (to \code{Xref}) in \code{X} to consider when
-    searching for elements of the sub-design; 
-    \code{close = 0} specifies all.  For \code{method="alcray"} this
-    specifies the scope used to snap ray-based solutions back to
-    elements of \code{X}, otherwise there are no restrictions on that 
-    search
-  }
+   a non-negative integer specifying the number of NNs (to \code{Xref}) in 
+   \code{X} to consider when searching for elements of the sub-design; 
+   \code{close = 0} specifies all.  For \code{method="alcray"} and 
+   \code{method="alcopt"}, this argument specifies the scope used to snap 
+   solutions obtained via analog continuous searches back to elements of \code{X}, 
+   otherwise there are no restrictions on those searches.  Since these
+   approximate searches are cheaper, they can afford a larger 
+   \dQuote{snapping scope} hence the larger default}
   \item{alc.gpu}{
-    a scalar \code{logical} indicating if a GPU should be used to
-    parallelize the evaluation of the ALC criteria (\code{method = "alc"}).
-    Requires the package be compiled with CUDA flags; see README/INSTALL 
-    in the package source for more details; currently only available 
-    via \code{laGP}, not \code{laGPsep} or the \code{.R} variants 
-    and only supports off-loading ALC calculation to the GPU
- }
+   a scalar \code{logical} indicating if a GPU should be used to
+   parallelize the evaluation of the ALC criteria (\code{method = "alc"}).
+   Requires the package be compiled with CUDA flags; see README/INSTALL 
+   in the package source for more details; currently only available 
+   for \code{nrow(Xref) == 1} 
+   via \code{laGP}, not \code{laGPsep} or the \code{.R} variants,
+   and only supports off-loading ALC calculation to the GPU
+   }
   \item{parallel}{
-    a switch indicating if any parallel calculation of 
-    the criteria is desired.  Currently parallelization at this level is only 
-    provided for \code{method = "alc"}). 
-    For \code{parallel = "omp"}, the package must be compiled with OMP flags;
-    for \code{parallel = "gpu"}, the package must be compiled with CUDA
-    flags see README/INSTALL
-    in the package source for more details; currently only available 
-    via \code{laGP.R}
-  }
-\item{numrays}{ a scalar integer indicating the number of rays for each
-  greedy search; only relevant when \code{method="alcray"}.  More rays
-  leads to a more thorough, but more computational intensive search }
-\item{rect}{
-  an optional \code{2}-by-\code{ncol(X)} \code{matrix} describing a bounding
-  rectangle for \code{X} that is used by the \code{"alcray"} method.  
-  If not specified, the rectangle is calculated from the \code{range} applied
-  to the columns of \code{X}
-}
+   a switch indicating if any parallel calculation of 
+   the criteria is desired.  Currently parallelization at this level is only 
+   provided for \code{method = "alc"}). 
+   For \code{parallel = "omp"}, the package must be compiled with OMP flags;
+   for \code{parallel = "gpu"}, the package must be compiled with CUDA
+   flags see README/INSTALL
+   in the package source for more details; currently only available 
+   via \code{laGP.R}
+   }
+  \item{numstart}{ a scalar integer indicating the number of rays for each
+   greedy search when \code{method="alcray"} or the number of restarts
+   when \code{method="alcopt"}.  More rays or restarts
+   leads to a more thorough, but more computational intensive search.
+   This argument is not involved in other methods }
+  \item{rect}{
+   an optional \code{2}-by-\code{ncol(X)} \code{matrix} describing a bounding
+   rectangle for \code{X} that is used by the \code{"alcray"} method.  
+   If not specified, the rectangle is calculated from the \code{range} applied
+   to the columns of \code{X}
+   }
+  \item{lite}{ Similar to the \code{\link{predGP}} option of the same name,
+  this argument specifies whether (\code{TRUE}, the default) or not (\code{FALSE}) to return
+  a full covariance structure, as opposed the diagonal.  A full covariance
+  structure requires more computation and more storage.  This option is
+  only relevant when \code{nrow(Xref) > 1} }
   \item{verb}{
-    a positive integer specifying the verbosity level; \code{verb = 0}
-    is quiet, and larger values cause more progress information to be
-    printed to the screen
-}
+   a non-negative integer specifying the verbosity level; \code{verb = 0}
+   is quiet, and larger values cause more progress information to be
+   printed to the screen
+   }
 }
 \details{
 
@@ -179,7 +196,7 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
   The functions \code{laGP.R} and \code{laGPsep.R} are a prototype \R-only version for
   debugging and transparency purposes.  They are slower than
   \code{laGP} and \code{laGPsep}, which are primarily in C, and may not
-  provide identical output in all cases due differing library implementations
+  provide identical output in all cases due to differing library implementations
   used as subroutines; see note below for an example.  \code{laGP.R} and other
   \code{.R} functions in the package may be useful for developing new programs
   that involve similar subroutines. The current version of \code{laGP.R}
@@ -187,35 +204,47 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
   the package is compiled with the appropriate flags.  See README/INSTALL in
   the package source for more information.  For algorithmic details, see
   Gramacy, Niemi, & Weiss (2014) }
+  
 \value{
 The output is a \code{list} with the following components.
 
-\item{mean }{a vector of predictive means of length \code{nrow(Xref)}}
-\item{s2 }{a vector of Student-t scale parameters of length
+\item{mean}{a vector of predictive means of length \code{nrow(Xref)}}
+\item{s2}{a vector of Student-t scale parameters of length
   \code{nrow(Xref)}}
-\item{df }{a Student-t degrees of freedom scalar (applies to all
+\item{df}{a Student-t degrees of freedom scalar (applies to all
   \code{Xref})}
-\item{llik }{a scalar indicating the maximized log likelihood or log posterior
+\item{llik}{a scalar indicating the maximized log likelihood or log posterior
   probability of the data/parameter(s) under the chosen sub-design;
   provided up to an additive constant}
-\item{time }{a scalar giving the passage of wall-clock time elapsed
+\item{time}{a scalar giving the passage of wall-clock time elapsed
   for (substantive parts of) the calculation}
-\item{method }{a copy of the \code{method} argument}
-\item{d }{a full-list version of the \code{d} argument, possibly completed by \code{darg}}
-\item{g }{a full-list version of the \code{g} argument, possibly
+\item{method}{a copy of the \code{method} argument}
+\item{d}{a full-list version of the \code{d} argument, possibly completed by \code{darg}}
+\item{g}{a full-list version of the \code{g} argument, possibly
   completed by \code{garg}}
 \item{mle }{if \code{d$mle} and/or \code{g$mle} are \code{TRUE}, then
   \code{mle} is a \code{data.frame} containing the values found for
   these parameters, and the number of required iterations}
-\item{Xi }{when \code{Xi.ret = TRUE}, this field contains a vector of
+\item{Xi}{when \code{Xi.ret = TRUE}, this field contains a vector of
   indices of length \code{end} into \code{X} indicating the sub-design chosen}
-\item{close }{ a copy of the input argument }
+\item{close}{a copy of the input argument}
 }
+
 \references{
+
+  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2017)
+  \emph{Emulating satellite drag from large simulation experiments};
+  preprint on arXiv coming soon. 
 
   R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
   Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
   Software, 72(1), 1-46; or see \code{vignette("laGP")}
+  
+  R.B. Gramacy and B. Haaland (2016).
+  \emph{Speeding up neighborhood search in local Gaussian process prediction.}
+  Technometrics, 58(3), pp. 294-303;
+  preprint on arXiv:1409.0074 
+  \url{http://arxiv.org/abs/1409.0074}
 
   R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
@@ -229,15 +258,12 @@ The output is a \code{list} with the following components.
   preprint on arXiv:1310.5182;
   \url{http://arxiv.org/abs/1310.5182}
 
-  R.B. Gramacy and B. Haaland (2015).
-  \emph{Speeding up neighborhood search in local Gaussian process prediction.}
-  Technometrics, \emph{to appear};
-  preprint on arXiv:1409.0074 
-  \url{http://arxiv.org/abs/1409.0074}
 }
+
 \author{
-  Robert B. Gramacy \email{rbg@vt.edu}
+  Robert B. Gramacy \email{rbg@vt.edu} and Furong Sun \email{furongs@vt.edu}
 }
+
 \note{
   \code{laGPsep} provides the same functionality as \code{laGP} but deploys
   a separable covariance function.  However criteria (\code{method}s) EFI and
@@ -250,14 +276,21 @@ The output is a \code{list} with the following components.
   Handling multiple reference locations
   (\code{nrow(Xref) > 1}) is \dQuote{beta} functionality.  In this case
   the initial \code{start} locations are chosen by applying NN to the
-  average distances to all \code{Xref} locations.  This is not
-  supported for \code{method="alcray"}.
+  average distances to all \code{Xref} locations.  Using 
+  \code{method="alcopt"} causes exhaustive search to be approximated by
+  a continuous analog via closed form derivatives.  
+  See \code{\link{alcoptGP}} for more details.   Although the approximation
+  provided has a spirit similar to \code{method="alcray"}, in that 
+  both methods are intended to offer a thrifty alternative, 
+  \code{method="alcray"} is not applicable when \code{nrow(Xref) > 1}.
 
   Differences between the C \code{qsort} function and \R's
   \code{\link{order}} function may cause chosen designs returned from
   \code{laGP} and \code{laGP.R} (code and \code{laGPsep} and \code{laGPsep.R})
-  to differ when multiple \code{X}
-  values are equidistant to \code{Xref}
+  to differ when multiple \code{X} values are equidistant to \code{Xref}.
+
+  Unfortunately, the separable GP versions do not support \code{method = "mspe"}
+  or \code{method = "fish"} at this time
 }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
@@ -268,11 +301,12 @@ The output is a \code{list} with the following components.
     \code{\link{predGP}}, \code{\link{mleGP}}, \code{\link{jmleGP}},
     \code{\link{alcGP}}, \code{\link{mspeGP}}, \code{\link{alcrayGP}}
 }
+
 \examples{
 ## examining a particular laGP call from the larger analysis provided
 ## in the aGP documentation
 
-## Simple 2-d test function used in Gramacy & Apley (2014);
+## A simple 2-d test function used in Gramacy & Apley (2014);
 ## thanks to Lee, Gramacy, Taddy, and others who have used it before
 f2d <- function(x, y=NULL)
   {
@@ -290,12 +324,14 @@ x <- seq(-2, 2, by=0.02)
 X <- as.matrix(expand.grid(x, x))
 Z <- f2d(X)
 
-## local analysis, first pass
+## optional first pass of nearest neighbor
 Xref <- matrix(c(-1.725, 1.725), nrow=TRUE)
 out <- laGP(Xref, 6, 50, X, Z, method="nn")
 
-## second and pass via ALC, MSPE, and ALC-ray respectively
+## second pass via ALC, ALCOPT, MSPE, and ALC-ray respectively,
+## conditioned on MLE d-values found above
 out2 <- laGP(Xref, 6, 50, X, Z, d=out$mle$d)
+out2.alcopt <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="alcopt")
 out2.mspe <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="mspe")
 out2.alcray <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="alcray")
 
@@ -304,25 +340,68 @@ plot(rbind(X[out2$Xi,], X[out2.mspe$Xi,]), type="n",
      xlab="x1", ylab="x2", main="comparing local designs")
 points(Xref[1], Xref[2], col=2, cex=0.5)
 text(X[out2$Xi,], labels=1:50, cex=0.6)
-text(X[out2.mspe$Xi,], labels=1:50, cex=0.6, col="green")
+text(X[out2.alcopt$Xi,], labels=1:50, cex=0.6, col="forestgreen")
+text(X[out2.mspe$Xi,], labels=1:50, cex=0.6, col="blue")
 text(X[out2.alcray$Xi,], labels=1:50, cex=0.6, col="red")
-
-legend("topright", c("pass 2 ALC", "pass 3 MSPE", "pass 3 ALCRAY"),
-       text.col=c("black", "green", "red"), bty="n")
+legend("right", c("ALC", "ALCOPT", "MSPE", "ALCRAY"),
+       text.col=c("black", "forestgreen", "blue", "red"), bty="n")
 
 ## compare times
-data.frame(nn=out$time, alc=out2$time, 
+c(nn=out$time, alc=out2$time, alcopt=out2.alcopt$time, 
   mspe=out2.mspe$time, alcray=out2.alcray$time)
 
-## Here is the example from the Gramacy & Haaland (2014) paper;
-## the lower lengthscale (d) setting generates more spread
-out <- laGP(Xref, 6, 50, X, Z, d=0.1, method="alc")
-out2 <- laGP(Xref, 6, 50, X, Z, d=0.1, method="alcray")
-plot(X[out$Xi,], xlab="x1", ylab="x2", type="n")
-text(X[out$Xi,], labels=1:length(out$Xi), cex=0.7)
-text(X[out2$Xi,], labels=1:length(out2$Xi), cex=0.7, col=3)
-points(Xref[1], Xref[2], pch=19, col=2)
-legend("topright", c("exhaustive", "via rays"), text.col=c(1,3), bty="n")
+\dontrun{
+  ## A comparison between ALC-ex, ALC-opt and NN
+
+  ## defining a predictive path
+  wx <- seq(-0.85, 0.45, length=100)
+  W <- cbind(wx-0.75, wx^3+0.51)
+
+  ## three comparators from Sun, et al. (2017)
+  ## larger-than-default "close" argument to capture locations nearby path
+  p.alc <- laGPsep(W, 6, 100, X, Z, method="alc", close=10000, lite=FALSE)
+  p.alcopt <- laGPsep(W, 6, 100, X, Z, method="alcopt", lite=FALSE)
+  ## note that close = 10*1000 would be the default for method = "alcopt"
+  p.nn <- laGPsep(W, 6, 100, X, Z, method="nn", close=10000, lite=FALSE)
+
+  ## Mahalanobis distance to combine RMSE and covariance estimates
+  mahdist <- function(Y, mu, Sigma) {
+     Ymmu <- Y - mu
+     Sigmai <- solve(Sigma)
+     return(sqrt(t(Ymmu) %*% Sigmai %*% Ymmu))
+  }
+
+  ## comparison by Mahalanobis distance
+  WY <- f2d(W)
+  c(alc=mahdist(WY, p.alc$mean, p.alc$Sigma),
+    alcopt=mahdist(WY, p.alcopt$mean, p.alcopt$Sigma),
+    nn=mahdist(WY, p.nn$mean, p.nn$Sigma))
+
+  ## comparison via time
+  c(alc=p.alc$time, alcopt=p.alcopt$time, nn=p.nn$time)
+
+  ## visualization
+  ## first ALC-ex
+  plot(W, type="l", bty="n", lwd=2, xlab="x1", ylab="x2", 
+    xlim=c(-2.25,0), ylim=c(-0.75,1.25), main="")
+  points(W[length(wx)/2,1], W[length(wx)/2,2], col=2, pch=19)
+  points(X[p.alc$Xi,], col="blue", cex=0.6)
+  legend("bottomright", c("x0", "ALC-opt", "ALC-ex", "NN"), 
+    pch=c(19, 23, 21, 22), bty="n", cex=1.25,
+    col=c("red", "purple", "blue", "forestgreen"))
+  legend("topleft", "W(x0)", lty=1, col=1, lwd=2, bty="n", 
+    cex=1.25)
+  ## then shifted NN
+  lines(W[,1]+0.25, W[,2]-0.25)
+  points(W[length(wx)/2,1]+0.25, W[length(wx)/2,2]-0.25, col=2, pch=19)
+  points(X[p.nn$Xi,1]+0.25, X[p.nn$Xi,2]-0.25, pch=22, 
+    col="forestgreen", cex=0.6)
+  ## finally shifted (in the other direction) ALC-opt
+  lines(W[,1]-0.25, W[,2]+0.25) 
+  points(W[length(wx)/2,1]-0.25, W[length(wx)/2,2]+0.25, col=2, pch=19)
+  points(X[p.alcopt$Xi,1]-0.25, X[p.alcopt$Xi,2]+0.25, pch=23, 
+    col="purple", cex=0.6)
+}
 }
 
 \keyword{ nonparametric }

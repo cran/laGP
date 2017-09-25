@@ -164,8 +164,8 @@ double Brent_fmin(double ax, double bx, double (*f)(double, void *),
 
 
 void MYlbfgsb(int n, double *x, double *l, double *u, optimfn fn, 
-  optimgr gr, int *fail, void *ex, int *counts, int maxit, char *msg, 
-  int trace, int fromR)
+  optimgr gr, int *fail, void *ex, double pgtol, int *counts, int maxit, 
+  char *msg, int trace, int fromR)
 {
   int *nbd;
   int k;
@@ -174,10 +174,9 @@ void MYlbfgsb(int n, double *x, double *l, double *u, optimfn fn,
   nbd = new_ivector(n);
   for(k=0; k<n; k++) nbd[k] = 2;
 
-
   if(fromR) {
     lbfgsb(n, 5, x, l, u, nbd, &val, fn, gr, fail, ex, 
-    1e7, 0, counts, counts+1, maxit, msg, trace, 10);
+    1e7, pgtol, counts, counts+1, maxit, msg, trace, 10);
   } else {
 
 #ifdef _OPENMP
@@ -185,7 +184,7 @@ void MYlbfgsb(int n, double *x, double *l, double *u, optimfn fn,
     {
 #endif  
       lbfgsb(n, 5, x, l, u, nbd, &val, fn, gr, fail, ex, 
-        1e7, 0, counts, counts+1, maxit, msg, trace, 10);
+        1e7, pgtol, counts, counts+1, maxit, msg, trace, 10);
 #ifdef _OPENMP
     }
 #endif

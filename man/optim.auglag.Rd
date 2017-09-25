@@ -135,7 +135,7 @@ progress measures; ignored if there are no equality constraints }
     for licensing incompatibilities
 }
   \item{verb}{
-    positive scalar integer indicating the verbosity level; the larger the value the
+    a non-negative integer indicating the verbosity level; the larger the value the
     more that is printed to the screen
 }
   \item{...}{ additional arguments passed to \code{fn}}

@@ -3,12 +3,13 @@ useDynLib(laGP, .registration=TRUE)
 
 # Exports
 export(aGP, aGP.R, aGP.parallel, laGP, laGP.R, newGP, updateGP, predGP, mleGP, 
-       jmleGP, jmleGP.R, darg, garg, deleteGP, deleteGPs, distance,
-       alcGP, ieciGP, mspeGP, fishGP, llikGP, alcrayGP, optim.auglag, optim.efi, 
+       jmleGP, jmleGP.R, darg, garg, deleteGP, deleteGPs, distance, alcGP, 
+       alcoptGP, dalcGP, ieciGP, mspeGP, fishGP, llikGP, alcrayGP, 
+       optim.auglag, optim.efi, blhs, blhs.loop,
        laGPsep, laGPsep.R, aGPsep, aGPsep.R, newGPsep, mleGPsep, mleGPsep.R, 
-       jmleGPsep, jmleGPsep.R, predGPsep, llikGPsep, alcGPsep, alcrayGPsep, 
-       ieciGPsep, deleteGPsep, deleteGPseps, updateGPsep, aGP.seq, discrep.est, 
-       fcalib)
+       jmleGPsep, jmleGPsep.R, predGPsep, llikGPsep, alcGPsep, 
+       alcoptGPsep, alcrayGPsep, dalcGPsep, ieciGPsep, deleteGPsep, 
+       deleteGPseps, updateGPsep, aGP.seq, discrep.est, fcalib)
 
 # Only import certain functions from Imports list for tgp and akima
 importFrom(parallel, clusterEvalQ)
@@ -18,5 +19,5 @@ importFrom(tgp, lhs)
 importFrom(tgp, interp.loess)
 
 ## required for new CRAN checks
-importFrom("graphics", "image", "matplot", "par", "plot", "points")
+importFrom("graphics", "image", "matplot", "par", "plot", "points", "boxplot")
 importFrom("stats", "dnorm", "median", "optim", "pnorm", "quantile")

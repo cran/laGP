@@ -47,7 +47,7 @@ updateGPsep(gpsepi, X, Z, verb = 0)
 \item{gpsepi}{ similar to \code{gpi} but indicating a separable GP object,
   as returned by \code{\link{newGPsep}}}
 \item{verb}{
-  a scalar logical indicating the verbosity level.  A positive value
+  a non-negative integer indicating the verbosity level.  A positive value
   causes progress statements to be printed to the screen for each
   update of \code{i in 1:nrow(X)}
 }

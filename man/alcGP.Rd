@@ -7,16 +7,22 @@
 \alias{fishGP}
 \alias{ieciGP}
 \alias{ieciGPsep}
+\alias{alcoptGP}
+\alias{dalcGP}
+\alias{alcoptGPsep}
+\alias{dalcGPsep}
 
 \title{
   Improvement statistics for sequential or local design
 }
+
 \description{
   Calculate the active learning Cohn (ALC) statistic, mean-squared predictive
   error (MSPE) or expected Fisher information (fish) for a Gaussian
   process (GP) predictor relative to a set of reference locations, towards
   sequential design or local search for Gaussian process regression
 }
+
 \usage{
 alcGP(gpi, Xcand, Xref = Xcand, parallel = c("none", "omp", "gpu"), 
       verb = 0)
@@ -28,7 +34,12 @@ ieciGP(gpi, Xcand, fmin, Xref = Xcand, w = NULL, verb = 0)
 ieciGPsep(gpsepi, Xcand, fmin, Xref = Xcand, w = NULL, verb = 0)
 mspeGP(gpi, Xcand, Xref = Xcand, fi = TRUE, verb = 0)
 fishGP(gpi, Xcand)
+alcoptGP(gpi, Xref, start, lower, upper, maxit = 100, verb = 0)
+alcoptGPsep(gpsepi, Xref, start, lower, upper, maxit = 100, verb = 0)
+dalcGP(gpi, Xcand, Xref = Xcand, verb = 0)
+dalcGPsep(gpsepi, Xcand, Xref = Xcand, verb = 0)
 }
+
 %- maybe also 'usage' for other objects documented here.
 \arguments{
 \item{gpi}{
@@ -62,7 +73,7 @@ fishGP(gpi, Xcand)
    \code{matrix} may only have one row, i.e., one reference location
 }
 \item{parallel}{
-   a switch indicating if any parallel calculation of 
+  a switch indicating if any parallel calculation of 
   the criteria (\code{method}) is desired.    
   For \code{parallel = "omp"}, the package be compiled with OpenMP flags; 
   for \code{parallel = "gpu"}, the package must be compiled with CUDA
@@ -87,38 +98,74 @@ fishGP(gpi, Xcand)
 \item{w}{ weights on the reference locations \code{Xref} for IECI calculations;
   IECI is not fully documented at this time}
 \item{verb}{
-  a positive integer specifying the verbosity level; \code{verb = 0}
+  a non-negative integer specifying the verbosity level; \code{verb = 0}
   is quiet, and larger values cause more progress information to be
   printed to the screen
 }
+\item{start}{ initial values to the derivative-based search via \code{"L-BFGS-B"} 
+  within \code{alcoptGP} and \code{alcoptGPsep}; a nearest neighbor often
+  represents a sensible initialization }
+\item{lower, upper}{ bounds on the derivative-based search via \code{"L-BFGS-B"}
+  within \code{alcoptGP} and \code{alcoptGPsep}}
+\item{maxit}{ the maximum number of iterations (default \code{maxit=100}) in \code{"L-BFGS-B"}
+  search within \code{alcoptGP} and \code{alcoptGPsep}}
 }
+
 \details{
   The best way to see how these functions are used in the context of local
   approximation is to inspect the code in the \code{\link{laGP.R}} function.
 
-  Otherwise they are pretty self explanatory.  They evaluate the ALC, MSPE,
+  Otherwise they are pretty self-explanatory.  They evaluate the ALC, MSPE,
   and EFI quantities outlined in Gramacy & Apley (2015).  The ALC is originally
-  due to Seo, et al. (2000).  The ray-based search is described by a forthcoming
-  paper by Gramacy & Haaland (2015).
+  due to Seo, et al. (2000).  The ray-based search is described by Gramacy & Haaland (2015).
 
-  MSPE and EFI calculations are not supported for separable GP models.  I.e.,
+  MSPE and EFI calculations are not supported for separable GP models, i.e.,
   there are no \code{mspeGPsep} or \code{fishGPsep} functions.
 
   \code{alcrayGP} and \code{alcrayGPsep} allows only one reference location 
-  (\code{nrow(Xref) = 1}).  
+  (\code{nrow(Xref) = 1}).  \code{alcoptGP} and \code{alcoptGPsep} allows multiple 
+  reference locations. It optimizes a continuous ALC analog in its natural logarithm form 
+  via log(derivatives), using the starting locations, bounding boxes and (stored) gp provided, 
+  and finally snaps the solution back to the candidate grid.  The derivative-based search is
+  described by Sun, et al. (2017).
+  
+  Note that \code{ieciGP} and \code{ieciGPsep}, which are for optimization via 
+  integrated expected conditional improvement (Gramacy & Lee, 2011) are 
+  alpha functionality and are not fully documented at this time.
+  
+  \code{dalcGP} and \code{dalcGPsep} calculate the derivative, with respect to \code{Xcand}, of the
+  \eqn{s2'}{s2'} component of the ALC calculation of the expected reduction in variance calculation 
+  at locations \code{Xcand} averaging over reference locations \code{Xref}: \eqn{ds2 = s2 - s2'}{ds2 = s2 - s2'}, where 
+  the \eqn{s2}{s2} are at \code{Xref} and the \eqn{s2'}{s2'} incorporates \code{Xcand}, and everything is averaged over \code{Xref}.
+}
 
-  Note that \code{ieciGP} and \code{ieciGPsep} are alpha functionality and are
-  not fully documented at this time
-}
 \value{
-  A vector of length \code{nrow(Xcand)} is returned filled with values
-  corresponding to the desired statistic
+Except for \code{alcoptGP}, \code{alcoptGPsep}, \code{dalcGP}, and \code{dalcGPsep}, a vector of length \code{nrow(Xcand)} is returned 
+filled with values corresponding to the desired statistic
+\item{par}{the best set of parameters found}
+\item{its}{a two-element integer vector giving the number of calls to the object function and the gradient respectively.}
+\item{msg}{a character string giving any additional information returned by the optimizer, or NULL}
+\item{convergence}{An integer code. \code{0} indicates successful completion. For the other error codes,
+                   see the documentation for \code{\link{optim}}}
+\item{alcs}{the predictive variance with the augmented local design by the new location averaging over the reference locations}
+\item{dalcs}{the derivative of \code{alcs} with respect to the new location}
 }
-\references{
+
+\references{ 
+
+  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2017)
+  \emph{Emulating satellite drag from large simulation experiments.};
+  preprint on arXiv coming soon. 
 
   R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
   Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
   Software, 72(1), 1-46; or see \code{vignette("laGP")}
+  
+  R.B. Gramacy and B. Haaland (2016).
+  \emph{Speeding up neighborhood search in local Gaussian process prediction.}
+  Technometrics, 58(3), pp. 294-303;
+  preprint on arXiv:1409.0074 
+  \url{http://arxiv.org/abs/1409.0074}
 
   R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
@@ -132,19 +179,18 @@ fishGP(gpi, Xcand)
   preprint on arXiv:1310.5182;
   \url{http://arxiv.org/abs/1310.5182}
 
-  R.B. Gramacy and B. Haaland (2015).
-  \emph{Speeding up neighborhood search in local Gaussian process prediction.}
-  Technometrics, \emph{to appear};
-  preprint on arXiv:1409.0074 
-  \url{http://arxiv.org/abs/1409.0074}
+  R.B. Gramacy, H.K.H. Lee (2011). 
+  \emph{Optimization under unknown constraints.}, Valencia discussion paper, in Bayesian Statistics 9. 
+  Oxford University Press; preprint on arXiv:1004.4027; \url{http://arxiv.org/abs/1004.4027}
 
   Seo, S., Wallat, M., Graepel, T., Obermayer, K. (2000). 
   \emph{Gaussian Process Regression: Active Data Selection and Test Point Rejection.}
   In Proceedings of the International Joint Conference on Neural Networks, 
   vol. III, 241-246. IEEE.
 }
+
 \author{
-  Robert B. Gramacy \email{rbg@vt.edu}
+  Robert B. Gramacy \email{rbg@vt.edu} and Furong Sun \email{furongs@vt.edu}
 }
 
 \seealso{
@@ -193,6 +239,31 @@ image(xx, xx, matrix(sqrt(mspe), nrow=length(xx)), col=heat.colors(128),
       xlab="x1", ylab="x2", main="sqrt MSPE")
 image(xx, xx, matrix(log(fish), nrow=length(xx)), col=heat.colors(128),
       xlab="x1", ylab="x2", main="log fish")
+
+## clean up
+deleteGP(gpi)
+
+## search the new location to augment the current local design
+xx <- seq(-1.9, 1.9, length=10)
+XX <- as.matrix(expand.grid(xx, xx))
+e.alc <- laGP.R(XX, start=6, end=100, X, Z, method="alc", close=10000, parallel="omp")
+XC <- X[e.alc$Xi[1:6],] # the initial local design containing 6 NNs
+ZC <- Z[e.alc$Xi[1:6]]  # the corresponding responses
+Xcan <- data.frame(X[-e.alc$Xi[1:6],]) # the candidate input space
+gpi <- newGP(XC, ZC, d=e.alc$mle$d, g=e.alc$g$start)
+out1 <- alcoptGP(gpi=gpi, Xref=XX, start=c(0,0), lower=range(x)[1], upper=range(x)[2])
+## out1$par is the "new" location
+D <- t(distance(matrix(out1$par, ncol=ncol(XC)), as.matrix(Xcan))) 
+D.frame <- data.frame(cbind(Xcan, D, as.numeric(row.names(Xcan))))
+names(D.frame) <- c(paste("x", 1:ncol(XC), sep=""), "distance", "lab")
+D.label <- which.min(D.frame$distance) # snap the "new" location back to the global input space
+lab <- as.numeric(D.frame[D.label, (ncol(XC)+2)])
+xnew <- data.frame(X)[lab,] # the new location to augment the current local design
+out2 <- dalcGP(gpi=gpi, Xcand=as.matrix(xnew), Xref=XX)
+
+## Below is the predictive variance with the local design augmented 
+## by the new location averaging over the reference locations
+ALC <- out2$alcs 
 
 ## clean up
 deleteGP(gpi)

@@ -492,9 +492,217 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
   }
 
 
+## alcoptGP:
+##
+## interface to C version of alcoptGP.R which continuously optimizes 
+## ALC based on derivatives, using the starting locations and bounding 
+## boxes and (stored) gp provided; ... has arguments to optim including 
+## trace/verb level
+
+alcoptGP <- function(gpi, Xref, start, lower, upper, maxit=100, verb=0)
+  {
+    m <- getmGP(gpi)
+    if(ncol(Xref) != m) stop("gpi stored X and Xref have mismatched cols")
+    if(length(start) != m) stop("gpi stored X and start have mismatched cols")
+
+    ## check lower and upper arguments
+    if(length(lower) == 1) lower <- rep(lower, m)
+    else if(length(lower) != m) stop("lower should be a vector of length ncol(Xref)")
+    if(length(upper) ==  1) upper <- rep(upper, m)
+    else if(length(upper) != m) stop("upper should be a vector of length ncol(Xref)")
+    if(any(lower >= upper)) stop("some lower >= upper")
+
+
+    out <- .C("alcoptGP_R",
+              gpi = as.integer(gpi),
+              maxit = as.integer(maxit),
+              verb = as.integer(verb),
+              start = as.double(start),
+              lower = as.double(lower),
+              upper = as.double(upper),
+              m = as.integer(m),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(nrow(Xref)),
+              par = double(m),
+              counts = integer(2),
+              msg = paste(rep(0,60), collapse=""),
+              convergence = integer(1),              
+              PACKAGE = "laGP")
+
+    ## for now return the whole optim output
+    return(list(par=out$par, its=out$counts, msg=out$msg, convergence=out$convergence))
+  }
+
+
+## alcoptGP.R:
+##
+## continuously optimizes ALC based on derivatives, using the
+## starting locations and (stored) gp provided; ... has arguments 
+## to optim including trace/verb level
+
+alcoptGP.R <- function(gpi, Xref, start, lower, upper, maxit=100, verb=0)
+  {
+    m <- getmGP(gpi)
+    if(ncol(Xref) != m) stop("gpi stored X and Xref have mismatched cols")
+    if(length(start) != m) stop("gpi stored X and start have mismatched cols")
+
+    ## objective (and derivative saved)
+    deriv <- NULL
+    f <- function(x, gpi, Xref) {
+      out <- dalcGP(gpi, matrix(x, nrow=1), Xref, verb=0)
+      deriv <<- list(x=x, df=-out$dalcs/out$alcs)
+      return(- log(out$alcs))
+    }
+
+    ## derivative read from global variable
+    df <- function(x, gpi, Xref) {
+       if(any(x != deriv$x)) stop("xs don't match for successive f and df calls") 
+       return(deriv$df)
+    }
+
+    ## set up control
+    control <- list(maxit=maxit, trace=verb, pgtol=1e-1)
+
+    ## call optim with derivative and global variable
+    opt <- optim(start, f, df, gpi=gpi, Xref=Xref, lower=lower, upper=upper,
+      method="L-BFGS-B", control=control)
+    ## version without derivatives
+    ## opt <- optim(start, f, gpi=gpi, Xref=Xref, lower=lower, upper=upper,
+    ##           method="L-BFGS-B", control=control)
+
+    ## keep track of derivative progress
+    ## f(opt$par, gpi, Xref)
+    ## grads <<- rbind(grads, df(opt$par, gpi, Xref))
+
+    ## for now return the whole optim output
+    return(opt)
+  }
+
+
+## lalcoptGP.R:
+##
+## optimizes ALC continuously from an initial random nearest (of start)
+## neighbor(s) to Xref in Xcand.  The candidate in Xcand which is closest
+## to the solution is returned.  This works differently than
+## lalcoptGP, since the starts are random from 1:offset
+
+lalcoptGP.R <- function(gpi, Xref, Xcand, rect=NULL, offset=1, numstart=1, verb=0) 
+  {
+    ## sanity checks
+    m <- ncol(Xref)
+    if(m != ncol(Xcand)) stop("ncol(Xref) != ncol(Xcand)")
+    if(length(offset) != 1 || offset < 1 || offset > nrow(Xcand))
+      stop("offset should be a scalar integer >= 1 and <= nrow(Xcand)") 
+    if(length(numstart) != 1 || numstart < 1)
+      stop("numstart should be an integer scalar >= 1")
+
+    ## adjust numstart
+    if(numstart > nrow(Xcand)) numstart <- nrow(Xcand)
+
+    ## calculate bounding rectangle from candidates
+    if(is.null(rect)) rect <- apply(Xcand, 2, range)
+    else if(nrow(rect) != 2 || ncol(rect) != ncol(Xref))
+        stop("bad rect dimensions, must be 2 x ncol(Xref)")
+
+    ## get starting and ending point of ray
+    Xstart <- Xcand[offset:(offset + numstart - 1),,drop=FALSE]
+
+    ## solve for the best convex combination of Xstart and Xend
+    best.obj <- -Inf; best.w <- NA
+    for(i in 1:nrow(Xstart)) {
+      opt <- alcoptGP(gpi, Xref, Xstart[i,], rect[1,], rect[2,], verb=verb)
+      ## opt <- alcoptGP.R(gpi, Xref, Xstart[i,], rect[1,], rect[2,], verb=verb)
+
+      ## calculate the index of the closest Xcand to opt$par and evaluate
+      ## the ALC criteria there
+      w <- which.min(distance(matrix(opt$par, nrow=1), Xcand)[1,])
+      obj <- alcGP(gpi, Xcand[w,,drop=FALSE], Xref)
+
+      ## determine if that location has the best ALC so far
+      if(obj > best.obj) { best.obj <- obj; best.w <- w }
+    }
+
+    return(best.w)
+  }
+
+
+
+## lalcoptGP:
+##
+## wrapper to a C-side function used to optimize ALC continuously 
+## from an initial neighbor(s) to Xref in Xcand.  
+## The candidate in Xcand which is closest to the solution is returned.  
+## This works differently than lalcoptGP.R, since the starts are 
+## determined by a deterministic round robin similar to lalcrayGP
+
+lalcoptGP <- function(gpi, Xref, Xcand, rect=NULL, offset=1, numstart=1, maxit=100, 
+  verb=0)
+  {
+    ## sanity checks
+    m <- ncol(Xref)
+    ncand <- nrow(Xcand)
+    if(m != ncol(Xcand)) stop("ncol(Xref) != ncol(Xcand)")
+    if(length(offset) != 1 || offset < 1 || offset > ncand)
+      stop("offset should be a scalar integer >= 1 and <= nrow(Xcand)") 
+    if(length(numstart) != 1 || numstart < 1)
+      stop("numstart should be an integer scalar >= 1")
+
+    ## calculate bounding rectangle from candidates
+    if(is.null(rect)) rect <- apply(Xcand, 2, range)
+    else if(nrow(rect) != 2 || ncol(rect) != ncol(Xref))
+        stop("bad rect dimensions, must be 2 x ncol(Xref)")
+
+    out <- .C("lalcoptGP_R",
+              gpi = as.integer(gpi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(nrow(Xref)),
+              offset = as.integer(offset-1),
+              numstart = as.integer(numstart),
+              rect = as.double(t(rect)),
+              maxit = as.integer(maxit),
+              verb = as.integer(verb),
+              w = integer(1),
+              PACKAGE = "laGP")
+
+    return(out$w+1)
+  }
+
+
+
+## dalcGP:
+##
+## wrapper used to calculate the derivative of ALCs in C using
+## the pre-stored GP representation.  Note that this only
+## calculates the s2' component of ds2 = s2 - s2'
+
+dalcGP <- function(gpi, Xcand, Xref=Xcand, verb=0)
+  {
+    m <- ncol(Xcand)
+    if(ncol(Xref) != m) stop("Xcand and Xref have mismatched cols")
+    ncand <- nrow(Xcand)
+
+    out <- .C("dalcGP_R",
+              gpi = as.integer(gpi),
+              m = as.integer(m),
+              Xcand = as.double(t(Xcand)),
+              ncand = as.integer(ncand),
+              Xref = as.double(t(Xref)),
+              nref = as.integer(nrow(Xref)),
+              verb = as.integer(verb),
+              alcs = double(ncand),
+              dalcs = double(ncand*m),
+              PACKAGE = "laGP")
+
+    return(list(alcs=out$alcs, dalcs=matrix(out$dalcs, ncol=m, byrow=TRUE)))
+  }
+
+
 ## ray.bounds:
 ##
-## get the end of the ray eminating from Xstart that goes
+## get the end of the ray emanating from Xstart that goes
 ## away (in the direction) from Xref which is 10 times the
 ## distance but not beyond the bounding rectangle
 
@@ -516,9 +724,10 @@ ray.end <- function(numrays, Xref, Xstart, rect)
   }
 
 
+
 ## lalcrayGP.R:
 ##
-## calculates a ray emiating from a random nearest (of start)
+## calculates a ray emanating from a random nearest (of start)
 ## neighbor(s) to Xref in Xcand.  The ending point of the ray
 ## is 10 times the (opposite) distance from Xstart to Xref,
 ## then alcrayGP (either C or R version) is called to optimize
@@ -527,7 +736,8 @@ ray.end <- function(numrays, Xref, Xstart, rect)
 ## lalcrayGP, since the starts of the rays are random from 
 ## 1:offset
 
-lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), verb=0) 
+lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), 
+  verb=0) 
   {
     ## sanity checks
     m <- ncol(Xref)
@@ -558,7 +768,7 @@ lalcrayGP.R <- function(gpi, Xref, Xcand, rect, offset=1, numrays=ncol(Xref), ve
 
 ## lalcrayGP:
 ##
-## wrapper to a C-side function used to calculate a ray emiating 
+## wrapper to a C-side function used to calculate a ray emanating 
 ## from a random nearest (of start) neighbor(s) to Xref in Xcand.  
 ## The ending point of the ray is 10 times the (opposite) distance 
 ## from Xstart to Xref, then alcrayGP (on the C-side) is called to 
@@ -832,4 +1042,14 @@ fishGP <- function(gpi, Xcand)
 
     ## remove silly values
     return(out$efi)
+  }
+
+
+## getmGP:
+##
+## access the input dimension of a GP
+
+getmGP <- function(gpi)
+  {
+    .C("getmGP_R", gpi = as.integer(gpi), m = integer(1), PACKAGE="laGP")$m
   }

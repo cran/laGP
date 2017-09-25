@@ -7,9 +7,17 @@ extern void aGPsep_R(void *, void *, void *, void *, void *, void *, void *, voi
 #ifdef _GPU
 extern void alcGP_gpu_R(void *, void *, void *, void *, void *, void *, void *, void *);
 #endif
+#ifdef _OPENMP
 extern void alcGP_omp_R(void *, void *, void *, void *, void *, void *, void *, void *);
-extern void alcGP_R(void *, void *, void *, void *, void *, void *, void *, void *);
 extern void alcGPsep_omp_R(void *, void *, void *, void *, void *, void *, void *, void *);
+#endif
+extern void dalcGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void alcGP_R(void *, void *, void *, void *, void *, void *, void *, void *);
+extern void dalcGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void alcoptGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void alcoptGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void lalcoptGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void lalcoptGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void alcGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *);
 extern void alcrayGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void alcrayGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
@@ -35,13 +43,14 @@ extern void efiGP_R(void *, void *, void *, void *, void *);
 extern void getdGPsep_R(void *, void *);
 extern void getgGPsep_R(void *, void *);
 extern void getmGPsep_R(void *, void *);
+extern void getmGP_R(void *, void *);
 extern void ieciGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void ieciGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void Igamma_inv_R(void *, void *, void *, void *, void *);
 extern void jmleGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void jmleGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
-extern void laGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
-extern void laGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void laGP_R(void*, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void laGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void lalcrayGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void lalcrayGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void llikGP_R(void *, void *, void *, void *);
@@ -60,6 +69,7 @@ extern void predGPsep_R(void *, void *, void *, void *, void *, void *, void *, 
 extern void rbetter_R(void *, void *, void *, void *, void *);
 extern void updateGP_R(void *, void *, void *, void *, void *, void *);
 extern void updateGPsep_R(void *, void *, void *, void *, void *, void *);
+extern void closest_indices_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
 
 static const R_CMethodDef CEntries[] = {
     {"aGP_R",            (DL_FUNC) &aGP_R,            30},
@@ -67,10 +77,18 @@ static const R_CMethodDef CEntries[] = {
 #ifdef _GPU
     {"alcGP_gpu_R",      (DL_FUNC) &alcGP_gpu_R,       8},
 #endif
+#ifdef _OPENMP
     {"alcGP_omp_R",      (DL_FUNC) &alcGP_omp_R,       8},
-    {"alcGP_R",          (DL_FUNC) &alcGP_R,           8},
     {"alcGPsep_omp_R",   (DL_FUNC) &alcGPsep_omp_R,    8},
+#endif
+    {"alcGP_R",          (DL_FUNC) &alcGP_R,           8},
+    {"dalcGP_R",         (DL_FUNC) &dalcGP_R,          9},
+    {"lalcoptGP_R",      (DL_FUNC) &lalcoptGP_R,      12},
+    {"lalcoptGPsep_R",   (DL_FUNC) &lalcoptGPsep_R,   12},
+    {"alcoptGP_R",       (DL_FUNC) &alcoptGP_R,       13},
+    {"alcoptGPsep_R",    (DL_FUNC) &alcoptGPsep_R,    13},
     {"alcGPsep_R",       (DL_FUNC) &alcGPsep_R,        8},
+    {"dalcGPsep_R",      (DL_FUNC) &dalcGPsep_R,       9},
     {"alcrayGP_R",       (DL_FUNC) &alcrayGP_R,        9},
     {"alcrayGPsep_R",    (DL_FUNC) &alcrayGPsep_R,     9},
     {"alGP_R",           (DL_FUNC) &alGP_R,           16},
@@ -95,13 +113,14 @@ static const R_CMethodDef CEntries[] = {
     {"getdGPsep_R",      (DL_FUNC) &getdGPsep_R,       2},
     {"getgGPsep_R",      (DL_FUNC) &getgGPsep_R,       2},
     {"getmGPsep_R",      (DL_FUNC) &getmGPsep_R,       2},
+    {"getmGP_R",         (DL_FUNC) &getmGP_R,          2},
     {"ieciGP_R",         (DL_FUNC) &ieciGP_R,         11},
     {"ieciGPsep_R",      (DL_FUNC) &ieciGPsep_R,      11},
     {"Igamma_inv_R",     (DL_FUNC) &Igamma_inv_R,      5},
     {"jmleGP_R",         (DL_FUNC) &jmleGP_R,         10},
     {"jmleGPsep_R",      (DL_FUNC) &jmleGPsep_R,      13},
-    {"laGP_R",           (DL_FUNC) &laGP_R,           26},
-    {"laGPsep_R",        (DL_FUNC) &laGPsep_R,        25},
+    {"laGP_R",           (DL_FUNC) &laGP_R,           27},
+    {"laGPsep_R",        (DL_FUNC) &laGPsep_R,        26},
     {"lalcrayGP_R",      (DL_FUNC) &lalcrayGP_R,      10},
     {"lalcrayGPsep_R",   (DL_FUNC) &lalcrayGPsep_R,   10},
     {"llikGP_R",         (DL_FUNC) &llikGP_R,          4},
@@ -120,6 +139,7 @@ static const R_CMethodDef CEntries[] = {
     {"rbetter_R",        (DL_FUNC) &rbetter_R,         5},
     {"updateGP_R",       (DL_FUNC) &updateGP_R,        6},
     {"updateGPsep_R",    (DL_FUNC) &updateGPsep_R,     6},
+    {"closest_indices_R",(DL_FUNC) &closest_indices_R, 9},
     {NULL, NULL, 0}
 };
 

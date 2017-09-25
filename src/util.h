@@ -40,7 +40,7 @@ double Brent_fmin(double ax, double bx, double (*f)(double, void *),
 void MYlbfgsb(int n, double *x, double *l, double *u, 
 	double (*fn)(int, double*, void*), 
 	void (*gr)(int, double *, double *, void *), 
-	int *fail, void *ex, int *counts, int maxit, 
+	int *fail, void *ex, double pgtol, int *counts, int maxit, 
 	char *msg, int trace, int fromR);
 
 #endif

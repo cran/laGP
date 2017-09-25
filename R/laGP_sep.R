@@ -28,108 +28,132 @@
 ## C-version of sequential design loop for prediction at Xref
 
 laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
-                 method=c("alc", "alcray", "nn"), Xi.ret=TRUE, 
-                 close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
-                 numrays=ncol(X), rect=NULL, verb=0)
-  {
-    ## argument matching and numerifying
-    method <- match.arg(method)
-    if(method == "alc") imethod <- 1
-    else if(method == "alcray") imethod <- 2
-    else imethod <- 5
-
-    ## massage Xref
-    if(!is.matrix(Xref)) Xref <- matrix(Xref, ncol=ncol(X))
-    nref <- nrow(Xref)
-
-    ## calculate rectangle if using alcray
-    if(method == "alcray") {
-      if(is.null(rect)) rect <- apply(X, 2, range)
-      if(nrow(Xref) != 1) stop("alcray only implemented for nrow(Xref) = 1")
-      if(nrow(rect) != 2 || ncol(rect) != ncol(X))
-        stop("bad rect dimensions, must be 2 x ncol(X)")
-      if(length(numrays) != 1 || numrays < 1)
-        stop("numrays should be an integer scalar >= 1")
-    } else { 
-      if(!is.null(rect)) warning("rect only used by alcray method"); 
-      rect <- 0 
-    }
-
-    ## sanity checks on input dims
-    if(start < 6 || end <= start) stop("must have 6 <= start < end")
-    if(ncol(Xref) != ncol(X)) stop("bad dims")
-    if(length(Z) != nrow(X)) stop("bad dims")
-    if(nrow(X) <= end) stop("nrow(X) <= end so nothing to do")
-
-    ## process the d argument
-    d <- darg(d, X)
-    if(length(d$start) == 1) d$start <- rep(d$start, ncol(X))
-    else if(length(d$start) != ncol(X)) 
-      stop("d$start should be scalar or length ncol(X)")
-    ## process the g argument
-    g <- garg(g, Z)
-    if(length(g$start) != 1) stop("g$start should be scalar")
-
-    ## convert to doubles
-    m <- ncol(X)
-    dd <- c(d$start, d$mle, rep(d$min, m), rep(d$max, m), d$ab)
-    dg <- c(g$start, g$mle, g$min, g$max, g$ab)
-
-    ## sanity checks on controls
-    if(!(is.logical(Xi.ret) && length(Xi.ret) == 1))
-      stop("Xi.ret not a scalar logical")
-    
-    ## for timing
-    tic <- proc.time()[3]
-    
-    out <- .C("laGPsep_R",
-              m = as.integer(ncol(Xref)),
-              start = as.integer(start),
-              end = as.integer(end),
-              Xref = as.double(t(Xref)),
-              nref = as.integer(nref),
-              n = as.integer(nrow(X)),
-              X = as.double(t(X)),
-              Z = as.double(Z),
-              d = as.double(dd),
-              g = as.double(dg),
-              imethod = as.integer(imethod),
-              close = as.integer(close),
-              numrays = as.integer(numrays),
-              rect = as.double(t(rect)),
-              verb = as.integer(verb),
-              Xi.ret = as.integer(Xi.ret),
-              Xi = integer(end*Xi.ret),
-              mean = double(nref),
-              s2 = double(nref),
-              df = double(1),
-              dmle = double(m * d$mle),
-              dits = integer(1 * d$mle),
-              gmle = double(1 * g$mle),
-              gits = integer(1 * g$mle),
-              llik = double(1),
-              PACKAGE = "laGP")
-
-    ## put timing in
-    toc <- proc.time()[3]
-
-    ## assemble output and return
-    outp <- list(mean=out$mean, s2=out$s2, df=out$df, llik=out$llik,
-                 time=toc-tic, method=method, d=d, g=g, close=close)
-
-    ## possibly add mle and Xi info
-    mle <- NULL
-    if(d$mle) mle <- data.frame(d=matrix(out$dmle, nrow=1), dits=out$dits)
-    if(g$mle) mle <- cbind(mle, data.frame(g=out$gmle, gits=out$gits)) 
-    outp$mle <- mle
-    if(Xi.ret) outp$Xi <- out$Xi + 1
-
-    ## add ray info?
-    if(method == "alcray") outp$numrays <- numrays
-
-    ##return
-    return(outp)
+      method=c("alc", "alcopt", "alcray", "nn"), Xi.ret=TRUE, 
+      close=min(1000*if(method %in% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
+      alc.gpu=FALSE, numstart=if(method == "alcray") ncol(X) else 1, 
+      rect=NULL, lite=TRUE, verb=0)
+{
+  ## argument matching and numerifying
+  method <- match.arg(method)
+  if(method == "alc") imethod <- 1
+  else if(method == "alcopt") imethod <- 2
+  else if(method == "alcray") imethod <- 3
+  ## else if(method == "mspe") imethod <- 4
+  ## else if(method == "fish") imethod <- 5
+  else imethod <- 6
+  
+  ## massage Xref
+  m <- ncol(X)
+  if(!is.matrix(Xref)) Xref <- matrix(Xref, ncol=m)
+  nref <- nrow(Xref)
+  
+  ## calculate rectangle if using alcray
+  if(method == "alcray" || method == "alcopt") {
+    if(is.null(rect)) rect <- matrix(0, nrow=2, ncol=m);
+    if(method == "alcray" && nrow(Xref) != 1) 
+      stop("alcray only implemented for nrow(Xref) = 1")
+    if(nrow(rect) != 2 || ncol(rect) != m)
+      stop("bad rect dimensions, must be 2 x ncol(X)")
+    if(length(numstart) != 1 || numstart < 1)
+      stop("numstart should be an integer scalar >= 1")
+  } else { 
+    if(!is.null(rect)) warning("rect only used by alcray and alcopt methods"); 
+    rect <- 0 
   }
+  
+  ## sanity checks on input dims
+  if(start < 6 || end <= start) stop("must have 6 <= start < end")
+  if(ncol(Xref) != m) stop("bad dims")
+  if(length(Z) != nrow(X)) stop("bad dims")
+  if(start >= end || nrow(X) <= end) 
+    stop("start >= end or nrow(X) <= end, so nothing to do")
+  if(!lite) {
+    if(nref == 1) {
+      warning("lite = FALSE only allowed for nref > 1")
+      lite <- TRUE
+    }
+    else s2dim <- nref*nref
+  } else s2dim <- nref
+  
+  ## process the d argument
+  d <- darg(d, X)
+  if(length(d$start) == 1) d$start <- rep(d$start, ncol(X))
+  else if(length(d$start) != ncol(X))
+    stop("d$start should be scalar or length ncol(X)")
+  ## process the g argument
+  g <- garg(g, Z)
+  if(length(g$start) != 1) stop("g$start should be scalar")
+  
+  ## convert to doubles
+  m <- ncol(X)
+  dd <- c(d$start, d$mle, rep(d$min, m), rep(d$max, m), d$ab)
+  dg <- c(g$start, g$mle, g$min, g$max, g$ab)
+  
+  ## sanity checks on controls
+  if(!(is.logical(Xi.ret) && length(Xi.ret) == 1))
+    stop("Xi.ret not a scalar logical")
+  if(length(alc.gpu) > 1 || alc.gpu < 0)
+    stop("alc.gpu should be a scalar logical or scalar non-negative integer")
+  
+  ## for timing
+  tic <- proc.time()[3]
+  
+  out <- .C("laGPsep_R",
+            m = as.integer(ncol(Xref)),
+            start = as.integer(start),
+            end = as.integer(end),
+            Xref = as.double(t(Xref)),
+            nref = as.integer(nref),
+            n = as.integer(nrow(X)),
+            X = as.double(t(X)),
+            Z = as.double(Z),
+            d = as.double(dd),
+            g = as.double(dg),
+            imethod = as.integer(imethod),
+            close = as.integer(close),
+            numstart = as.integer(numstart),
+            rect = as.double(t(rect)),
+            lite = as.integer(lite),
+            verb = as.integer(verb),
+            Xi.ret = as.integer(Xi.ret),
+            Xi = integer(end*Xi.ret),
+            mean = double(nref),
+            s2 = double(s2dim),
+            df = double(1),
+            dmle = double(m * d$mle),
+            dits = integer(1 * d$mle),
+            gmle = double(1 * g$mle),
+            gits = integer(1 * g$mle),
+            llik = double(1),
+            PACKAGE = "laGP")
+  
+  ## put timing in
+  toc <- proc.time()[3]
+  
+  ## assemble output and return
+  outp <- list(mean=out$mean, s2=out$s2, df=out$df, llik=out$llik,
+               time=toc-tic, method=method, d=d, g=g, close=close)
+  
+  ## possibly add mle and Xi info
+  mle <- NULL
+  if(d$mle) mle <- data.frame(d=matrix(out$dmle, nrow=1), dits=out$dits)
+  if(g$mle) mle <- cbind(mle, data.frame(g=out$gmle, gits=out$gits)) 
+  outp$mle <- mle
+  if(Xi.ret) outp$Xi <- out$Xi + 1
+  
+  ## check for lite and possibly make s2 into Sigma
+  if(!lite) {
+    outp$Sigma <- matrix(out$s2, ncol=nref)
+    outp$s2 <- NULL
+  }
+  
+  ## add ray info?
+  if(method == "alcray" || method == "alcopt") 
+    outp$numstart <- numstart
+  
+  ##return
+  return(outp)
+}
 
 
 ## laGPsep.R:
@@ -139,133 +163,153 @@ laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 ## a big X-matrix each time it is called
 
 laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
-                   method=c("alc", "alcray", "nn"), 
-                   Xi.ret=TRUE, pall=FALSE, 
-                   close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
-                   parallel=c("none", "omp"), numrays=ncol(X), 
-                   rect=NULL, verb=0)
-  {
-    ## argument matching
-    method <- match.arg(method)
-    parallel <- match.arg(parallel)
-
-    ## massage Xref
-    if(!is.matrix(Xref)) Xref <- matrix(Xref, ncol=ncol(X))
-    
-    ## sanity checks
-    if(start < 6 || end <= start) stop("must have 6 <= start < end")
-    if(ncol(Xref) != ncol(X)) stop("bad dims")
-    if(length(Z) != nrow(X)) stop("bad dims")
-    if(nrow(X) <= end) stop("nrow(X) <= end so nothing to do")
-
-    ## calculate rectangle if using alcray
-    if(method == "alcray") {
-      if(is.null(rect)) rect <- apply(X, 2, range)
-      if(nrow(Xref) != 1) stop("alcray only implemented for nrow(Xref) = 1")
-      if(nrow(rect) != 2 || ncol(rect) != ncol(X))
-        stop("bad rect dimensions, must be 2 x ncol(X)")
-      if(length(numrays) != 1 || numrays < 1)
-        stop("numrays should be an integer scalar >= 1")
-    } else if(!is.null(rect)) warning("rect only used by alcray method")
-
-    ## process the d argument
-    d <- darg(d, X)
-    if(length(d$start) == 1) d$start <- rep(d$start, ncol(X))
-    else if(length(d$start) != ncol(X)) 
-      stop("d$start should be scalar or length ncol(X)")
-    ## process the g argument
-    g <- garg(g, Z)
-    if(length(g$start) != 1) stop("g$start should be scalar")
-
-    ## check Xi.ret argument
-    if(!( is.logical(Xi.ret) && length(Xi.ret) == 1))
-      stop("Xi.ret not a scalar logical")
-    if(Xi.ret) Xi.ret <- rep(NA, end)
-    else Xi.ret <- NULL
-
-    ## for timing
-    tic <- proc.time()[3]
-
-    ## sorting to Xref location, and building new GPsep
-    dst <- drop(distance(Xref, X))
-    if(is.matrix(dst)) dst <- apply(dst, 2, min)
-    cands <- order(dst)
-    Xi <- cands[1:start]
-
-    ## building a new GP with closest Xs to Xref, no derivatives
-    gpsepi <- newGPsep(X[Xi,,drop=FALSE], Z[Xi], d=d$start, g=g$start) 
-    if(!is.null(Xi.ret)) Xi.ret[1:start] <- Xi
-
-    ## if pall, then predict after every iteration
-    ## ONLY AVAILABLE IN THE R VERSION
-    if(pall) {
-      nav <- rep(NA, end-start)
-      pall <- data.frame(mean=nav, s2=nav, df=nav, llik=nav)
-    } else pall <- NULL
-
-    ## determine remaining candidates
-    if(close >= nrow(X)) close <- 0
-    if(close > 0) {
-      if(close >= nrow(X)-start)
-        stop("close not less than remaining cands")
-      cands <- cands[(start+1):close]
-    } else cands <- cands[-(1:start)]
-    
-    ## set up the start and end times
-    for(t in (start+1):end) {
-
-      ## if pall then predict after each iteration
-      if(!is.null(pall)) 
-        pall[t-start,] <- predGPsep(gpsepi, Xref, lite=TRUE)
-
-      ## calc ALC to reference
-      if(method == "alcray") { 
-        offset <- ((t-start) %% floor(sqrt(t-start))) + 1
-        w <- lalcrayGPsep(gpsepi, Xref, X[cands,,drop=FALSE], rect, offset, numrays, verb=verb-2)
-      } else {
-        if(method == "alc") 
-          als <- alcGPsep(gpsepi, X[cands,,drop=FALSE], Xref, 
-                          parallel=parallel, verb=verb-2)
-        else als <- c(1, rep(0, length(cands)-1)) ## nearest neighbor
-        als[!is.finite(als)] <- NA
-        w <- which.max(als)
-      }
-
-      ## add the chosen point to the GPsep fit
-      updateGPsep(gpsepi, matrix(X[cands[w],], nrow=1), Z[cands[w]], verb=verb-1)
-      if(!is.null(Xi.ret)) Xi.ret[t] <- cands[w]
-      cands <- cands[-w]
-    }
-
-    ## maybe do post-MLE calculation 
-    mle <- mleGPsep.switch(gpsepi, method, d, g, verb)
-
-    ## Obtain final prediction
-    outp <- predGPsep(gpsepi, Xref, lite=(nrow(Xref)==1))
-    if(!is.null(pall)) outp <- as.list(rbind(pall, outp))
-
-    ## put timing and X info in
-    toc <- proc.time()[3]
-    outp$time <- toc - tic
-    outp$Xi <- Xi.ret
-    outp$method <- method
-    outp$close <- close
-
-    ## assign d & g
-    outp$d <- d
-    ## assign g
-    outp$g <- g
-    ## assign mle
-    outp$mle <- mle
-
-    ## add ray info?
-    if(method == "alcray") outp$numrays <- numrays
-
-    ## clean up
-    deleteGPsep(gpsepi)
-    
-    return(outp)
+        method=c("alc", "alcopt", "alcray", "nn"), 
+        Xi.ret=TRUE, pall=FALSE, 
+        close=min(1000*if(method %in% c("alcray", "alcopt")) 10 else 1, nrow(X)),
+        parallel=c("none", "omp", "gpu"), 
+        numstart=if(method == "alcray") ncol(X) else 1, 
+        rect=NULL, lite=TRUE, verb=0)
+{
+  ## argument matching
+  method <- match.arg(method)
+  parallel <- match.arg(parallel)
+  
+  ## massage Xref
+  m <- ncol(X)
+  if(!is.matrix(Xref)) Xref <- matrix(Xref, ncol=m)
+  
+  ## sanity checks
+  if(start < 6 || end <= start) stop("must have 6 <= start < end")
+  if(ncol(Xref) != m) stop("bad dims")
+  if(length(Z) != nrow(X)) stop("bad dims")
+  if(start >= end || nrow(X) <= end) 
+    stop("start >= end or nrow(X) <= end, so nothing to do")
+  if(!lite && nrow(Xref) == 1) 
+    warning("lite = TRUE only allowed for nrow(Xref) > 1")
+  
+  ## calculate rectangle if using alcray
+  if(method %in% c("alcray", "alcopt")) {
+    if(method == "alcray" && nrow(Xref) != 1) 
+      stop("alcray only implemented for nrow(Xref) = 1")
+    if(length(numstart) != 1 || numstart < 1)
+      stop("numstart should be an integer scalar >= 1")
   }
+  
+  ## process the d argument
+  d <- darg(d, X)
+  if(length(d$start) == 1) d$start <- rep(d$start, ncol(X))
+  else if(length(d$start) != ncol(X))
+    stop("d$start should be scalar or length ncol(X)")
+  ## process the g argument
+  g <- garg(g, Z)
+  if(length(g$start) != 1) stop("g$start should be scalar")
+  
+  ## check Xi.ret argument
+  if(!( is.logical(Xi.ret) && length(Xi.ret) == 1))
+    stop("Xi.ret not a scalar logical")
+  if(Xi.ret) Xi.ret <- rep(NA, end)
+  else Xi.ret <- NULL
+  
+  ## for timing
+  tic <- proc.time()[3]
+  
+  ## sorting to Xref location
+  dst <- drop(distance(Xref, X))
+  if(is.matrix(dst)) dst <- apply(dst, 2, min)
+  cands <- order(dst)
+  Xi <- cands[1:start]
+  
+  ## building a new GP with closest Xs to Xref
+  gpsepi <- newGPsep(X[Xi,,drop=FALSE], Z[Xi], d=d$start, g=g$start, 
+               dK=!(method %in% c("alc", "alcray", "alcopt", "nn")))
+  
+  ## for the output object
+  if(!is.null(Xi.ret)) Xi.ret[1:start] <- Xi
+  
+  ## if pall, then predict after every iteration
+  ## ONLY AVAILABLE IN THE R VERSION
+  if(pall) {
+    nav <- rep(NA, end-start)
+    pall <- data.frame(mean=nav, s2=nav, df=nav, llik=nav)
+  } else pall <- NULL
+  
+  ## determine remaining candidates
+  if(close >= nrow(X)) close <- 0
+  if(close > 0) {
+    if(close >= nrow(X)-start)
+      stop("close not less than remaining cands")
+    cands <- cands[(start+1):close]
+  } else cands <- cands[-(1:start)]
+  
+  # set up rect from cands if not specified
+  if(method %in% c("alcray", "alcopt")) {
+    if(is.null(rect)) rect <- apply(X[cands,,drop=FALSE], 2, range)
+    else if(nrow(rect) != 2 || ncol(rect) != m)
+      stop("bad rect dimensions, must be 2 x ncol(X)")
+  } else if(!is.null(rect)) 
+    warning("rect only used by alcray and alcopt methods")
+  
+  ## set up the start and end times
+  for(t in (start+1):end) {
+    
+    ## if pall then predict after each iteration
+    if(!is.null(pall)) 
+      pall[t-start,] <- predGPsep(gpsepi, Xref, lite=TRUE)
+    
+    ## calc ALC to reference
+    if(method == "alcray") {
+      offset <- ((t-start) %% floor(sqrt(t-start))) + 1
+      w <- lalcrayGPsep(gpsepi, Xref, X[cands,,drop=FALSE], rect, offset, numstart, 
+                     verb=verb-2)
+    } else if(method == "alcopt") {
+      offset <- ((t-start)) # %% floor(sqrt(t-start))) + 1
+      w <- lalcoptGPsep.R(gpsepi, Xref, X[cands,,drop=FALSE], rect, offset, numstart, 
+                       verb=verb-2)
+    } else {
+      if(method == "alc")
+        als <- alcGPsep(gpsepi, X[cands,,drop=FALSE], Xref, parallel=parallel, 
+                     verb=verb-2)
+      else als <- c(1, rep(0, length(cands)-1)) ## nearest neighbor
+      als[!is.finite(als)] <- NA
+      w <- which.max(als)
+    }
+    
+    ## add the chosen point to the GP fit
+    updateGPsep(gpsepi, matrix(X[cands[w],], nrow=1), Z[cands[w]], verb=verb-1)
+    if(!is.null(Xi.ret)) Xi.ret[t] <- cands[w]
+    cands <- cands[-w]
+  }
+  
+  ## maybe do post-MLE calculation 
+  mle <- mleGPsep.switch(gpsepi, method, d, g, verb)
+  
+  ## Obtain final prediction
+  outp <- predGPsep(gpsepi, Xref, lite=lite)
+  if(!is.null(pall)) outp <- as.list(rbind(pall, outp))
+  
+  ## put timing and X info in
+  toc <- proc.time()[3]
+  outp$time <- toc - tic
+  outp$Xi <- Xi.ret
+  outp$method <- method
+  outp$close <- close
+  
+  ## assign d & g
+  outp$d <- d
+  ## assign g
+  outp$g <- g
+  ## assign mle
+  outp$mle <- mle
+  
+  ## add ray info?
+  if(method == "alcray" || method == "alcopt") 
+    outp$numstart <- numstart
+  
+  ## clean up
+  deleteGPsep(gpsepi)
+  
+  return(outp)
+}
 
 
 ## aGPsep.R:

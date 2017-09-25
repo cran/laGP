@@ -177,7 +177,7 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
     both \code{gpu.threads} and \code{omp.threads} are non-zero, whereby
     it acts as a load balancing mechanism }
 \item{verb}{
-    a positive integer specifying the verbosity level; \code{verb = 0}
+    a non-negative integer specifying the verbosity level; \code{verb = 0}
     is quiet, and larger values cause more progress information to be
     printed to the screen.  The value \code{min(0,verb-1)} is provided
     to each \code{laGP} call}
@@ -303,9 +303,9 @@ model run, and a \code{var} column, which at this time is zero
   preprint on arXiv:1310.5182;
   \url{http://arxiv.org/abs/1310.5182}
 
-  R.B. Gramacy and B. Haaland (2015).
+  R.B. Gramacy and B. Haaland (2016).
   \emph{Speeding up neighborhood search in local Gaussian process prediction.}
-  Technometrics, \emph{to appear};
+  Technometrics, 58(3), pp. 294-303;
   preprint on arXiv:1409.0074 
   \url{http://arxiv.org/abs/1409.0074}
 }

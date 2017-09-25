@@ -44,7 +44,7 @@
 
 /*
  * Global variables used to accumulate data on the C-side
- * as passed from initialization and updtating R calls 
+ * as passed from initialization and updating R calls
  */
 
 unsigned int NGP = 0;
@@ -54,8 +54,8 @@ GP **gps = NULL;
 /*
  * get_gp:
  *
- * returns an integer reference to a free gp 
- * 
+ * returns an integer reference to a free gp
+ *
  */
 
 unsigned int get_gp(void)
@@ -82,7 +82,7 @@ unsigned int get_gp(void)
 /*
  * deletedKGP:
  *
- * delete the dK components of the gp 
+ * delete the dK components of the gp
  */
 
 void deletedKGP(GP *gp)
@@ -96,7 +96,7 @@ void deletedKGP(GP *gp)
 /*
  * deletedKGP_R:
  *
- * R-interface to code destroying dK information 
+ * R-interface to code destroying dK information
  * so that they are not updated in future calculations
  */
 
@@ -108,22 +108,22 @@ void deletedKGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
   /* check if needed */
   if(! gp->dK) error("derivative info not in gp");
-  
+
   /* call real C routine */
   deletedKGP(gp);
 }
 
 
-/* 
+/*
  * deleteGP:
  *
- * free the memory allocated to a gp structure 
+ * free the memory allocated to a gp structure
  */
 
 void deleteGP(GP* gp)
@@ -132,14 +132,14 @@ void deleteGP(GP* gp)
   assert(gp->X); delete_matrix(gp->X);
   assert(gp->Z); free(gp->Z);
   assert(gp->K); delete_matrix(gp->K);
-  assert(gp->Ki); delete_matrix(gp->Ki);  
+  assert(gp->Ki); delete_matrix(gp->Ki);
   assert(gp->KiZ); free(gp->KiZ);
   deletedKGP(gp);
   free(gp);
 }
 
 
-/* 
+/*
  * deleteGP_index:
  *
  * delete the i-th gp
@@ -147,7 +147,7 @@ void deleteGP(GP* gp)
 
 void deleteGP_index(unsigned int i)
 {
-  if(!(gps == NULL || i >= NGP || gps[i] == NULL)) { 
+  if(!(gps == NULL || i >= NGP || gps[i] == NULL)) {
     deleteGP(gps[i]);
     gps[i] = NULL;
   } else error("gp %d is not allocated\n", i);
@@ -195,7 +195,7 @@ void deleteGPs(void)
  */
 
 void deleteGPs_R(void)
-{ 
+{
   if(gps) deleteGPs();
 }
 
@@ -204,7 +204,7 @@ void deleteGPs_R(void)
  * dllikGP:
  *
  * batch calculation of the first and second derivatives
- * of the log likelihood of a gp, with respect to the 
+ * of the log likelihood of a gp, with respect to the
  * lengthscale parameter, d; requires that derivatives
  * be pre-calculated
  */
@@ -229,7 +229,7 @@ void dllikGP(GP *gp, double *ab, double *dllik, double *d2llik)
   /* copy dims for fast access */
   n = gp->n;
   dn = (double) n;
-  
+
   if(d2llik) {
     /* dKKi = dK %*% Ki */
     dKKi = new_matrix(n, n);
@@ -242,7 +242,7 @@ void dllikGP(GP *gp, double *ab, double *dllik, double *d2llik)
   /* d2llik = - 0.5 * tr(Ki %*% [d2K - dKKidK]); the first expression */
   /* dllik = - 0.5 * tr(Ki %*% dK) */
   if(d2llik) *d2llik = d2lp;
-  if(dllik) *dllik = dlp; 
+  if(dllik) *dllik = dlp;
   /* two = second expresion: 2*dKKidK - dKKidK, re-using dKKidK */
   two = dKKi; /* this memory is no longer needed */
   for(i=0; i<n; i++) {
@@ -288,7 +288,7 @@ void dllikGP(GP *gp, double *ab, double *dllik, double *d2llik)
  * dllikGP_nug:
  *
  * batch calculation of the first and second derivatives
- * of the log likelihood of a gp, with respect to the 
+ * of the log likelihood of a gp, with respect to the
  * NUGGET parameter, d
  */
 
@@ -311,17 +311,17 @@ void dllikGP_nug(GP *gp, double *ab, double *dllik, double *d2llik)
   /* copy dims for fast access */
   n = gp->n;
   dn = (double) n;
-  
+
   if(d2llik) {
     two = new_matrix(n, n);
-    dKKidK = gp->Ki; 
+    dKKidK = gp->Ki;
   } else two = dKKidK = NULL;
 
   /* d2llik = - 0.5 * tr(Ki %*% [0.0 - Ki]); the first expression */
   /* dllik = - 0.5 * tr(Ki) */
   if(d2llik) *d2llik = d2lp;
-  if(dllik) *dllik = dlp; 
-  /* two = second expresion: 2*dKKidK - dKKidK, re-using dKKidK */
+  if(dllik) *dllik = dlp;
+  /* two = second expression: 2*dKKidK - dKKidK, re-using dKKidK */
   for(i=0; i<n; i++) {
     if(d2llik) {
       for(j=0; j<i; j++) { /* off diagonal */
@@ -444,7 +444,7 @@ double fishinfoGP(GP *gp)
  * the GP object; also update KiZ on which it depends
  */
 
-void calc_ZtKiZ(GP *gp) 
+void calc_ZtKiZ(GP *gp)
 {
   assert(gp);
   /* phi <- t(Z) %*% Ki %*% Z */
@@ -457,8 +457,8 @@ void calc_ZtKiZ(GP *gp)
 /*
  * newdKGP:
  *
- * allocate new space for dK and d2K calculations, and 
- * cancluate derivatives and Fisher informations
+ * allocate new space for dK and d2K calculations, and
+ * calculate derivatives and Fisher informations
  */
 
 void newdKGP(GP *gp)
@@ -474,7 +474,7 @@ void newdKGP(GP *gp)
 /*
  * buildKGP_R:
  *
- * R-interface to code allocating dK information 
+ * R-interface to code allocating dK information
  * for future calculations
  */
 
@@ -486,13 +486,13 @@ void buildKGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
   /* check if needed */
   if(gp->dK) error("derivative info already in gp");
-  
+
   /* call real C routine */
   newdKGP(gp);
 }
@@ -507,7 +507,7 @@ void buildKGP_R(/* inputs */
 
 
 GP* buildGP(GP *gp, const int dK)
-{ 
+{
   double **Kchol, **X;
   unsigned int n, m;
   int info;
@@ -522,7 +522,7 @@ GP* buildGP(GP *gp, const int dK)
   gp->K = new_matrix(n, n);
   if(gp->d > 0) covar_symm(m, X, n, gp->d, gp->g, gp->K);
   else id(gp->K, n);
-  
+
   /* invert covariance matrix */
   gp->Ki = new_id_matrix(n);
   if(gp->d > 0) {
@@ -532,7 +532,7 @@ GP* buildGP(GP *gp, const int dK)
 #ifdef UNDEBUG
       printMatrix(gp->K, n, n, stdout);
 #endif
-      error("bad Cholesky decomp (info=%d), d=%g, g=%g", 
+      error("bad Cholesky decomp (info=%d), d=%g, g=%g",
             info, gp->d, gp->g);
     }
     gp->ldetK = log_determinant_chol(Kchol, n);
@@ -544,7 +544,7 @@ GP* buildGP(GP *gp, const int dK)
   calc_ZtKiZ(gp);
 
   /* calculate derivatives and Fisher info based on them ? */
-  gp->dK = gp->d2K = NULL; 
+  gp->dK = gp->d2K = NULL;
   gp->F = 0;
   /* first with NULL values then for if dk=TRUE */
   if(dK) newdKGP(gp);
@@ -559,7 +559,7 @@ GP* buildGP(GP *gp, const int dK)
  *
  * allocate a new GP structure using the data and parameters
  * provided
- */ 
+ */
 
 GP* newGP(const unsigned int m, const unsigned int n, double **X,
 	  double *Z, const double d, const double g, const int dK)
@@ -585,9 +585,9 @@ GP* newGP(const unsigned int m, const unsigned int n, double **X,
  *
  * allocate a new GP structure using the parameters
  * provided, and the subset (rows) of the data specified by p
- */ 
+ */
 
-GP* newGP_sub(const unsigned int m, const unsigned int n, int *p, 
+GP* newGP_sub(const unsigned int m, const unsigned int n, int *p,
 	      double **X, double *Z, const double d, const double g, const int dK)
 {
   unsigned int i;
@@ -624,7 +624,7 @@ void newGP_R(/* inputs */
 	     double *d_in,
 	     double *g_in,
 	     int *dK_in,
-	     
+
 	     /* outputs */
 	     int *gp_index)
 {
@@ -645,7 +645,7 @@ void newGP_R(/* inputs */
  * newparamsGP:
  *
  * change the lengthscale and nugget parameters to the gp
- */ 
+ */
 
 void newparamsGP(GP* gp, const double d, const double g)
 {
@@ -662,7 +662,7 @@ void newparamsGP(GP* gp, const double d, const double g)
   gp->g = g;
   if(d > 0) covar_symm(m, gp->X, n, d, g, gp->K);
   else id(gp->K, n);
-  
+
   /* invert covariance matrix */
   id(gp->Ki, n);
   if(d > 0) {
@@ -685,8 +685,8 @@ void newparamsGP(GP* gp, const double d, const double g)
   if(gp->dK) {
     diff_covar_symm(m, gp->X, n, gp->d, gp->dK, gp->d2K);
     gp->F = fishinfoGP(gp);
-  } else { 
-    gp->dK = gp->d2K = NULL; 
+  } else {
+    gp->dK = gp->d2K = NULL;
     gp->F = 0; /* null value of fisher information */
   }
 }
@@ -710,7 +710,7 @@ void newparamsGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -736,15 +736,15 @@ double llikGP(GP *gp, double *dab, double *gab)
 
   /* proportional to likelihood calculation */
   llik = 0.0 - 0.5*(((double) gp->n) * log(0.5 * gp->phi) + gp->ldetK);
-  // MYprintf(MYstdout, "d=%g, g=%g, phi=%g, llik=%g\n", gp->d, gp->g, gp->phi, llik); 
+  // MYprintf(MYstdout, "d=%g, g=%g, phi=%g, llik=%g\n", gp->d, gp->g, gp->phi, llik);
   /* llik += lgamma(0.5*((double) gp->n)) - ((double) gp->n)*M_LN_SQRT_2PI; */
 
   /* if priors are being used; for lengthscale */
-  if(gp->d > 0 && dab && dab[0] > 0 && dab[1] > 0) 
+  if(gp->d > 0 && dab && dab[0] > 0 && dab[1] > 0)
     llik += dgamma(gp->d, dab[0], 1.0/dab[1], 1);
 
   /* if priors are being used; for nugget */
-  if(gp->g > 0 && gab && gab[0] > 0 && gab[1] > 0) 
+  if(gp->g > 0 && gab && gab[0] > 0 && gab[1] > 0)
     llik += dgamma(gp->g, gab[0], 1.0/gab[1], 1);
 
   return(llik);
@@ -770,7 +770,7 @@ void llikGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -780,7 +780,7 @@ void llikGP_R(/* inputs */
 
 
 /*
- * utility structure for fcnllik defined below
+ * utility structure for fcn_nllik defined below
  * for use with Brent_fmin (R's optimize) or uniroot
  */
 
@@ -794,19 +794,19 @@ struct callinfo {
 
 /*
  * fcnllik:
- * 
+ *
  * a utility function for Brent_fmin (R's optimize) to apply to the GP
- * log likelihood after changes to the lengthscale or nugget parameter 
+ * log likelihood after changes to the lengthscale or nugget parameter
  */
 
-static double fcnnllik(double x, struct callinfo *info)
+static double fcn_nllik(double x, struct callinfo *info)
 {
   double llik;
   (info->its)++;
   if(info->theta == LENGTHSCALE) {
     newparamsGP(info->gp, x, info->gp->g);
     llik = llikGP(info->gp, info->ab, NULL);
-     if(info->verb > 1) 
+     if(info->verb > 1)
       MYprintf(MYstdout, "fmin it=%d, d=%g, llik=%g\n", info->its, info->gp->d, llik);
   } else {
     newparamsGP(info->gp, info->gp->d, x);
@@ -815,7 +815,7 @@ static double fcnnllik(double x, struct callinfo *info)
       MYprintf(MYstdout, "fmin it=%d, g=%g, llik=%g\n", info->its, info->gp->g, llik);
   }
   return 0.0-llik;
-} 
+}
 
 
 /*
@@ -824,7 +824,7 @@ static double fcnnllik(double x, struct callinfo *info)
  * use R's Brent Fmin routine (from optimize) to optimize
  */
 
-double Ropt(GP* gp, Theta theta, double tmin, double tmax, 
+double Ropt(GP* gp, Theta theta, double tmin, double tmax,
                    double *ab, char *msg, int *its, int verb)
 {
   double tnew, th;
@@ -849,7 +849,7 @@ double Ropt(GP* gp, Theta theta, double tmin, double tmax,
 
   /* call the C-routine behind R's optimize function */
   while(1) { /* check to make sure solution is not on boundary */
-   tnew = Brent_fmin(tmin, tmax, (double (*)(double, void*)) fcnnllik, &info, Tol);  
+   tnew = Brent_fmin(tmin, tmax, (double (*)(double, void*)) fcn_nllik, &info, Tol);
    if(tnew > tmin && tnew < tmax) break;
    if(tnew == tmin) { /* left boundary found */
     tmin *= 2;
@@ -860,7 +860,7 @@ double Ropt(GP* gp, Theta theta, double tmin, double tmax,
   }
   /* check that boundaries still valid */
   if(tmin >= tmax) error("unable to opimize in fmin()");
-  } 
+  }
 
   /* check that last value agrees with GP parameterization */
   if(theta == LENGTHSCALE) {
@@ -886,7 +886,7 @@ double Ropt(GP* gp, Theta theta, double tmin, double tmax,
  * method initialized at the current gp->d value
  */
 
-double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab, 
+double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
              int verb, int *its)
 {
   double tnew, dllik, d2llik, llik_init, llik_new, adj, rat;
@@ -898,7 +898,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
   dab = gab = NULL;
   if(theta == LENGTHSCALE) dab = ab;
   else gab = ab;
-  
+
   /* initialization */
   *its = 0;
   restoredKGP = 0;
@@ -919,7 +919,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
   if(verb > 0) {
     if(theta == LENGTHSCALE)
       MYprintf(MYstdout, "(d=%g, llik=%g) ", gp->d, llik_init);
-    else 
+    else
       MYprintf(MYstdout, "(g=%g, llik=%g) ", gp->g, llik_init);
   } if(verb > 1) MYprintf(MYstdout, "\n");
 
@@ -946,7 +946,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
         /* check if we're going the right way */
         if((dllik < 0 && rat < 0) || (dllik > 0 && rat > 0)) {
           if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
-          th = Ropt(gp, theta, tmin, tmax, ab, "[slip]", its, verb); goto mledone; 
+          th = Ropt(gp, theta, tmin, tmax, ab, "[slip]", its, verb); goto mledone;
         } else tnew = th - adj*rat;  /* right way: Newton: */
 
 	      /* check that we haven't proposed a tnew out of range */
@@ -955,7 +955,7 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
 	      }
 
 	      /* if still out of range, restart? */
-	      if(tnew <= tmin || tnew >= tmax) { 
+	      if(tnew <= tmin || tnew >= tmax) {
           if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
 	        th = Ropt(gp, theta, tmin, tmax, ab, "[range]", its, verb);
           goto mledone;
@@ -970,8 +970,8 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
       }
 
       /* print progress */
-      if(verb > 1) MYprintf(MYstdout, "\ti=%d theta=%g, c(a,b)=(%g,%g)\n", 
-                            *its, tnew, ab[0], ab[1]);      
+      if(verb > 1) MYprintf(MYstdout, "\ti=%d theta=%g, c(a,b)=(%g,%g)\n",
+                            *its, tnew, ab[0], ab[1]);
 
       /* check for convergence, and break or update */
       if(fabs(tnew - th) < SDEPS) break;
@@ -988,11 +988,11 @@ double mleGP(GP* gp, Theta theta, double tmin, double tmax, double *ab,
     /* sanity check check that we went in the right direction */
 newtondone:
     llik_new = llikGP(gp, dab, gab);
-    if(llik_new < llik_init-SDEPS) { 
+    if(llik_new < llik_init-SDEPS) {
       if(verb > 0) MYprintf(MYstdout, "llik_new = %g\n", llik_new);
       llik_new = R_NegInf;
       if(!gp->dK && restoredKGP == 0) { deletedKGP(gp); restoredKGP = 1; }
-      th = Ropt(gp, theta, tmin, tmax, ab, "[dir]", its, verb); 
+      th = Ropt(gp, theta, tmin, tmax, ab, "[dir]", its, verb);
       goto mledone;
     } else break;
   } /* outer improved llik check while(1) loop */
@@ -1002,9 +1002,9 @@ mledone:
   if(!R_FINITE(llik_new)) llik_new = llikGP(gp, dab, gab);
   if(verb > 0) {
     if(theta == LENGTHSCALE)
-      MYprintf(MYstdout, "-> %d Newtons -> (d=%g, llik=%g)\n", 
+      MYprintf(MYstdout, "-> %d Newtons -> (d=%g, llik=%g)\n",
                *its, gp->d, llik_new);
-    else MYprintf(MYstdout, "-> %d Newtons -> (g=%g, llik=%g)\n", 
+    else MYprintf(MYstdout, "-> %d Newtons -> (g=%g, llik=%g)\n",
                *its, gp->g, llik_new);
   }
 
@@ -1039,7 +1039,7 @@ void mleGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -1049,7 +1049,7 @@ void mleGP_R(/* inputs */
   else if(*param_in != 1) error("param must be 1 (d) or 2 (g)");
 
   /* check theta and tmax */
-  if(*tmin_in <= 0) *tmin_in = SDEPS; 
+  if(*tmin_in <= 0) *tmin_in = SDEPS;
   if(theta == LENGTHSCALE) {
     if(*tmax_in <= 0) *tmax_in = sq((double) gp->m);
     if(gp->d >= *tmax_in) error("d=%g >= tmax=%g\n", gp->d, *tmax_in);
@@ -1064,11 +1064,11 @@ void mleGP_R(/* inputs */
   if(ab_in[0] < 0 || ab_in[1] < 0) error("ab_in must be a positive 2-vector");
 
   /* double check that derivatives have been calculated */
-  if(theta == LENGTHSCALE && !gp->dK) 
+  if(theta == LENGTHSCALE && !gp->dK)
     error("derivative info not in gp; use newGP with dK=TRUE");
 
   /* call C-side MLE */
-  *mle_out = mleGP(gp, theta, *tmin_in, *tmax_in, ab_in, 
+  *mle_out = mleGP(gp, theta, *tmin_in, *tmax_in, ab_in,
                    *verb_in, its_out);
 }
 
@@ -1081,7 +1081,7 @@ void mleGP_R(/* inputs */
  */
 
 void jmleGP(GP *gp, double *drange, double *grange, double *dab, double *gab,
-            int verb, int *dits, int *gits) 
+            int verb, int *dits, int *gits)
   {
     unsigned int i;
     int dit, git;
@@ -1116,7 +1116,7 @@ void jmleGP_R(/* inputs */
        double *drange_in,
        double *grange_in,
        double *dab_in,
-       double *gab_in, 
+       double *gab_in,
 
        /* outputs */
        double *d_out,
@@ -1129,7 +1129,7 @@ void jmleGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -1142,11 +1142,11 @@ void jmleGP_R(/* inputs */
     error("gp->g=%g outside grange=[%g,%g]", gp->g, grange_in[0], grange_in[1]);
 
   /* double check that derivatives have been calculated */
-  if(! gp->dK) 
+  if(! gp->dK)
     error("derivative info not in gp; use newGP with dK=TRUE");
 
   /* call C-side MLE */
-  jmleGP(gp, drange_in, grange_in, dab_in, gab_in, *verb_in, 
+  jmleGP(gp, drange_in, grange_in, dab_in, gab_in, *verb_in,
     dits_out, gits_out);
 
   /* write back d and g */
@@ -1157,8 +1157,8 @@ void jmleGP_R(/* inputs */
 
 /*
  * copyGP:
- * 
- * allocate space for a new GP structure filled with the 
+ *
+ * allocate space for a new GP structure filled with the
  * contents of an old one
  */
 
@@ -1205,7 +1205,7 @@ void copyGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
 
@@ -1220,18 +1220,18 @@ void copyGP_R(/* inputs */
 /*
  * updateGP:
  *
- * quickly augment (O(n^2)) a gp based on new X-Z pairs.  
+ * quickly augment (O(n^2)) a gp based on new X-Z pairs.
  * Uses the Bartlet partition inverse equations
  */
 
-void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ, 
+void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
 	           int verb)
 {
   unsigned int i, j, n, m;
   double *kx, *x, *gvec;
   double mui, Ztg;
-  double **Gmui, **temp, **d2temp;  
-  
+  double **Gmui, **temp, **d2temp;
+
   /* allocate space */
   n = gp->n; m = gp->m;
   kx = new_vector(n);
@@ -1252,16 +1252,16 @@ void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
     if(gp->dK) update_fishinfoGP(gp, x, ZZ[j]);
 
     /* calculate the Bartlet quantities */
-    calc_g_mui_kxy(m, x, gp->X, n, gp->Ki, NULL, 0, gp->d, 
+    calc_g_mui_kxy(m, x, gp->X, n, gp->Ki, NULL, 0, gp->d,
 		   gp->g, gvec, &mui, kx, NULL);
 
     /* Gmui = g %*% t(g)/mu */
     linalg_dgemm(CblasNoTrans,CblasTrans,n,n,1,
 		 mui,&gvec,n,&gvec,n,0.0,Gmui,n);
-    
+
     /* Ki = Ki + Gmui */
     linalg_daxpy(n*n, 1.0, *Gmui, 1, *(gp->Ki), 1);
-    
+
     /* now augment covariance matrices */
     /* for nn > 1 might be better to make bigger matricies once
        outside the for-loop */
@@ -1285,7 +1285,7 @@ void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
     /* KiZ[n+1] = Ztg + z*mu */
     gp->KiZ[n] = Ztg + ZZ[j]/mui;
     /* phi += Ztg^2/mu + 2*z*Ztg + z^2*mu */
-    gp->phi += sq(Ztg)*mui + 2.0*ZZ[j]*Ztg + sq(ZZ[j])/mui;    
+    gp->phi += sq(Ztg)*mui + 2.0*ZZ[j]*Ztg + sq(ZZ[j])/mui;
 
     /* now augment X and Z */
     gp->X = new_bigger_matrix(gp->X, n, m, n+1, m);
@@ -1332,7 +1332,7 @@ void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ,
  * updateGP_R:
  *
  * R-interface allowing the internal/global GP representation
- * to be quickly augment (O(n^2)) based on new X-Z pairs.  
+ * to be quickly augment (O(n^2)) based on new X-Z pairs.
  * Uses the Bartlet partition inverse equations
  */
 
@@ -1350,10 +1350,10 @@ void updateGP_R(/* inputs */
 
   /* get the cloud */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* check that this is not a degenerate GP: not implemented (yet) */
@@ -1378,7 +1378,7 @@ void updateGP_R(/* inputs */
  * for XX predictive locations of dimension (n*m)
  */
 
-void predGP(GP* gp, const unsigned int nn, double **XX, double *mean, 
+void predGP(GP* gp, const unsigned int nn, double **XX, double *mean,
 	    double **Sigma, double *df, double *llik)
 {
   unsigned int i, m, n;
@@ -1389,7 +1389,7 @@ void predGP(GP* gp, const unsigned int nn, double **XX, double *mean,
   n = gp->n;  m = gp->m;
 
   /* variance (s2) components */
-  *df = (double) n; 
+  *df = (double) n;
   phidf = gp->phi/(*df);
 
   /* calculate marginal likelihood (since we have the bits) */
@@ -1410,7 +1410,7 @@ void predGP(GP* gp, const unsigned int nn, double **XX, double *mean,
 
   /* Sigma <- covar(X1=XX, d=Zt$d, g=Zt$g) */
   covar_symm(m, XX, nn, gp->d, gp->g, Sigma);
-  
+
   /* call generic function that would work for all GP covariance specs */
   pred_generic(n, phidf, gp->Z, gp->Ki, nn, k, mean, Sigma);
 
@@ -1419,7 +1419,7 @@ void predGP(GP* gp, const unsigned int nn, double **XX, double *mean,
 }
 
 
-/* 
+/*
  * pred_generic:
  *
  * a function that captures the predictive equations without reference
@@ -1427,7 +1427,7 @@ void predGP(GP* gp, const unsigned int nn, double **XX, double *mean,
  * and GPsep objects, and beyond
  */
 
-void pred_generic(const unsigned int n, const double phidf, double *Z, 
+void pred_generic(const unsigned int n, const double phidf, double *Z,
   double **Ki, const unsigned int nn, double **k, double *mean, double **Sigma)
 {
   int i, j;
@@ -1460,31 +1460,31 @@ void pred_generic(const unsigned int n, const double phidf, double *Z,
 /*
  * new_predutilGP_lite:
  *
- * utility function that allocates and calculate useful vectors 
+ * utility function that allocates and calculate useful vectors
  * and matrices for prediction; used by predGP_lite and dmus2GP
  */
 
-void new_predutilGP_lite(GP *gp, unsigned int nn, double **XX, double ***k, 
+void new_predutilGP_lite(GP *gp, unsigned int nn, double **XX, double ***k,
 			 double ***ktKi, double **ktKik)
 {
   /* k <- covar(X1=X, X2=XX, d=Zt$d, g=0) */
   *k = new_matrix(gp->n, nn);
   covar(gp->m, gp->X, gp->n, XX, nn, gp->d, *k);
-  
+
   /* call generic function that would work for all GP covariance specs */
   new_predutil_generic_lite(gp->n, gp->Ki, nn, *k, ktKi, ktKik);
 }
 
 
-/* 
+/*
  * new_predutil_generic_lite:
  *
- * a function allocates space and calculate portions of the GP predictive 
- * equations without reference struct gp objects.  Created so that code can 
+ * a function allocates space and calculate portions of the GP predictive
+ * equations without reference struct gp objects.  Created so that code can
  * be shared between GP and GPsep objects, and beyond
  */
 
-void new_predutil_generic_lite(const unsigned int n, double ** Ki, 
+void new_predutil_generic_lite(const unsigned int n, double ** Ki,
   const unsigned int nn, double **k, double ***ktKi, double **ktKik)
 {
   unsigned int i, j;
@@ -1493,7 +1493,7 @@ void new_predutil_generic_lite(const unsigned int n, double ** Ki,
   *ktKi = new_matrix(n, nn);
   linalg_dsymm(CblasRight,nn,n,1.0,Ki,n,k,nn,0.0,*ktKi,nn);
   /* ktKik <- diag(ktKi %*% k) */
-  *ktKik = new_zero_vector(nn); 
+  *ktKik = new_zero_vector(nn);
   for(i=0; i<nn; i++) for(j=0; j<n; j++) (*ktKik)[i] += (*ktKi)[j][i]*k[j][i];
 }
 
@@ -1507,22 +1507,22 @@ void new_predutil_generic_lite(const unsigned int n, double ** Ki,
  * lite because sigma2 not Sigma is calculated
  */
 
-void predGP_lite(GP* gp, unsigned int nn, double **XX, double *mean, 
+void predGP_lite(GP* gp, unsigned int nn, double **XX, double *mean,
 		 double *sigma2, double *df, double *llik)
 {
   unsigned int i;
   double **k, **ktKi;
   double *ktKik;
   double phidf;
-  
+
   /* sanity checks */
   assert(df);
-  *df = gp->n; 
+  *df = gp->n;
 
    /* degenerate GP case; ignores nugget */
   if(gp->d == 0) {
     if(mean) zerov(mean, nn);
-    if(sigma2) { 
+    if(sigma2) {
       phidf = gp->phi/(*df);
       for(i=0; i<nn; i++) sigma2[i] = phidf;
     }
@@ -1557,7 +1557,7 @@ void predGP_lite(GP* gp, unsigned int nn, double **XX, double *mean,
 /*
  * predGP_R:
  *
- * R-interface to C-side function that 
+ * R-interface to C-side function that
  * returns the student-t predictive equations,
  * i.e., parameters to a multivatiate t-distribution
  * for XX predictive locations of dimension (n*m)
@@ -1570,7 +1570,7 @@ void predGP_R(/* inputs */
 	      int *nn_in,
 	      double *XX_in,
 	      int *lite_in,
-	      
+
 	      /* outputs */
 	      double *mean_out,
 	      double *Sigma_out,
@@ -1583,10 +1583,10 @@ void predGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m) 
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* sanity check and XX representation */
@@ -1597,7 +1597,7 @@ void predGP_R(/* inputs */
   /* call the C-only Predict function */
   if(*lite_in) predGP_lite(gp, *nn_in, XX, mean_out, Sigma_out, df_out, llik_out);
   else predGP(gp, *nn_in, XX, mean_out, Sigma, df_out, llik_out);
-  
+
   /* clean up */
   free(XX);
   if(Sigma) free(Sigma);
@@ -1608,10 +1608,10 @@ void predGP_R(/* inputs */
 /*
  * ieciGP:
  *
- * calculate the integrated expected conditional improvement 
- * at locations Xcand averaging over reference locations Xref: 
+ * calculate the integrated expected conditional improvement
+ * at locations Xcand averaging over reference locations Xref:
  * similar structure to ALC, except with expected improvement
- * rather than reduction invariance
+ * rather than reduction in variance
  */
 
 void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
@@ -1619,8 +1619,8 @@ void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
 {
   unsigned int m, n;
   int i;
-  double **k, **Gmui;
-  double *kx, *kxy, *gvec, *ktKik, *ktKikx, *ktGmui, *pmref;
+  double **k; //, **Gmui;
+  double *kx, *kxy, *gvec, *ktKik, *ktKikx, /* *ktGmui,*/ *pmref;
   double mui, df;
   double s2p[2] = {0, 0};
 
@@ -1638,7 +1638,7 @@ void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
   /* calculate Xref predictive quantities */
   pmref = new_vector(nref);
   ktKik = new_vector(nref);
-  /* this is a little inefficit since both ktKik and k (used below) are 
+  /* this is a little inefficit since both ktKik and k (used below) are
    * calculated inside predGP_lite as intermediate steps */
   predGP_lite(gp, nref, Xref, pmref, ktKik, &df, NULL);
   for(i=0; i<nref; i++) ktKik[i] = 1.0 + gp->g - (df/gp->phi)*ktKik[i];
@@ -1646,20 +1646,21 @@ void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
   covar(m, Xref, nref, gp->X, n, gp->d, k);
-  
+
   /* utility allocations */
-  Gmui = new_matrix(n, n);
-  ktGmui = new_vector(n);
+  // Gmui = new_matrix(n, n);
+  // ktGmui = new_vector(n);
 
   /* calculate the ALC for each candidate */
   for(i=0; i<ncand; i++) {
 
     /* progress meter */
-    if(verb > 0) MYprintf(MYstdout, "calculating ALC for point %d of %d\n", 
-                    verb, i, ncand);
-    
+    if(verb > 0) 
+      MYprintf(MYstdout, "ieciGP: calculating IECI for point %d of %d\n",
+        i+1, ncand);
+
     /* calculate the g vector, mui, and kxy */
-    calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, 
+    calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref,
       gp->d, gp->g, gvec, &mui, kx, kxy);
 
     /* skip if numerical problems */
@@ -1669,15 +1670,17 @@ void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
     }
 
     /* use g, mu, and kxy to calculate ktKik.x */
-    calc_ktKikx(ktKik, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
-        
+    // calc_ktKikx(ktKik, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
+    calc_ktKikx(ktKik, nref, k, n, gvec, mui, kxy, NULL, NULL, ktKikx);
+
+
     /* calculate the IECI */
     ieci[i] = calc_ieci(nref, ktKikx, s2p, gp->phi, gp->g, NULL, pmref, df, fmin, w);
   }
 
   /* clean up */
-  delete_matrix(Gmui);
-  free(ktGmui);
+  // delete_matrix(Gmui);
+  // free(ktGmui);
   free(ktKikx);
   free(gvec);
   free(kx);
@@ -1691,9 +1694,9 @@ void ieciGP(GP *gp, unsigned int ncand, double **Xcand, double fmin,
 /*
  * ieciGP_R:
  *
- * R interface to C-side function that calculates the 
- * integrated expected conditional improvement 
- * at locations Xcand averaging over reference locations Xref: 
+ * R interface to C-side function that calculates the
+ * integrated expected conditional improvement
+ * at locations Xcand averaging over reference locations Xref:
  * similar structure to ALC, except with expected improvement
  * rather than reduction invariance
  */
@@ -1710,7 +1713,7 @@ void ieciGP_R(
       double *w_in,
       int *wb_in,
       int *verb_in,
-       
+
        /* outputs */
        double *alc_out)
 {
@@ -1720,10 +1723,10 @@ void ieciGP_R(
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m) 
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* check for null w */
@@ -1744,11 +1747,11 @@ void ieciGP_R(
 
 
 /*
- * utility structure for fcnnalc and defined below
+ * utility structure for fcn_nalcray and defined below
  * for use with Brent_fmin (R's optimize) or uniroot
  */
 
-struct alcinfo {
+struct callinfo_alcray {
   double **Xstart;
   double **Xend;
   double **Xref;
@@ -1758,8 +1761,8 @@ struct alcinfo {
   double *kxy;
   double *kx;
   double *ktKikx;
-  double **Gmui;
-  double *ktGmui;
+  // double **Gmui;
+  // double *ktGmui;
   double *Xcand;
   double s2p[2];
   double df;
@@ -1770,14 +1773,14 @@ struct alcinfo {
 
 
 /*
- * fcnnalc:
+ * fcn_nalcray:
  *
  * utility function lassed to Brent_Fmin (R's optimize) or
  * uniroot in order to optimize along a RAY with the ALC
  * statistic
  */
 
-static double fcnnalc(double x, struct alcinfo *info)
+static double fcn_nalcray(double x, struct callinfo_alcray *info)
 {
   int m, n, j;
   double alc;
@@ -1787,19 +1790,21 @@ static double fcnnalc(double x, struct alcinfo *info)
   (info->its)++;
 
   /* calculate Xcand along the ray */
-  for(j=0; j<m; j++) info->Xcand[j] = (1.0 - x)*(info->Xstart[0][j]) + x*(info->Xend[0][j]); 
-    
+  for(j=0; j<m; j++) info->Xcand[j] = (1.0 - x)*(info->Xstart[0][j]) + x*(info->Xend[0][j]);
+
   /* calculate the g vector, mui, and kxy */
-  calc_g_mui_kxy(m, info->Xcand, info->gp->X, n, info->gp->Ki, info->Xref, 
+  calc_g_mui_kxy(m, info->Xcand, info->gp->X, n, info->gp->Ki, info->Xref,
     1, info->gp->d, info->gp->g, info->gvec, &(info->mui), info->kx, info->kxy);
 
   /* skip if numerical problems */
   if(info->mui <= SDEPS) alc = R_NegInf;
   else {
     /* use g, mu, and kxy to calculate ktKik.x */
-    calc_ktKikx(NULL, 1, info->k, n, info->gvec, info->mui, info->kxy, info->Gmui, 
-      info->ktGmui, info->ktKikx);
-        
+    /* calc_ktKikx(NULL, 1, info->k, n, info->gvec, info->mui, info->kxy, info->Gmui,
+      info->ktGmui, info->ktKikx); */
+    calc_ktKikx(NULL, 1, info->k, n, info->gvec, info->mui, info->kxy, NULL,
+      NULL, info->ktKikx);
+
     /* calculate the ALC */
     alc = calc_alc(1, info->ktKikx, info->s2p, info->gp->phi, NULL, info->df, NULL);
   }
@@ -1812,20 +1817,20 @@ static double fcnnalc(double x, struct alcinfo *info)
   }
 
   return 0.0-alc;
-} 
+}
 
 
 /* alcrayGP:
  *
- * optimize AIC via a ray search using the pre-stored GP representation.  
+ * optimize AIC via a ray search using the pre-stored GP representation.
  * Return the convex combination s in (0,1) between Xstart and Xend
  */
 
-double* alcrayGP(GP *gp, double **Xref, const unsigned int nump, 
+double* alcrayGP(GP *gp, double **Xref, const unsigned int nump,
   double **Xstart, double **Xend, double *negalc, const unsigned int verb)
 {
   unsigned int m, n, r;
-  struct alcinfo info;
+  struct callinfo_alcray info;
   double Tol = SDEPS;
   double obj0, na;
   double *snew;
@@ -1854,10 +1859,10 @@ double* alcrayGP(GP *gp, double **Xref, const unsigned int nump,
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   info.k = new_matrix(1, n);
   covar(m, Xref, 1, gp->X, n, gp->d, info.k);
-  
+
   /* utility allocations */
-  info.Gmui = new_matrix(n, n);
-  info.ktGmui = new_vector(n);
+  // info.Gmui = new_matrix(n, n);
+  // info.ktGmui = new_vector(n);
 
   /* allocate snew */
   snew = new_vector(nump);
@@ -1871,22 +1876,22 @@ double* alcrayGP(GP *gp, double **Xref, const unsigned int nump,
     info.Xend = Xend + r;
 
     /* use the C-backend of R's optimize function */
-    snew[r] = Brent_fmin(0.0, 1.0, (double (*)(double, void*)) fcnnalc, &info, Tol);  
+    snew[r] = Brent_fmin(0.0, 1.0, (double (*)(double, void*)) fcn_nalcray, &info, Tol);
     if(snew[r] < Tol) snew[r] = 0.0;
 
     /* check s=0, as multi-modal ALC may result in larger domain of attraction
        for larger s-values but with lower mode */
     if(snew[r] > 0.0) {
-      obj0 = fcnnalc(0.0, &info);
-      na = fcnnalc(snew[r], &info);
+      obj0 = fcn_nalcray(0.0, &info);
+      na = fcn_nalcray(snew[r], &info);
       if(obj0 < na) { snew[r] = 0.0; na = obj0; }
       if(negalc) negalc[r] = na;
-    } else if(negalc) negalc[r] = fcnnalc(snew[r], &info);
+    } else if(negalc) negalc[r] = fcn_nalcray(snew[r], &info);
   }
 
   /* clean up */
-  delete_matrix(info.Gmui);
-  free(info.ktGmui);
+  // delete_matrix(info.Gmui);
+  // free(info.ktGmui);
   free(info.ktKikx);
   free(info.gvec);
   free(info.kx);
@@ -1909,9 +1914,9 @@ double* alcrayGP(GP *gp, double **Xref, const unsigned int nump,
  * to the bounding rectangle
  */
 
-void ray_bounds(const unsigned int offset, const unsigned int nr, const unsigned int m, 
-  double **rect, double **Xref, unsigned int ncand, double **Xcand, double **Xstart, 
-  double **Xend)
+void ray_bounds(const unsigned int offset, const unsigned int nr, 
+  const unsigned int m, double **rect, double **Xref, unsigned int ncand, 
+  double **Xcand, double **Xstart, double **Xend)
 {
   unsigned int r, j, k, eoff;
   double sc;
@@ -1941,14 +1946,47 @@ void ray_bounds(const unsigned int offset, const unsigned int nr, const unsigned
 
 
 /*
+ * closest_index:
+ *
+ * find the closest index into Xcand to the solution vector p; this is
+ * a bit more light weight than convex_index is because we have less info here.
+ * Might be a way to economize on some code later
+ */
+
+int closest_index(const unsigned int m, const unsigned int ncand,
+  double **Xcand, double *p)
+{
+  unsigned int i, j, mini;
+  double mind, dist;
+
+  /* find the candidate closest to Xstar (Xend) */
+  mini = -1;
+  mind = R_PosInf;
+  
+  for(i=0; i<ncand; i++) {
+    dist = 0;
+    for(j=0; j<m; j++) {
+      dist += sq(p[j] - Xcand[i][j]);
+      if(dist > mind) break;
+    }
+    if(dist > mind) continue;
+    mind = dist;
+    mini = i;
+  }
+  
+  return(mini);
+}
+
+
+/*
  * convex_index:
  *
- * find the closest invex into Xcand to the convex combination
+ * find the closest index into Xcand to the convex combination
  * Xstart + s[rmin]*Xend;  re-uses storage from Xend;
  */
 
-int convex_index(double *s, const unsigned int rmin, const unsigned int offset, 
-  const unsigned int nr, const unsigned int m, const unsigned int ncand, 
+int convex_index(double *s, const unsigned int rmin, const unsigned int offset,
+  const unsigned int nr, const unsigned int m, const unsigned int ncand,
   double **Xcand, double **Xstart, double **Xend)
 {
   unsigned int i, j, eoff, mini;
@@ -1965,7 +2003,7 @@ int convex_index(double *s, const unsigned int rmin, const unsigned int offset,
     /* find the candidate closest to Xstar (Xend) */
     mini = -1;
     mind = R_PosInf;
-    eoff = offset + nr; /* explicitly avoid searcing over Xstart locations */
+    eoff = offset + nr; /* explicitly avoid searching over Xstart locations */
     if(eoff >= ncand) eoff = 0;  /* unless there aren't any candidates left */
     for(i=eoff; i<ncand; i++) {
       dist = 0;
@@ -1986,21 +2024,21 @@ int convex_index(double *s, const unsigned int rmin, const unsigned int offset,
 /* lalcrayGP:
  *
  * local search of via ALC on rays (see alcrayGP) which finds the element
- * of Xcand that is closest to the max ALC value along a random ray eminating
+ * of Xcand that is closest to the max ALC value along a random ray emanating
  * from the (one of the) closest Xcands to Xref.  The offset determines which
- * candidate the ray eminates from (0 being the NN).  On input this function
+ * candidate the ray emanates from (0 being the NN).  On input this function
  * assumes that the rows od Xcand are ordered by distance to Xref
  */
 
-int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref, 
+int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref,
   const unsigned int offset, unsigned int nr, double **rect, int verb)
 {
-  unsigned int m, mini, rmin; 
+  unsigned int m, mini, rmin;
   double **Xstart, **Xend;
   double *s, *negalc;
 
   /* gp dimension */
-  m = gp->m; 
+  m = gp->m;
 
   /* check numrays argument */
   assert(nr > 0);
@@ -2009,15 +2047,15 @@ int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref,
   /* allocation and initialization */
   Xend = new_matrix(nr, m);
   Xstart = new_matrix(nr, m);
-  negalc = new_vector(nr);
 
   /* set up starting and ending pairs */
   ray_bounds(offset, nr, m, rect, Xref, ncand, Xcand, Xstart, Xend);
 
   /* calculate ALC along ray */
+  negalc = new_vector(nr);
   s = alcrayGP(gp, Xref, nr, Xstart, Xend, negalc, verb);
-  
-  /* find the best amongst the pairs */
+
+  /* get the best combination */
   min(negalc, nr, &rmin);
 
   /* find the index into Xcand that is closes to Xstart + s*Xend */
@@ -2034,13 +2072,12 @@ int lalcrayGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref,
 }
 
 
-
 /*
  * alcGP:
  *
  * return s2' component of the ALC calculation of the
- * expected reduction in variance calculation at locations 
- * Xcand averaging over reference locations Xref: 
+ * expected reduction in variance calculation at locations
+ * Xcand averaging over reference locations Xref:
  * ds2 = s2 - s2', where the s2s are at Xref and the
  * s2' incorporates Xcand, and everything is averaged
  * over Xref.
@@ -2051,8 +2088,8 @@ void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 {
   unsigned int m, n;
   int i;
-  double **k, **Gmui;
-  double *kx, *kxy, *gvec, *ktKikx, *ktGmui;
+  double **k; //, **Gmui;
+  double *kx, *kxy, *gvec, *ktKikx; //, *ktGmui;
   double mui, df;
   double s2p[2] = {0, 0};
 
@@ -2070,42 +2107,411 @@ void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
   covar(m, Xref, nref, gp->X, n, gp->d, k);
-  
+
   /* utility allocations */
-  Gmui = new_matrix(n, n);
-  ktGmui = new_vector(n);
+  // Gmui = new_matrix(n, n);
+  // ktGmui = new_vector(n);
 
   /* calculate the ALC for each candidate */
   for(i=0; i<ncand; i++) {
 
     /* progress meter */
-    if(verb > 0) MYprintf(MYstdout, "calculating ALC for point %d of %d\n", verb, i, ncand);
-    
+    if(verb > 0) 
+      MYprintf(MYstdout, "alcGP: calculating ALC for point %d of %d\n", i+1, ncand);
+
     /* calculate the g vector, mui, and kxy */
-    calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d, 
+    calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d,
 		   gp->g, gvec, &mui, kx, kxy);
 
     /* skip if numerical problems */
     if(mui <= SDEPS) {
-      alc[i] = R_NegInf; 
+      alc[i] = R_NegInf;
       continue;
     }
 
     /* use g, mu, and kxy to calculate ktKik.x */
-    calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
-        
+    // calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
+    calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, NULL, NULL, ktKikx);
+
     /* calculate the ALC */
     alc[i] = calc_alc(nref, ktKikx, s2p, gp->phi, NULL, df, NULL);
   }
 
   /* clean up */
-  delete_matrix(Gmui);
-  free(ktGmui);
+  // delete_matrix(Gmui);
+  // free(ktGmui);
   free(ktKikx);
   free(gvec);
   free(kx);
   free(kxy);
   delete_matrix(k);
+}
+
+
+
+/*
+ * utility structure for fcn_nalc and fcn_ndalc defined below
+ * for use with lbfgsb (R's optim with "L-BFGS-B" method)
+ * for continuously optimizing ALC
+ */
+
+struct callinfo_alc {
+  GP *gp;
+  double alc;
+  double *dalc;
+  double *p;
+  double **Xref;
+  int nref;
+  int its;  /* updated but not used since lbfgsb counts fmin and gr evals */
+  int verb;
+
+  double *gvec;
+  double *kxy; 
+  double *kx; 
+  double *ktKikx; 
+  double *Kidks; 
+  double **k;
+  double *dk;
+};
+
+
+/*
+ * dalcGP:
+ *
+ * calculate the derivative, with respect to Xcand, of the
+ * s2' component of the ALC calculation of the
+ * expected reduction in variance calculation at locations
+ * Xcand averaging over reference locations Xref:
+ * ds2 = s2 - s2', where the s2s are at Xref and the
+ * s2' incorporates Xcand, and everything is averaged
+ * over Xref.
+ */
+
+void dalcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
+     double **Xref,  int verb, double *alc, double **dalc, 
+     void *info)
+{
+  unsigned int m, n;
+  int i, j, ell, iref;
+  double **k; //, **Gmui;
+  double *kx, *kxy, *gvec, *ktKikx, /* *ktGmui,*/ *dk, *Kidks;
+  double mui, df, dkKikx, kgvec, dkxy, kKidks;
+  double s2p[2] = {0, 0};
+
+  /* degrees of freedom */
+  m = gp->m;
+  n = gp->n;
+  df = (double) n;
+
+  /* determine whether to allocate local memory */
+  if(!info) {
+    gvec = new_vector(n);
+    kxy = new_vector(nref);
+    kx = new_vector(n);
+    ktKikx = new_vector(nref);
+    Kidks = new_vector(n);
+    k = new_matrix(nref, n);
+    dk = new_vector(n);
+  } else {
+    gvec = ((struct callinfo_alc*) info)->gvec;
+    kxy = ((struct callinfo_alc*) info)->kxy;
+    kx = ((struct callinfo_alc*) info)->kx;
+    ktKikx = ((struct callinfo_alc*) info)->ktKikx;
+    Kidks = ((struct callinfo_alc*) info)->Kidks;
+    dk = ((struct callinfo_alc*) info)->dk;
+    k = ((struct callinfo_alc*) info)->k;
+  }
+
+  /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
+  covar(m, Xref, nref, gp->X, n, gp->d, k);
+
+  /* utility allocations */
+  // Gmui = new_matrix(n, n);
+  // ktGmui = new_vector(n);
+
+  /* initialize */
+  zerov(*dalc, ncand*m);
+
+  /* calculate the ALC for each candidate */
+  for(i=0; i<ncand; i++) {
+
+    /* progress meter */
+    if(verb > 0) MYprintf(MYstdout, "calculating DALC for point %d of %d\n", verb, i, ncand);
+
+    /* calculate the g vector, mui, and kxy */
+    calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d,
+       gp->g, gvec, &mui, kx, kxy);
+
+    /* skip if numerical problems */
+    if(mui <= SDEPS) {
+      alc[i] = R_NegInf;
+      zerov(dalc[i], m);
+      continue;
+    }
+
+    /* use g, mu, and kxy to calculate ktKik.x */
+    // calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
+    calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, NULL, NULL, ktKikx);
+
+    /* calculate the ALC */
+    alc[i] = calc_alc(nref, ktKikx, s2p, gp->phi, NULL, df, NULL);
+
+    /* for derivative, loop over input coordinates */
+    for(j=0; j<m; j++) {
+
+      /* d_k.xprime <- (-2 * (xj[,j] - xc[,j]) / theta) * k.xprime */
+      for(ell=0; ell<n; ell++) dk[ell] = 0.0 - 2.0*(Xcand[i][j] - gp->X[ell][j])/gp->d * kx[ell];
+
+      /* B <- drop(t(d_k.xprime) %*% K.Js %*% k.xprime + t(k.xprime) %*% K.Js %*% d_k.xprime) */
+      /* dkKikx <- 2.0 * dk %*% (Ki %*% kx) with the latter stored in gvec */
+      dkKikx = 0.0 - 2.0 * linalg_ddot(n, dk, 1, gvec, 1) * mui;
+
+      /* no longer need dk; re-use for ds = dk_shift = dk + kx * dkKikx * mui */
+      linalg_daxpy(n, dkKikx / mui, kx, 1, dk, 1);
+
+      /* Kidks <- Ki %*% ds with ds = dk calculated above */
+      linalg_dsymv(n,1.0,gp->Ki,n,dk,1,0.0,Kidks,1);
+
+      /* loop over reference locations */
+      dalc[i][j] = 0.0;
+      for(iref=0; iref<nref; iref++) {
+
+        /* Furong's ds1 <- 2.0*(-t(k.x) %*% Kidks %*% t(g.xprime) %*% k.x) */
+        /* kgvec is calculated in calc_ktKikx above, so this is partly duplicated */
+        kgvec = linalg_ddot(n, k[iref], 1, gvec, 1);
+        kKidks = linalg_ddot(n, k[iref], 1, Kidks, 1);
+        dalc[i][j] -= 2.0 * kgvec * kKidks;
+
+        /* Furong's ds3 <- -t(k.x) %*% g.xprime %*% t(g.xprime) %*% k.x * B */
+        dalc[i][j] -= sq(kgvec) * dkKikx;
+
+        /* Furong's d_K.xprime.x <- (-2 * (xj[,j] - xp[i,j]) / theta) * K.xprime.x */
+        dkxy = (-2.0 * (Xcand[i][j] - Xref[iref][j]) / gp->d) * kxy[iref];
+
+        /* Furong's ds4 <- 2 * ( - t(k.x) %*% Kidks * K.xprime.x / v.xprime +
+                               t(k.x) %*% g.xprime * d_K.xprime.x) */
+        dalc[i][j] += 2.0 *(0.0 - kKidks * kxy[iref] / mui + kgvec * dkxy);
+
+        /* Furong's ds5 <- K.xprime.x * (2 * d_K.xprime.x + K.xprime.x * B / v.xprime) / v.xprime */
+        dalc[i][j] += kxy[iref] * (2.0 * dkxy + kxy[iref] * dkKikx / mui) / mui;
+      }
+
+      /* after this line, result matches Furong's code */
+      dalc[i][j] /= ((double) nref);
+
+      /* scaling required to match alcGP output */
+      dalc[i][j] *= (df/(df-2.0))*(s2p[1] + gp->phi)/(s2p[0] + df);
+
+    }
+  }
+
+  /* clean up */
+  // delete_matrix(Gmui);
+  // free(ktGmui);
+  if(!info) {
+    free(ktKikx);
+    free(gvec);
+    free(kx);
+    free(kxy);
+    free(dk);
+    free(Kidks);
+    delete_matrix(k);
+  }
+}
+
+
+
+/*
+ * fcn_nalc:
+ *
+ * a utility function for lbfgsb (R's optim with "L-BFGS-B" method) to
+ * evaluate the isotropic ALC calculation at the reference locations
+ * specified in info; calculates derivative at the same time and stores
+ * it in info to be read later by the derivative function
+ */
+
+static double fcn_nalc(int n, double *p, struct callinfo_alc *info)
+{
+  double alc;
+  int k, m;
+
+  /* sanity check */
+  m = info->gp->m;
+
+  /* evaluate alc and derivative with potentially new paramterization */
+  dalcGP(info->gp, 1, &p, info->nref, info->Xref, info->verb, &alc, 
+    &(info->dalc), info);
+  
+  /* copy p and alc into info */
+  (info->its)++;
+  dupv(info->p, p, m);
+  info->alc = alc;
+
+  /* progress meter */
+  if(info->verb > 0) {
+    MYprintf(MYstdout, "fmin it=%d, par=(%g", info->its, p[0]);
+    for(k=1; k<m; k++) MYprintf(MYstdout, " %g", p[k]);
+    MYprintf(MYstdout, "), log(alc)=%g\n", log(alc));
+  }
+
+  /* done */
+  return 0.0-log(alc); 
+}
+
+
+/*
+ * fcn_ndalc:
+ *
+ * a utility function for lbfgsb (R's optim with "L-BFGS-B" method) to
+ * evaluate the isotropic ALC calculation at the reference locations
+ * specified in info; read the stored derivative from fcn_nalc
+ */
+
+static void fcn_ndalc(int n, double *p, double *df, struct callinfo_alc *info)
+{
+  int psame, k, m;
+
+  /* sanity check */
+  m = info->gp->m;
+  assert(n == m + 1);
+
+  /* check if parameters in p are new */
+  psame = 1;
+  for(k=0; k<m; k++) if(p[k] != info->p[k]) { psame = 0; break; }
+  if(!psame) error("ndalc incorrectly assumed grad comes after obj");
+
+  /* calculate (and negate) derivative from saved values */
+  for(k=0; k<n; k++) df[k] = 0.0-info->dalc[k]/info->alc;
+
+  /* progress meter */
+  if(info->verb > 1) {
+    MYprintf(MYstdout, "grad it=%d, par=(%g", info->its, p[0]);
+    for(k=1; k<m; k++) MYprintf(MYstdout, " %g", p[k]);
+    MYprintf(MYstdout, "), dd=(%g", df[0]);
+    for(k=1; k<m; k++) MYprintf(MYstdout, " %g", df[k]);
+    MYprintf(MYstdout, "\n", df[m]);
+  }
+}
+
+
+/*
+ * alcoptGP:
+ *
+ * continuously optimize ALC via derivatives
+ * to get an approximate new location for multiple design.
+ */
+
+void alcoptGP(GP* gp, double *start, double* lower, double *upper, 
+  double **Xref, const int nref, const unsigned int maxit, int verb, double *p, 
+  int *its, char *msg, int *conv, int fromR)
+{
+  double obj;
+  int k, lbfgs_verb;
+
+  /* create structure for lbfgsb */
+  struct callinfo_alc info;
+  info.gp = gp;
+  info.p = new_vector(gp->m);
+  info.dalc = new_vector(gp->m);
+  info.Xref = Xref;
+  info.nref = nref;
+  info.its = 0;
+  info.verb = verb-6;
+
+  /* allocate memory shared across all dalc evals */
+  info.gvec = new_vector(gp->n);
+  info.kxy = new_vector(nref);
+  info.kx = new_vector(gp->n);
+  info.ktKikx = new_vector(nref);
+  info.Kidks = new_vector(gp->n);
+  info.k = new_matrix(nref, gp->n);
+  info.dk = new_vector(gp->n);
+
+  /* copy the starting value */
+  dupv(p, start, gp->m);
+ 
+  /* potentially start progress meter */
+  if(verb > 0) {
+    MYprintf(MYstdout, "(par=[%g", p[0]);
+    for(k=1; k<gp->m; k++) MYprintf(MYstdout, ",%g", p[k]);
+    alcGP(gp, 1, &p, nref, Xref, 0, &obj);
+    MYprintf(MYstdout, "], log(alc)=%g) ", log(obj));
+  }
+
+  /* set ifail argument and verb/trace arguments */
+  *conv = 0;
+  if(verb <= 1) lbfgs_verb = 0;
+  else lbfgs_verb = verb - 1;
+
+  /* call the C-routine behind R's optim function with method = "L-BFGS-B" */
+  MYlbfgsb(gp->m, p, lower, upper,
+         (double (*)(int, double*, void*)) fcn_nalc,
+         (void (*)(int, double *, double *, void *)) fcn_ndalc,
+         conv, &info, 0.1, its, maxit, msg, lbfgs_verb, fromR);
+
+  /* print progress */
+  if(verb > 0) {
+    MYprintf(MYstdout, "-> %d lbfgsb its -> (par=[%g", its[1], p[0]);
+    for(k=1; k<gp->m; k++) MYprintf(MYstdout, ",%g", p[k]);
+    alcGP(gp, 1, &p, nref, Xref, 0, &obj);
+    MYprintf(MYstdout, "], log(alc)=%g)\n", log(obj));
+  }
+
+  /* clean up */
+  free(info.dalc);
+  free(info.p);
+  free(info.gvec); 
+  free(info.kxy); 
+  free(info.kx); 
+  free(info.ktKikx); 
+  free(info.Kidks); 
+  delete_matrix(info.k);
+  free(info.dk); 
+}
+
+
+/*
+ * alcoptGP_R:
+ *
+ * R-interface to continuously optimize ALC via derivatives
+ * to get an approximate new location for multiple design.
+ */
+
+void alcoptGP_R(/* inputs */
+       int *gpi_in,
+       int *maxit_in,
+       int *verb_in,
+       double *start_in,
+       double *lower_in,
+       double *upper_in,
+       int *m_in,
+       double *Xref_in,
+       int *nref_in,
+
+       /* outputs */
+       double *par_out,
+       int *its_out,
+       char **msg_out,
+       int *conv_out)
+{
+  GP *gp;
+  unsigned int gpi;
+  double ** Xref;
+
+  /* get the cloud */
+  gpi = *gpi_in;
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
+    error("gp %d is not allocated\n", gpi);
+  gp = gps[gpi];
+  if((unsigned) *m_in != gp->m)
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
+
+  /* make matrix bones */
+  Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
+
+  /* call the ordinary C function */
+  alcoptGP(gp, start_in, lower_in, upper_in, Xref, *nref_in, *maxit_in, 
+    *verb_in, par_out, its_out, *msg_out, conv_out, 1);
 }
 
 
@@ -2132,12 +2538,12 @@ void alcGP_omp(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
   covar(m, Xref, nref, gp->X, n, gp->d, k);
-  
+
   #pragma omp parallel
   {
     int i, me, nth;
-    double **Gmui;
-    double *kx, *kxy, *gvec, *ktKikx, *ktGmui;
+    // double **Gmui;
+    double *kx, *kxy, *gvec, *ktKikx; //, *ktGmui;
     double mui;
 
     /* allocate g, kxy, and ktKikx vectors */
@@ -2147,8 +2553,8 @@ void alcGP_omp(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
     ktKikx = new_vector(nref);
 
     /* utility allocations */
-    Gmui = new_matrix(n, n);
-    ktGmui = new_vector(n);
+    /* Gmui = new_matrix(n, n);
+    ktGmui = new_vector(n); */
 
     /* get thread information */
     me = omp_get_thread_num();
@@ -2159,28 +2565,31 @@ void alcGP_omp(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
 
       /* progress meter */
       #pragma omp master
-      if(verb > 0) MYprintf(MYstdout, "calculating ALC for point %d of %d\n", verb, i, ncand);
-    
+      if(verb > 0) 
+        MYprintf(MYstdout, "alcGP_omp: calculating ALC for point %d of %d\n", 
+          i+1, ncand);
+
       /* calculate the g vector, mui, and kxy */
-      calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d, 
+      calc_g_mui_kxy(m, Xcand[i], gp->X, n, gp->Ki, Xref, nref, gp->d,
                      gp->g, gvec, &mui, kx, kxy);
 
       /* skip if numerical problems */
       if(mui <= SDEPS) {
-        alc[i] = R_NegInf; 
+        alc[i] = R_NegInf;
         continue;
       }
 
       /* use g, mu, and kxy to calculate ktKik.x */
-      calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
-        
+      // calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
+      calc_ktKikx(NULL, nref, k, n, gvec, mui, kxy, NULL, NULL, ktKikx);
+
       /* calculate the ALC */
       alc[i] = calc_alc(nref, ktKikx, s2p, gp->phi, NULL, df, NULL);
     }
 
     /* clean up */
-    delete_matrix(Gmui);
-    free(ktGmui);
+    // delete_matrix(Gmui);
+    // free(ktGmui);
     free(ktKikx);
     free(gvec);
     free(kx);
@@ -2207,7 +2616,7 @@ void alcGP_omp_R(/* inputs */
        double *Xref_in,
        int *nref_in,
        int *verb_in,
-       
+
        /* outputs */
        double *alc_out)
 {
@@ -2217,10 +2626,10 @@ void alcGP_omp_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* make matrix bones */
@@ -2254,9 +2663,9 @@ void alcGP_gpu(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   k = new_matrix(nref, gp->n);
   covar(gp->m, Xref, nref, gp->X, gp->n, gp->d, k);
 
-  alc_gpu(gp->d, gp->g, gp->phi, gp->m, gp->n, *(gp->X), *(gp->Ki), ncand, 
+  alc_gpu(gp->d, gp->g, gp->phi, gp->m, gp->n, *(gp->X), *(gp->Ki), ncand,
           *Xcand, nref, *Xref, *k, alc, omp_threadnum);
-  
+
   /* clean up non-parallel stuff */
   delete_matrix(k);
 }
@@ -2276,7 +2685,7 @@ void alcGP_gpu_R(/* inputs */
        double *Xref_in,
        int *nref_in,
        int *verb_in,
-       
+
        /* outputs */
        double *alc_out)
 {
@@ -2286,10 +2695,10 @@ void alcGP_gpu_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* make matrix bones */
@@ -2306,13 +2715,133 @@ void alcGP_gpu_R(/* inputs */
 #endif
 
 
+/* lalcoptGP:
+ *
+ * local search of via ALC via optim (see alcoptGP) which finds the 
+ * element of Xcand that is closest to the max ALC via derivatives.  
+ * The offset determines which candidate is the starting value of the 
+ * search (0 being the NN).  On input this function assumes 
+ * that the rows of Xcand are ordered by distance to Xref
+ */
+
+int lalcoptGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref,
+  const unsigned int nref, const unsigned int offset, unsigned int numstart, 
+  double **rect, int maxit, int verb, int fromR)
+{
+  unsigned int m, mini, mini_best, eoff;
+  int conv, s, its[2];
+  char msg[60];
+  double *start, *p;
+  double alc, alc_best;
+
+  /* gp dimension */
+  m = gp->m;
+
+  /* check numrays argument */
+  assert(numstart > 0);
+  if(numstart > ncand) numstart = ncand;
+
+  /* allocation and initialization */
+  start = new_vector(m);
+  p = new_vector(m);
+
+  /* initialize search over numstart starting locations */
+  mini_best = 0; 
+  alc_best = R_PosInf;
+
+  /* set up starting and ending pairs */
+  for(s=0; s<numstart; s++) {
+
+    /* starting point for derivative based search */
+    eoff = (offset + s) % ncand;
+    dupv(start, Xcand[eoff], m);
+  
+    /* optimize ALC via derivatives */
+    alcoptGP(gp, start, rect[0], rect[1], Xref, nref, maxit, 
+      verb, p, its, msg, &conv, fromR);
+
+    /* find the index into Xcand that is closest to Xstart + s*Xend */
+    mini = closest_index(m, ncand, Xcand, p);
+
+    /* calculate ALC at Xcand[mini,] and see if its the best */
+    alcGP(gp, 1, &(Xcand[mini]), nref, Xref, verb, &alc);
+    if(alc < alc_best) {
+      mini_best = mini;
+      alc_best = alc;
+    }
+  }
+
+  /* clean up */
+  free(start);
+  free(p);
+
+  return(mini_best);
+}
+
+
+/* lalcoptGP_R:
+ *
+ * R interface to C-side function that implements a local search of via ALC
+ * via optim (see alcoptGP) which finds the element of Xcand that is closest
+ * to the max ALC via derivatives.  The offset determines which candidate is the
+ * starting value of the search (0 being the NN).  On input this function assumes 
+ * that the rows of Xcand are ordered by distance to Xref
+ */
+
+void lalcoptGP_R(/* inputs */
+       int *gpi_in,
+       int *m_in,
+       double *Xcand_in,
+       int *ncand_in,
+       double *Xref_in,
+       int *nref_in,
+       int *offset_in,
+       int *numstart_in,
+       double *rect_in,
+       int *maxit_in,
+       int *verb_in,
+
+       /* outputs */
+       int *w_out)
+{
+  GP *gp;
+  unsigned int gpi;
+  double **Xref, **Xcand, **rect;
+
+  /* get the gp */
+  gpi = *gpi_in;
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
+    error("gp %d is not allocated\n", gpi);
+  gp = gps[gpi];
+  if((unsigned) *m_in != gp->m)
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
+
+  /* check num rays */
+  if(*numstart_in <= 0) error("numstart must be an integer scalar >= 1");
+
+  /* make matrix bones */
+  Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
+  Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
+  rect = new_matrix_bones(rect_in, 2, *m_in);
+
+  /* call the C-only function */
+  *w_out = lalcoptGP(gp, Xcand, *ncand_in, Xref, *nref_in, *offset_in, 
+    *numstart_in, rect, *maxit_in, *verb_in, 1);
+
+  /* clean up */
+  free(Xref);
+  free(Xcand);
+  free(rect);
+}
+
+
 /* lalcrayGP_R:
  *
- * R interface to C-side function that implements a local search of via ALC 
- * on rays (see alcrayGP) which finds the element of Xcand that is closest 
- * to the max ALC value along a random ray eminating from the (one of the) 
- * closest Xcands to Xref.  The offset determines which candidate the ray 
- * eminates from (0 being the NN).  On input this function assumes that the 
+ * R interface to C-side function that implements a local search of via ALC
+ * on rays (see alcrayGP) which finds the element of Xcand that is closest
+ * to the max ALC value along a random ray emanating from the (one of the)
+ * closest Xcands to Xref.  The offset determines which candidate the ray
+ * emanates from (0 being the NN).  On input this function assumes that the
  * rows od Xcand are ordered by distance to Xref
  */
 
@@ -2326,7 +2855,7 @@ void lalcrayGP_R(/* inputs */
        int *numrays_in,
        double *rect_in,
        int *verb_in,
-       
+
        /* outputs */
        int *w_out)
 {
@@ -2336,14 +2865,14 @@ void lalcrayGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m) 
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* check num rays */
-  if(*numrays_in <= 0) error("numrays must me an interger scalar >= 1");
+  if(*numrays_in <= 0) error("numrays must be an integer scalar >= 1");
 
   /* make matrix bones */
   Xref = new_matrix_bones(Xref_in, 1, *m_in);
@@ -2362,8 +2891,8 @@ void lalcrayGP_R(/* inputs */
 
 /* alcrayGP_R:
  *
- * R interface to C-side function that optimizes AIC via a ray search 
- * using the pre-stored GP representation.  Return the convex 
+ * R interface to C-side function that optimizes AIC via a ray search
+ * using the pre-stored GP representation.  Return the convex
  * combination s in (0,1) between Xstart and Xend
  */
 
@@ -2376,7 +2905,7 @@ void alcrayGP_R(
        double *Xstart_in,
        double *Xend_in,
        int *verb_in,
-       
+
        /* outputs */
        double *s_out,
        int *r_out)
@@ -2388,15 +2917,15 @@ void alcrayGP_R(
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* check numrays */
   if(*numrays_in < 1)
-    error("numrays should be a integer scalar >= 1");
+    error("numrays should be an integer scalar >= 1");
 
   /* make matrix bones */
   Xref = new_matrix_bones(Xref_in, 1, *m_in);
@@ -2410,7 +2939,7 @@ void alcrayGP_R(
   /* get the best combination */
   min(negalc, *numrays_in, &rui);
   *s_out = s[rui];
-  *r_out = rui;  
+  *r_out = rui;
 
   /* clean up */
   free(s);
@@ -2422,13 +2951,67 @@ void alcrayGP_R(
 
 
 /*
+ * dalcGP_R:
+ *
+ * R interface to C-side function that returns the
+ * derivative, with respect to Xcand_in values,
+ * of the s2' component of the ALC calculation of the
+ * expected reduction in variance calculation given
+ * the stored GP parameterization at locations Xcand
+ * averaging over reference locations Xref:
+ * ds2 = s2 - s2', where the s2s are at Xref and the
+ * s2' incorporates Xcand, and everything is averaged
+ * over Xref.
+ */
+
+void dalcGP_R(/* inputs */
+       int *gpi_in,
+       int *m_in,
+       double *Xcand_in,
+       int *ncand_in,
+       double *Xref_in,
+       int *nref_in,
+       int *verb_in,
+
+       /* outputs */
+       double *alc_out,
+       double *dalc_out)
+{
+  GP *gp;
+  unsigned int gpi;
+  double **Xcand, **Xref, **dalc;
+
+  /* get the gp */
+  gpi = *gpi_in;
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
+    error("gp %d is not allocated\n", gpi);
+  gp = gps[gpi];
+  if((unsigned) *m_in != gp->m)
+    error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
+
+  /* make matrix bones */
+  Xcand = new_matrix_bones(Xcand_in, *ncand_in, *m_in);
+  Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
+  dalc = new_matrix_bones(dalc_out, *ncand_in, *m_in);
+
+  /* call the C-only function */
+  dalcGP(gp, *ncand_in, Xcand, *nref_in, Xref, *verb_in, alc_out, dalc, NULL);
+
+  /* clean up */
+  free(Xcand);
+  free(Xref);
+  free(dalc);
+}
+
+
+/*
  * alcGP_R:
  *
  * R interface to C-side function that returns the
  * s2' component of the ALC calculation of the
- * expected reduction in variance calculation given 
+ * expected reduction in variance calculation given
  * the stored GP parameterization at locations Xcand
- * averaging over reference locations Xref: 
+ * averaging over reference locations Xref:
  * ds2 = s2 - s2', where the s2s are at Xref and the
  * s2' incorporates Xcand, and everything is averaged
  * over Xref.
@@ -2442,7 +3025,7 @@ void alcGP_R(/* inputs */
 	     double *Xref_in,
 	     int *nref_in,
 	     int *verb_in,
-	     
+
 	     /* outputs */
 	     double *alc_out)
 {
@@ -2452,10 +3035,10 @@ void alcGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m) 
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* make matrix bones */
@@ -2474,10 +3057,10 @@ void alcGP_R(/* inputs */
 /*
  * alGP_R:
  *
- * R interface to C-side function that returns the a Monte Carlo approximation 
- * to the expected improvement (EI) and expected y-value (EY) under an 
- * augmented Lagrangian with constraint GPs (cgps) assuming a known linear 
- * objective function with scale bscale.  The constraints can be scaled with 
+ * R interface to C-side function that returns the a Monte Carlo approximation
+ * to the expected improvement (EI) and expected y-value (EY) under an
+ * augmented Lagrangian with constraint GPs (cgps) assuming a known linear
+ * objective function with scale bscale.  The constraints can be scaled with
  * the cnorms
  */
 
@@ -2496,7 +3079,7 @@ void alGP_R(/* inputs */
        int *slack_in,
        double *equal_in,
        int *N_in,
-       
+
        /* outputs */
        double *eys_out,
        double *eis_out)
@@ -2512,10 +3095,10 @@ void alGP_R(/* inputs */
   cgps = (GP**) malloc(sizeof(GP*) * ncgps);
   for(i=0; i<ncgps; i++) {
     gpi = cgpis_in[i];
-    if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+    if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
       error("gp %d is not allocated\n", gpi);
     cgps[i] = gps[gpi];
-    if((unsigned) *m_in != cgps[i]->m)  
+    if((unsigned) *m_in != cgps[i]->m)
       error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, cgps[i]->m);
   }
 
@@ -2526,7 +3109,7 @@ void alGP_R(/* inputs */
   mu = new_vector(*nn_in);
   if(*fgpi_in >= 0) {
     gpi = *fgpi_in;
-    if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+    if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
       error("gp %d is not allocated\n", gpi);
     fgp = gps[gpi];
     s = new_vector(*nn_in);
@@ -2553,14 +3136,14 @@ void alGP_R(/* inputs */
 
   /* use mu and s to calculate EI and EY */
   if(!(*slack_in)) {
-    MC_al_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+    MC_al_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in,
       lambda_in, *alpha_in, *ymin_in, equal_in, *N_in, eys_out, eis_out);
   } else {
-    /* MC_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+    /* MC_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in,
       lambda_in, *alpha_in, *ymin_in, equal_in, *N_in, eys_out, eis_out); */
-    calc_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in, 
+    calc_alslack_eiey(ncgps, *nn_in, mu, s, *fnorm_in, cmu, cs, cnorms_in,
       lambda_in, *alpha_in, *ymin_in, equal_in, eys_out, eis_out);
-  } 
+  }
 
   PutRNGstate();
 
@@ -2573,15 +3156,15 @@ void alGP_R(/* inputs */
 
 
 /*
- * d_Kik: 
- * 
+ * d_Kik:
+ *
  * calculates the derivative of Kik wrt d, the range parameter
- * using pre-calculated derivatives of k and K; uses dk as 
+ * using pre-calculated derivatives of k and K; uses dk as
  * temporary space; each dk and ktKi and dktKi are wrt an input
  * location (x)
  */
 
-void d_ktKi(const int n, double **Ki, const int nn, double **dk, 
+void d_ktKi(const int n, double **Ki, const int nn, double **dk,
 	    double **dK, double **ktKi, double **dktKi)
 {
   double **temp;
@@ -2591,7 +3174,7 @@ void d_ktKi(const int n, double **Ki, const int nn, double **dk,
 
   /* temp <- dk - dK %*% ktKi */
   linalg_dsymm(CblasRight,nn,n,0.0-1.0,dK,n,ktKi,nn,1.0,temp,nn);
-  
+
   /* dktKi <- Ki %*% dk */
   linalg_dsymm(CblasRight,nn,n,1.0,Ki,n,temp,nn,0.0,dktKi,nn);
 
@@ -2601,14 +3184,14 @@ void d_ktKi(const int n, double **Ki, const int nn, double **dk,
 
 
 /*
- * d2_ktKi: 
- * 
+ * d2_ktKi:
+ *
  * calculates the second derivative of KiZ wrt d, the range parameter
- * using pre-calculated derivatives of k and K; each dk and ktKi and 
+ * using pre-calculated derivatives of k and K; each dk and ktKi and
  * dktKi are wrt an input location (x)
  */
 
-void d2_ktKi(const int n, double **Ki, const int nn, double **d2k, 
+void d2_ktKi(const int n, double **Ki, const int nn, double **d2k,
 	       double **dK, double **d2K, double **ktKi, double **dktKi,
 	       double **d2ktKi)
 {
@@ -2622,7 +3205,7 @@ void d2_ktKi(const int n, double **Ki, const int nn, double **d2k,
 
   /* temp <- temp - 2*dK %*% dktKi */
   linalg_dsymm(CblasRight,nn,n,0.0-2.0,dK,n,dktKi,nn,1.0,temp,nn);
-  
+
   /* dktKi <- Ki %*% temp */
   linalg_dsymm(CblasRight,nn,n,1.0,Ki,n,temp,nn,0.0,d2ktKi,nn);
 
@@ -2632,13 +3215,13 @@ void d2_ktKi(const int n, double **Ki, const int nn, double **d2k,
 
 
 /*
- * d_KiZ: 
- * 
+ * d_KiZ:
+ *
  * calculates the  derivative of Kik wrt d, the range parameter
  * using pre-calculated derivatives of k and K
  */
 
-void d_KiZ(const int n, double **Ki, double **dK, double *KiZ, 
+void d_KiZ(const int n, double **Ki, double **dK, double *KiZ,
 	   double *dKiZ)
 {
   double *dKKiZ;
@@ -2658,8 +3241,8 @@ void d_KiZ(const int n, double **Ki, double **dK, double *KiZ,
 
 
 /*
- * d2_KiZ: 
- * 
+ * d2_KiZ:
+ *
  * calculates the second derivative of Kik wrt d, the range parameter
  * using pre-calculated derivatives of k and K
  */
@@ -2690,11 +3273,11 @@ void d2_KiZ(const int n, double **Ki, double **dK, double **d2K,
  * dmus2GP:
  *
  * fills mu, dmu, d2mu, s2, ds2, d2s2 mean and scale and the derivatives of
- * the mean and scale of the predictive equation(s) at XX input locations of 
+ * the mean and scale of the predictive equation(s) at XX input locations of
  * dimension (nn*m) using the stored GP parameterization
  */
 
-void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu, 
+void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
 	     double *d2mu, double *s2, double *ds2, double *d2s2)
 {
   unsigned int i, j, n, m;
@@ -2718,10 +3301,10 @@ void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
   if(d2mu || d2s2) d2k = new_matrix(n, nn);
   else d2k = NULL;
   diff_covar(m, gp->X, n, XX, nn, gp->d, dk, d2k);
- 
+
   /* derivatives of ktKi */
   dktKi = new_matrix(n, nn); /* first */
-  d_ktKi(n, gp->Ki, nn, dk, gp->dK, ktKi, dktKi); 
+  d_ktKi(n, gp->Ki, nn, dk, gp->dK, ktKi, dktKi);
   if(d2k) {
     d2ktKi = new_matrix(n, nn); /* second */
     d2_ktKi(n, gp->Ki, nn, d2k, gp->dK, gp->d2K, ktKi, dktKi, d2ktKi);
@@ -2729,7 +3312,7 @@ void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
 
   /* finishing mu derivative calculations */
   /* dmu <- dktKi %*% Z; d2mu <- d2ktKi %*% Zd */
-  assert(dmu); 
+  assert(dmu);
   linalg_dgemv(CblasNoTrans,nn,n,1.0,dktKi,nn,gp->Z,1,0.0,dmu,1);
   if(d2ktKi) {
     assert(d2mu);
@@ -2748,18 +3331,18 @@ void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
       d2_KiZ(n, gp->Ki, gp->dK, gp->d2K, gp->KiZ, dKiZ, d2KiZ);
       d2phi = linalg_ddot(n, gp->Z, 1, d2KiZ, 1);
     } else { d2KiZ = NULL; d2phi = 0; }
-    
+
     /* ktKidk <- diag(ktKi %*% dk + dktKi %*% k) */
     ktKidk = new_zero_vector(nn);
-    for(i=0; i<nn; i++) 
-      for(j=0; j<n; j++) 
+    for(i=0; i<nn; i++)
+      for(j=0; j<n; j++)
 	       ktKidk[i] += ktKi[j][i]*dk[j][i] + dktKi[j][i]*k[j][i];
-    
+
     /* wrap up the ds2 calculation */
     assert(ds2);
-    for(i=0; i<nn; i++) 
+    for(i=0; i<nn; i++)
       ds2[i] = dfi*(dphi*(1.0+gp->g - ktKik[i]) - (gp->phi)*ktKidk[i]);
-    
+
     /* d2ktKik <- d2k %*% Kik + 2.0 * dkt %*% dktKi + kt %*% d2ktKi */
     if(d2k) {
       ktKid2k = new_zero_vector(nn);
@@ -2769,26 +3352,26 @@ void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
         ktKid2k[i] += d2ktKi[j][i]*k[j][i];
       }
     } else ktKid2k = NULL;
-    
+
     /* wrap up the d2s2 calculation */
     if(ktKid2k) {
       assert(d2s2);
-      for(i=0; i<nn; i++) 
+      for(i=0; i<nn; i++)
 	       d2s2[i] = dfi*(d2phi*(1 + gp->g - ktKik[i]) -
 		       2.0*dphi*ktKidk[i] - (gp->phi)*ktKid2k[i]);
     }
 
     /* clean up */
-    free(dKiZ); free(ktKidk); 
-    if(ktKidk) free(d2KiZ); 
+    free(dKiZ); free(ktKidk);
+    if(ktKidk) free(d2KiZ);
     if(ktKid2k) free(ktKid2k);
-  } 
-   
+  }
+
   /* clean up */
   free(ktKik);
-  delete_matrix(dk); delete_matrix(dktKi); 
+  delete_matrix(dk); delete_matrix(dktKi);
   delete_matrix(ktKi); delete_matrix(k);
-  if(d2k) delete_matrix(d2k); 
+  if(d2k) delete_matrix(d2k);
   if(d2ktKi) delete_matrix(d2ktKi);
 }
 
@@ -2797,8 +3380,8 @@ void dmus2GP(GP* gp, unsigned int nn, double **XX, double *mu, double *dmu,
 /*
  * dmus2GP_R:
  *
- * R-interface to C-side function that returns the 
- * derivative of the scale of the predictive equation(s) 
+ * R-interface to C-side function that returns the
+ * derivative of the scale of the predictive equation(s)
  * for XX predictive locations of dimension (nn*m)
  * using the stored GP parameterization
  */
@@ -2808,7 +3391,7 @@ void dmus2GP_R(/* inputs */
 	      int *m_in,
 	      int *nn_in,
 	      double *XX_in,
-	      
+
 	      /* outputs */
 	      double *mu_out,
 	      double *dmu_out,
@@ -2823,10 +3406,10 @@ void dmus2GP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m)  
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* double check that derivatives have been calculated */
@@ -2837,7 +3420,7 @@ void dmus2GP_R(/* inputs */
 
   /* call the C-only predict function */
   dmus2GP(gp, *nn_in, XX, mu_out, dmu_out, d2mu_out, s2_out, ds2_out, d2s2_out);
-  
+
   /* clean up */
   free(XX);
 }
@@ -2847,8 +3430,8 @@ void dmus2GP_R(/* inputs */
  * efiGP:
  *
  * fills efi with the expected (approx) Fisher information at the new
- * predictive locations XX of dimension (nn*m), using the stored 
- * GP parameterization.  Returns the absolute value (i.e., the 
+ * predictive locations XX of dimension (nn*m), using the stored
+ * GP parameterization.  Returns the absolute value (i.e., the
  * determinant)
  */
 
@@ -2866,7 +3449,7 @@ void efiGP(GP* gp, unsigned int nn, double **XX, double *efi)
   dmus2GP(gp, nn, XX, NULL, dmu, NULL, s2, ds2, NULL);
 
   /* caluclate efi */
-  for(i=0; i<nn; i++) 
+  for(i=0; i<nn; i++)
     //efi[i] = fabs(gp->F + 0.5*sq(ds2[i]/s2[i]) + sq(dmu[i])/s2[i]);
     efi[i] = gp->F + 0.5*sq(ds2[i]/s2[i]) + sq(dmu[i])/s2[i];
 
@@ -2880,10 +3463,10 @@ void efiGP(GP* gp, unsigned int nn, double **XX, double *efi)
 /*
  * efiGP_R:
  *
- * R-interface to C-side function that returns the 
- * expected (approx) Fisher information for new predictive 
- * locations XX of dimension (n*m) using the stored GP 
- * parameterization.  Returns the absolute value (i.e., the 
+ * R-interface to C-side function that returns the
+ * expected (approx) Fisher information for new predictive
+ * locations XX of dimension (n*m) using the stored GP
+ * parameterization.  Returns the absolute value (i.e., the
  * determinant)
  */
 
@@ -2892,7 +3475,7 @@ void efiGP_R(/* inputs */
 	      int *m_in,
 	      int *nn_in,
 	      double *XX_in,
-	      
+
 	      /* outputs */
 	      double *efi_out)
 {
@@ -2902,10 +3485,10 @@ void efiGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m) 
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
 
   /* double check that derivatives have been calculated */
@@ -2916,7 +3499,7 @@ void efiGP_R(/* inputs */
 
   /* call the C-only predict function */
   efiGP(gp, *nn_in, XX, efi_out);
-  
+
   /* clean up */
   free(XX);
 }
@@ -2925,14 +3508,14 @@ void efiGP_R(/* inputs */
 /*
  * update_fishinfoGP:
  *
- * upaate the approximate Fisher information in light of a new
+ * update the approximate Fisher information in light of a new
  * observation x
  */
 
 void update_fishinfoGP(GP *gp, double *x, double z)
 {
   double mu, dmu, d2mu, s2, ds2, d2s2, d2llik, zmmu, zmmu2, s4, tmp, dn, denom;
-  
+
   /* calculate derivatives of predictive equations */
   dmus2GP(gp, 1, &x, &mu, &dmu, &d2mu, &s2, &ds2, &d2s2);
 
@@ -2962,10 +3545,10 @@ void update_fishinfoGP(GP *gp, double *x, double z)
 
 
 /*
- * mseGP:
+ * mspeGP:
  *
- * returns the mean-squared-prediction-error sequential 
- * design criterial given the stored GP parameterization 
+ * returns the mean-squared-prediction-error sequential
+ * design criteria given the stored GP parameterization
  * at locations Xcand averaging over reference locations Xref
  */
 
@@ -2995,8 +3578,8 @@ void mspeGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   if(fi) {
     dmu = new_vector(ncand);
     ds2 = new_vector(ncand);
-    s2 = new_vector(ncand); 
-    
+    s2 = new_vector(ncand);
+
     /* calculate the first derivatives */
     dmus2GP(gp, ncand, Xcand, NULL, dmu, NULL, s2, ds2, NULL);
   } else dmu = ds2 = s2 = NULL;
@@ -3006,7 +3589,7 @@ void mspeGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   dnp2 = dnp*(df - 2.0)/df;
   for(i=0; i<ncand; i++) {
     mspe[i] = dnp*s2avg - dnp2*mspe[i];
-    if(fi && gp->F > 0) 
+    if(fi && gp->F > 0)
       mspe[i] += dmu2avg / (gp->F + 0.5*sq(ds2[i]/s2[i]) + sq(dmu[i]/s2[i]));
   }
 
@@ -3023,9 +3606,9 @@ void mspeGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
  * mspeGP_R:
  *
  * R interface to C-side function that returns the
- * mean-squared-prediction-error sequential design 
- * criterial given the stored GP parameterization 
- * at locations Xcand averaging over reference 
+ * mean-squared-prediction-error sequential design
+ * criteria given the stored GP parameterization
+ * at locations Xcand averaging over reference
  * locations Xref
  */
 
@@ -3038,7 +3621,7 @@ void mspeGP_R(/* inputs */
 	     int *nref_in,
 	     int *fi_in,
 	     int *verb_in,
-	     
+
 	     /* outputs */
 	     double *mspe_out)
 {
@@ -3048,12 +3631,12 @@ void mspeGP_R(/* inputs */
 
   /* get the gp */
   gpi = *gpi_in;
-  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL) 
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
     error("gp %d is not allocated\n", gpi);
   gp = gps[gpi];
-  if((unsigned) *m_in != gp->m) 
+  if((unsigned) *m_in != gp->m)
     error("ncol(X)=%d does not match GP/C-side (%d)", *m_in, gp->m);
-  
+
   /* double check that derivatives have been calculated */
   if(! gp->dK) error("derivative info not in gp; use newGP with dK=TRUE");
 
@@ -3066,4 +3649,29 @@ void mspeGP_R(/* inputs */
   /* clean up */
   free(Xcand);
   free(Xref);
+}
+
+
+/*
+ * getmGP_R:
+ *
+ * R-interface accessing the input dimension m
+ * of a GP
+ */
+
+void getmGP_R(/* inputs */
+              int *gpi_in,
+               /* outputs */
+              int *m_out)
+{
+  GP *gp;
+  unsigned int gpi;
+
+  /* get the cloud */
+  gpi = *gpi_in;
+  if(gps == NULL || gpi >= NGP || gps[gpi] == NULL)
+    error("gp %d is not allocated\n", gpi);
+  gp = gps[gpi];
+
+  *m_out = gp->m;
 }

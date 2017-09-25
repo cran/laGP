@@ -42,7 +42,7 @@
  * R-interface to C-version of R function aGPsep.R: 
  * uses ALC to adaptively select a small (size n) subset 
  * of (X,Z) from which to predict by (thus a in approx) kriging 
- * equations at eack XX row; returns  mean and variance of 
+ * equations at eack XX row; returns mean and variance of 
  * those Student-t equations.
  */
 
@@ -88,12 +88,14 @@ void aGPsep_R(/* inputs */
 #endif
 
   /* copy method */
-  method = ALC; /* to guarentee initializaion */
+  method = ALC; /* to guarantee initializaion */
   if(*imethod_in == 1) method = ALC;
-  else if(*imethod_in == 2) method = ALCRAY;
-  else if(*imethod_in == 5) method = NN;
+  else if(*imethod_in == 3) method = ALCRAY;
+  else if(*imethod_in == 4) error("MSPE not supported for separable GPs at this time");
+  else if(*imethod_in == 5) error("EFI not supported for separable GPs at this time");
+  else if(*imethod_in == 6) method = NN;
   else error("imethod %d does not correspond to a known method\n", 
-    *imethod_in);
+             *imethod_in);
 
   /* make matrix bones */
   m = *m_in;
@@ -184,7 +186,7 @@ void aGPsep_R(/* inputs */
       /* call C-only code */
       laGPsep(m, *start_in, *end_in, Xref, 1, *n_in, X, Z_in, dvec,
         gvec, method, *close_in, *numrays_in, rect, verb-1, Xi, 
-        &(mean_out[i]), &(var_out[i]), &df, dmlei, ditsi, gmlei, gitsi, 
+        &(mean_out[i]), &(var_out[i]), 1, &df, dmlei, ditsi, gmlei, gitsi, 
         &(llik_out[i]), 0);
 
       /* copy outputs */
@@ -237,28 +239,30 @@ void aGPsep_R(/* inputs */
 void laGPsep(const unsigned int m, const unsigned int start, 
   const unsigned int end, double **Xref, const unsigned int nref, 
   const unsigned int n, double **X, double *Z, double *d, double *g, 
-  const Method method, const unsigned int close, const unsigned int numrays,
+  const Method method, unsigned int close, const unsigned int numstart, 
   double **rect, const int verb, int *Xi, double *mean, double *s2, 
-  double *df, double *dmle, int *dits, double *gmle, int *gits, double *llik,
-  int fromR)
+  const unsigned int lite, double *df, double *dmle, int *dits, double *gmle, 
+  int *gits, double *llik, int fromR)
 {
   GPsep *gpsep;
-  unsigned int i, j, ncand, w;
+  unsigned int i, j, ncand, w, free_rect;
   int *oD, *cand;
   int dconv;
   char msg[60];
-  double **Xcand, **Xcand_orig, **x; //, **Sigma;
+  double **Xcand, **Xcand_orig, **x, **Sigma;
   double *al;
 
   /* temporary space */
   x = new_matrix(1, m);
 
   /* special cases for close */
+  if(method == NN && close > end) close = end;
   if(close > 0 && close < n-start) ncand = close-start;
   else ncand = n-start;
 
   /* get the indices of the closest X-locations to Xref */
-  oD = closest_indices(m, start, Xref, nref, n, X, close, method == ALCRAY);
+  oD = closest_indices(m, start, Xref, nref, n, X, close, 
+                       method == ALCRAY || method == ALCOPT);
 
   /* build separable GP with closest start locations */
   gpsep = newGPsep_sub(m, start, oD, X, Z, d, *g, 0);
@@ -267,6 +271,12 @@ void laGPsep(const unsigned int m, const unsigned int start,
   /* possibly restricted candidate set */
   cand = oD+start;
   Xcand_orig = Xcand = new_p_submatrix_rows(cand, X, ncand, m, 0);
+  
+  /* potentially calculate rect on the fly */
+  if((method == ALCRAY || method == ALCOPT) && rect == NULL) {
+    rect = get_data_rect(Xcand, ncand, m);
+    free_rect = 1;
+  } else free_rect = 0;
 
   /* allocate space for active learning criteria */
   if(method != NN) al = new_vector(ncand);
@@ -279,13 +289,17 @@ void laGPsep(const unsigned int m, const unsigned int start,
     if(method == ALCRAY) {
       assert(nref == 1);
       int roundrobin = (i-start+1) % ((int) sqrt(i-start+1.0));
-      w = lalcrayGPsep(gpsep, Xcand, ncand, Xref, roundrobin, numrays, rect, 
+      w = lalcrayGPsep(gpsep, Xcand, ncand, Xref, roundrobin, numstart, rect, 
             verb-2);
-    } else if(method == ALC) 
-        alcGPsep(gpsep, ncand, Xcand, nref, Xref, verb-2, al);
-    
+    } else if(method == ALCOPT) {
+      int roundrobin = (i-start); /* +1) % ((int) sqrt(i-start+1.0)); */
+    w = lalcoptGPsep(gpsep, Xcand, ncand, Xref, nref, roundrobin, numstart, rect, 
+                  100, verb-2, fromR);
+    }else if(method == ALC)
+    alcGPsep(gpsep, ncand, Xcand, nref, Xref, verb-2, al);
+  
     /* selecting from the evaluated criteria */
-    if(method != ALCRAY) {
+    if(method != ALCRAY && method != ALCOPT) {
       if(method == NN) w = i-start;
       else if(method != MSPE) max(al, ncand, &w);
       else min(al, ncand, &w);
@@ -300,7 +314,7 @@ void laGPsep(const unsigned int m, const unsigned int start,
 
     /* remove from candidates */
     if(al && w != ncand-1) { 
-      if(method == ALCRAY) { /* preserving distance order */
+      if(method == ALCRAY || method == ALCOPT) { /* preserving distance order */
         if(w == 0) { cand++; Xcand++; }
         else {
           for(j=w; j<ncand-1; j++) { /* by pulling backwards */
@@ -332,27 +346,27 @@ void laGPsep(const unsigned int m, const unsigned int start,
   }
 
   /* now predict */
-  /* Sigma = new_matrix(nref,nref);
-  predGP(gp, nref, Xref, mean, Sigma, df, llik);
-  for(i=0; i<nref; i++) s2[i] = Sigma[i][i];
-  delete_matrix(Sigma); */
-  predGPsep_lite(gpsep, nref, Xref, mean, s2, df, llik); 
-  /* LATER add option to return full covariance matrix when
-     nref > 1 */
+  if(lite) predGPsep_lite(gpsep, nref, Xref, mean, s2, df, llik); 
+  else {
+    Sigma = new_matrix_bones(s2, nref, nref);
+    predGPsep(gpsep, nref, Xref, mean, Sigma, df, llik);
+    free(Sigma); 
+  }
 
   /* clean up */
   deleteGPsep(gpsep);
   delete_matrix(Xcand_orig);
   free(oD);
   if(al) free(al);
+  if(free_rect) delete_matrix(rect);
   delete_matrix(x);
 }
 
 
 /*
- * laGP_R:
+ * laGPsep_R:
  * 
- * R-interface to C-version of R function laGP.R: 
+ * R-interface to C-version of R function laGPsep.R: 
  * uses ALC to adaptively select a small (size n) subset 
  * of (X,Z) from which to predict by (thus approx) kriging 
  * equations at Xref; returns those Student-t equations.
@@ -371,8 +385,9 @@ void laGPsep_R(/* inputs */
          double *g_in,
          int *imethod_in,
          int *close_in,
-         int *numrays_in,
+         int *numstart_in,
          double *rect_in,
+         int *lite_in,
          int *verb_in,
          int *Xiret_in,
          
@@ -393,12 +408,15 @@ void laGPsep_R(/* inputs */
   Method method;
 
   /* copy method */
-  method = ALC; /* to guarentee initialization */
+  method = ALC; /* to guarantee initialization */
   if(*imethod_in == 1) method = ALC;
-  else if(*imethod_in == 2) method = ALCRAY;
-  else if(*imethod_in == 5) method = NN;
+  else if(*imethod_in == 2) method = ALCOPT;
+  else if(*imethod_in == 3) method = ALCRAY;
+  else if(*imethod_in == 4) error("MSPE not supported for separable GPs at this time");
+  else if(*imethod_in == 5) error("EFI not supported for separable GPs at this time"); 
+  else if(*imethod_in == 6) method = NN;
   else error("imethod %d does not correspond to a known method\n", 
-    *imethod_in);
+             *imethod_in);
 
   /* sanity check d and tmax */
   m = *m_in;
@@ -413,10 +431,12 @@ void laGPsep_R(/* inputs */
   Xref = new_matrix_bones(Xref_in, *nref_in, m);
 
   /* check rect input */
-  if(method == ALCRAY) {
-    assert(*nref_in == 1);
-    assert(*numrays_in >= 1);
-    rect = new_matrix_bones(rect_in, 2, m);
+  if(method == ALCRAY || method == ALCOPT) {
+    if(method == ALCRAY) assert(*nref_in == 1);
+    assert(*numstart_in >= 1);
+    if(rect_in[0] < rect_in[*m_in]) 
+      rect = new_matrix_bones(rect_in, 2, *m_in);
+    else rect = NULL;
   } else rect = NULL;
 
   /* check Xi input */
@@ -424,8 +444,8 @@ void laGPsep_R(/* inputs */
 
   /* call C-only code */
   laGPsep(m, *start_in, *end_in, Xref, *nref_in, *n_in, X, Z_in,
-    d_in, g_in, method, *close_in, *numrays_in, rect, *verb_in, Xi_out,
-    mean_out, s2_out, df_out, dmle_out, dits, gmle_out, gits_out, 
+    d_in, g_in, method, *close_in, *numstart_in, rect, *verb_in, Xi_out,
+    mean_out, s2_out, *lite_in, df_out, dmle_out, dits, gmle_out, gits_out, 
     llik_out, 1);
 
   /* return first component of dits */

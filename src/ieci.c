@@ -165,33 +165,42 @@ double calc_alc(const int m, double *ktKik, double *s2p, const double phi,
  */
 
 void calc_ktKikx(double *ktKik, const int m, double **k, const int n,
-		 double *g, const double mui, double *kxy, double **Gmui_util,
-		 double *ktGmui_util, double *ktKikx)
+		 double *g, const double mui, double *kxy, double **Gmui,
+		 double *ktGmui, double *ktKikx)
 {
   int i;
-  double **Gmui;
-  double *ktGmui;
+  // double **Gmui;
+  // double *ktGmui;
 
   /* first calculate Gmui = g %*% t(g)/mu */
-  if(!Gmui_util) Gmui = new_matrix(n, n);
-  else Gmui = Gmui_util;
-  linalg_dgemm(CblasNoTrans,CblasTrans,n,n,1,
+  // if(!Gmui_util) Gmui = new_matrix(n, n);
+  // else Gmui = Gmui_util;
+  if(Gmui) {
+    linalg_dgemm(CblasNoTrans,CblasTrans,n,n,1,
                mui,&g,n,&g,n,0.0,Gmui,n);
+    assert(ktGmui);
+  }
 
   /* used in the for loop below */
-  if(!ktGmui_util) ktGmui = new_vector(n);
-  else ktGmui = ktGmui_util;
+  // if(!ktGmui_util) ktGmui = new_vector(n);
+  // else ktGmui = ktGmui_util;
+  if(ktGmui) assert(Gmui);
 
   /* loop over all of the m candidates */
   for(i=0; i<m; i++) {
 
     /* ktGmui = drop(t(k) %*% Gmui) */
     /* zerov(ktGmui, n); */
-    linalg_dsymv(n,1.0,Gmui,n,k[i],1,0.0,ktGmui,1);
+    if(Gmui) { 
+      linalg_dsymv(n,1.0,Gmui,n,k[i],1,0.0,ktGmui,1);
 
-    /* ktKik += diag(t(k) %*% (g %*% t(g) * mui) %*% k) */
-    if(ktKik) ktKikx[i] = ktKik[i] + linalg_ddot(n, ktGmui, 1, k[i], 1);
-    else ktKikx[i] = linalg_ddot(n, ktGmui, 1, k[i], 1);
+      /* ktKik += diag(t(k) %*% (g %*% t(g) * mui) %*% k) */
+      if(ktKik) ktKikx[i] = ktKik[i] + linalg_ddot(n, ktGmui, 1, k[i], 1);
+      else ktKikx[i] = linalg_ddot(n, ktGmui, 1, k[i], 1);
+    } else {
+      if(ktKik) ktKikx[i] = ktKik[i] + sq(linalg_ddot(n, k[i], 1, g, 1))*mui;
+      else ktKikx[i] = sq(linalg_ddot(n, k[i], 1, g, 1))*mui;
+    }
 
     /* ktKik.x += + 2*diag(kxy %*% t(g) %*% k) */
     ktKikx[i] += 2.0*linalg_ddot(n, k[i], 1, g, 1)*kxy[i];
@@ -201,8 +210,8 @@ void calc_ktKikx(double *ktKik, const int m, double **k, const int n,
   }
 
   /* clean up */
-  if(!ktGmui_util) free(ktGmui);
-  if(!Gmui_util) delete_matrix(Gmui);
+  // if(!ktGmui_util) free(ktGmui);
+  // if(!Gmui_util) delete_matrix(Gmui);
 }
 
 
