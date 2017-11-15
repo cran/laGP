@@ -29,6 +29,8 @@
 
 blhs <- function(y, X, m)
   {
+    if(length(y) != nrow(X)) stop("dimension mismatch")
+    if(m <= 0) stop("m must be positive.")
     D <- as.data.frame(cbind(y, X))  
     d <- ncol(D)          
     k <- d - 1    ## dimensionality of input space        

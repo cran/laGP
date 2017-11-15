@@ -47,35 +47,35 @@
  */
 
 void aGPsep_R(/* inputs */
-		int *m_in,
-		int *start_in,
-		int *end_in,
-		double *XX_in,
-		int *nn_in,
-		int *n_in,
-		double *X_in,
-		double *Z_in,
-		double *dstart_in,
-		double *darg_in,
-		double *g_in,
-		double *garg_in,
-		int *imethod_in,
-		int *close_in,
-		int *ompthreads_in,
+    int *m_in,
+    int *start_in,
+    int *end_in,
+    double *XX_in,
+    int *nn_in,
+    int *n_in,
+    double *X_in,
+    double *Z_in,
+    double *dstart_in,
+    double *darg_in,
+    double *g_in,
+    double *garg_in,
+    int *imethod_in,
+    int *close_in,
+    int *ompthreads_in,
     int *numrays_in,
     double *rect_in,
-		int *verb_in,
-		int *Xiret_in,
+    int *verb_in,
+    int *Xiret_in,
 		
-		/* outputs */
-		int *Xi_out,
-		double *mean_out,
-		double *var_out,
-		double *dmle_out,
-		int *dits_out,
-		double *gmle_out,
-		int *gits_out,
-		double *llik_out)
+    /* outputs */
+    int *Xi_out,
+    double *mean_out,
+    double *var_out,
+    double *dmle_out,
+    int *dits_out,
+    double *gmle_out,
+    int *gits_out,
+    double *llik_out)
 {
   int j, verb, dmle, gmle, mxth, m;
   double **X, **XX, **rect, **dstart, **dmle_mat;

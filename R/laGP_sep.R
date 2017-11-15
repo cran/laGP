@@ -452,7 +452,7 @@ aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
     method <- match.arg(method)
     if(method == "alc") imethod <- 1
     else if(method == "alcray") imethod <- 2
-    else imethod <- 5
+    else imethod <- 6
 
     ## calculate rectangle if using alcray
     if(method == "alcray") {
