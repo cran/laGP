@@ -10,9 +10,8 @@ Defines an objective function for performing blackbox optimization towards
 solving a modularized calibration of large computer model simulation to field
 data }
 \usage{
-fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL, 
-  methods = rep("alc", 2), M = NULL, bias = TRUE, 
-  omp.threads = 1, save.global = FALSE, verb=1)
+fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL, methods = rep("alc", 2), 
+  M = NULL, bias = TRUE, omp.threads = 1, save.global = FALSE, verb = 1)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -65,7 +64,7 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
   Otherwise, same description as \code{da} above 
 }
   \item{g}{
-  for the nugget in the GP model for the discrepency between emulation
+  for the nugget in the GP model for the discrepancy between emulation
   \code{Yhat} at \code{X}, based
   on \code{Z} at \code{XU}, and the outputs \code{Y} observed at \code{X}:
    a prior or initial setting for the nugget parameter; a 
@@ -78,8 +77,6 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
     generated. Note that a default/generated list specifies \emph{no}
     inference for this parameter; i.e., it is fixed at its starting value,
     which may be appropriate for emulating deterministic computer code output.
-    When specifying initial values, a vector of length \code{nrow(XX)} can be
-    provided, giving a different initial value for each predictive location.
     At this time, estimating a nugget for the computer model emulator is not
     supported by \code{fcalib} }
   \item{uprior}{
@@ -126,10 +123,10 @@ fcalib(u, XU, Z, X, Y, da, d, g, uprior = NULL,
   with a value of the calibration parameter, \code{u}.  The emulator
   is trained on \code{XU} and \code{Z}, presumed to be very large 
   relative to the size of the field data set \code{X} and \code{Y},
-  necesitating the use of approximate methods like \code{\link{aGP}}, 
+  necessitating the use of approximate methods like \code{\link{aGP}}, 
   via \code{\link{aGP.seq}}.  The
   emulated values, call them \code{Yhat} are fed along with \code{X} and 
-  \code{Y} into the \code{\link{discrep.est}} function, whose whose
+  \code{Y} into the \code{\link{discrep.est}} function, whose
   likelihood or posterior calculation serves as a measure of merit for
   the value \code{u}.
 
@@ -159,7 +156,8 @@ the purpose of optimization over \code{u}
 
 \note{
   Note that in principle a separable correlation function could be used 
-  (e.g, via \code{newGPsep}), however this is not implemented at this time
+  (e.g, via \code{\link{newGPsep}} and \code{\link{mleGPsep}}), 
+  however this is not implemented at this time
 }
 
 \references{
@@ -199,13 +197,13 @@ the purpose of optimization over \code{u}
 \examples{
 ## the example here illustrates how fcalib combines aGP.seq and 
 ## discrep.est functions, duplicating the example in the discrep.est
-## documentation file.  it is comprised of snippets from demo("calib"), 
+## documentation file.  It is comprised of snippets from demo("calib"), 
 ## which contains code from the Calibration Section of vignette("laGP")
 
 ## Here we generate calibration data using a true calibration
-## parameter, u, and then evaluate log posterior probabities; 
+## parameter, u, and then evaluate log posterior probabilities; 
 ## the discrep.est documentation repeats this with by first calling
-## aGP.seq and then discrep.est.  The answers should be idential, however
+## aGP.seq and then discrep.est.  The answers should be identical, however
 ## note that a call first to example("fcalib") and then 
 ## example("discrep.est") will generate two random data sets, causing
 ## the results not to match
@@ -213,7 +211,7 @@ the purpose of optimization over \code{u}
 ## begin data-generation code identical to aGP.seq, discrep.est, fcalib
 ## example sections and demo("calib")
 
-## M: computer model test functon used in Goh et al, 2013 (Technometrics)
+## M: computer model test function used in Goh et al, 2013 (Technometrics)
 ## an elaboration of one from Bastos and O'Hagan, 2009 (Technometrics) 
 M <- function(x,u) 
   {
@@ -283,7 +281,7 @@ XU <- rbind(XU, XU2)
 ## evaluate the computer model
 Z <- M(XU[,1:2], XU[,3:4])
 
-## flag indicating if estimating bias/discrepency or not
+## flag indicating if estimating bias/discrepancy or not
 bias.est <- TRUE
 ## two passes of ALC with MLE calculations for aGP.seq
 methods <- rep("alcray", 2) ## demo uses rep("alc", 2)

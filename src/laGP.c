@@ -44,7 +44,7 @@
  * R-interface to C-version of R function aGP.R: 
  * uses ALC to adaptively select a small (size n) subset 
  * of (X,Z) from which to predict by (thus approx) kriging 
- * equations at eack XX row; returns  mean and variance of 
+ * equations at eack XX row; returns mean and variance of 
  * those Student-t equations.
  */
 
@@ -478,10 +478,10 @@ void laGP(const unsigned int m, const unsigned int start,
   }
 
   /* now predict */
-  if(lite) predGP_lite(gp, nref, Xref, mean, s2, df, llik); 
+  if(lite) predGP_lite(gp, nref, Xref, 0, mean, s2, df, llik); 
   else {
     Sigma = new_matrix_bones(s2, nref, nref);
-    predGP(gp, nref, Xref, mean, Sigma, df, llik);
+    predGP(gp, nref, Xref, 0, mean, Sigma, df, llik);
     free(Sigma); 
   }
 
@@ -585,4 +585,3 @@ void laGP_R(/* inputs */
   free(Xref);
   if(rect) free(rect);
 }
-         

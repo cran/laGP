@@ -68,8 +68,8 @@ void copyGP_R(int *gpi_in, int *newgpi_out);
 void updateGP(GP* gp, unsigned int nn, double **XX, double *ZZ, int verb);
 void updateGP_R(int *gpi_in, int *m_in, int *nn_in, double *XX_in, double *ZZ_in,
   int *verb_in);
-void predGP(GP* gp, unsigned int nn, double **XX, double *mean, 
-  double **Sigma, double *df, double *llik);
+void predGP(GP* gp, unsigned int nn, double **XX, const int nonug, 
+  double *mean, double **Sigma, double *df, double *llik);
 void pred_generic(const unsigned int n, const double phidf, double *Z, 
   double **Ki, const unsigned int nn, double **k, double *mean, 
   double **Sigma);
@@ -77,10 +77,10 @@ void new_predutilGP_lite(GP *gp, unsigned int nn, double **XX, double ***k,
   double ***ktKi, double **ktKik);
 void new_predutil_generic_lite(const unsigned int n, double **Ki, 
   const unsigned int nn, double **k, double ***ktKi, double **ktKik);
-void predGP_lite(GP* gp, unsigned int nn, double **XX, double *mean, 
-  double *sigma2, double *df, double *llik);
-void predGP_R(int *gpi_in, int *m_in, int *nn_in, double *XX_in, int *lite_in, 
-  double *mean_out, double *Sigma_out, double *df_out, double *llik_out);
+void predGP_lite(GP* gp, unsigned int nn, double **XX, const int nonug, 
+  double *mean, double *sigma2, double *df, double *llik);
+void predGP_R(int *gpi_in, int *m_in, int *nn_in, double *XX_in, int *lite_in,
+  int *nonug_in, double *mean_out, double *Sigma_out, double *df_out, double *llik_out);
 void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   double **Xref,  int verb, double *alc);
 void dalcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,

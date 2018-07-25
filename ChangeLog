@@ -1,3 +1,15 @@
+1.5-2 (23 Jul 2018)
+-----
+
+Fixed omp being used in examples so that they will all work
+on machines without OpenMP
+
+Documentation edits and nonug predGP and IECI option(s)
+
+Small documentation changes, and data.matrix now used instead
+of matrix to convert Xref
+
+
 1.5-1 (15 Oct 2017)
 -----
 

@@ -2,10 +2,10 @@
 \alias{distance}
 
 \title{
-    Calculate Euclidean distance between pairs of points
+    Calculate the squared Euclidean distance between pairs of points
 }
 \description{
-    Calculate the Euclidean distance between pairs of points
+    Calculate the squared Euclidean distance between pairs of points
     and return a distance matrix
 }
 \usage{

@@ -500,7 +500,7 @@ jmleGPsep <- function(gpsepi, drange=c(sqrt(.Machine$double.eps), 10),
 ## distribution describing the predictive surface
 ## of the fitted GP model
 
-predGPsep <- function(gpsepi, XX, lite=FALSE)
+predGPsep <- function(gpsepi, XX, lite=FALSE, nonug=FALSE)
   {
     nn <- nrow(XX)
 
@@ -511,6 +511,7 @@ predGPsep <- function(gpsepi, XX, lite=FALSE)
                 nn = as.integer(nn),
                 XX = as.double(t(XX)),
                 lite = as.integer(TRUE),
+                nonug = as.integer(nonug),
                 mean = double(nn),
                 s2 = double(nn),
                 df = double(1),
@@ -527,6 +528,7 @@ predGPsep <- function(gpsepi, XX, lite=FALSE)
                 nn = as.integer(nn),
                 XX = as.double(t(XX)),
                 lite = as.integer(FALSE),
+                nonug = as.integer(nonug),
                 mean = double(nn),
                 Sigma = double(nn*nn),
                 df = double(1),
@@ -715,6 +717,8 @@ alcGPsep <- function(gpsepi, Xcand, Xref=Xcand,
     parallel <- match.arg(parallel)
     if(parallel == "omp") {
 
+      if(!is.loaded("alcGPsep_omp_R")) stop("OMP not supported in this build; please re-compile")
+
       out <- .C("alcGPsep_omp_R",
               gpsepi = as.integer(gpsepi),
               m = as.integer(m),
@@ -858,7 +862,7 @@ lalcoptGPsep.R <- function(gpsepi, Xref, Xcand, rect=NULL, offset=1, numstart=1,
   ## get starting and ending point of ray
   Xstart <- Xcand[offset:(offset + numstart - 1),,drop=FALSE]
   
-  ## solve for the best convex combination of Xstart and Xend
+  ## multi-start scheme for searching via derivatives
   best.obj <- -Inf; best.w <- NA
   for(i in 1:nrow(Xstart)) {
     opt <- alcoptGPsep(gpsepi, Xref, Xstart[i,], rect[1,], rect[2,], verb=verb)
@@ -962,7 +966,7 @@ dalcGPsep <- function(gpsepi, Xcand, Xref=Xcand, verb=0)
 ## wrapper used to calculate the IECIs in C using
 ## the pre-stored separable GP representation.  
 
-ieciGPsep <- function(gpsepi, Xcand, fmin, Xref=Xcand, w=NULL, verb=0)
+ieciGPsep <- function(gpsepi, Xcand, fmin, Xref=Xcand, w=NULL, nonug=FALSE, verb=0)
   {
     m <- ncol(Xcand)
     if(ncol(Xref) != m) stop("Xcand and Xref have mismatched cols")
@@ -985,6 +989,7 @@ ieciGPsep <- function(gpsepi, Xcand, fmin, Xref=Xcand, w=NULL, verb=0)
               nref = as.integer(nref),
               w = as.double(w),
               wb = as.integer(wb),
+              nonug = as.integer(nonug),
               verb = as.integer(verb),
               iecis = double(ncand),
               PACKAGE = "laGP")

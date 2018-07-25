@@ -37,7 +37,7 @@
  * covar_sep_symm:
  *
  * calculate the correlation (K) between X1 and X2 with 
- * an separable power exponential correlation function 
+ * a separable power exponential correlation function 
  * with range d and nugget g
  */
 
@@ -86,7 +86,7 @@ void covar_sep(const int col, double **X1, const int n1, double **X2,
 /*
  * diff_covar_sep:
  *
- * calculate the first and 2nd derivative (wrt d) of the correlation (K)
+ * calculate the first and second derivative (wrt d) of the correlation (K)
  * between X1 and X2 with an separable power exponential 
  * correlation function with range d and nugget g (though g not
  * needed)
@@ -113,7 +113,7 @@ void diff_covar_sep(const int col, double **X1, const int n1,
 /*
  * diff_covar_sep_symm:
  *
- * calculate the first and 2nd derivative (wrt d) of the correlation (K)
+ * calculate the first and second derivative (wrt d) of the correlation (K)
  * between X1 and X2 with an separable power exponential 
  * correlation function with range d and nugget g (though g not
  * needed) -- assumes symmetric matrix

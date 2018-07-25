@@ -70,7 +70,7 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
 \item{maxit}{ for \code{mleGPsep} this is passed as \code{control=list(trace=maxit)}
   to \code{\link{optim}}'s L-BFGS-B method for optimizing
   the likelihood/posterior of a separable GP representation; this argument is
-  not used for isotropic GP versions, and nor for optimizing the nugget }
+  not used for isotropic GP versions, nor for optimizing the nugget }
 \item{dab}{ for \code{jmleGP}, this is \code{ab} for the lengthscale
   parameter }
 \item{gab}{ for \code{jmleGP}, this is \code{ab} for the nugget
@@ -100,7 +100,7 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   \code{mleGPsep.R} uses L-BFGS-B via \code{\link{optim}} for the 
   vectorized parameter of the separable Gaussian correlation, with a user-supplied
   maximum number of iterations (\code{maxit}) passed to \code{\link{optim}}.  
-  When \code{maxit} is reached the output \code{conv = 1} is returned, whereby
+  When \code{maxit} is reached the output \code{conv = 1} is returned, 
   subsequent identical calls to \code{mleGPsep.R} can be used to continue with
   further iterations.  \code{mleGPsep} is similar, but uses the \code{C} 
   entry point \code{lbfgsb}.
@@ -112,13 +112,13 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   over the marginals of lengthscale and nugget.  The \code{jmleGP.R} function
   is an \R-only wrapper around
   \code{mleGP} (which is primarily in C), whereas \code{jmleGP} is
-  primarily in C but should give answers but with reduced output and 
+  primarily in C but with reduced output and 
   with hard-coded \code{N=100}.  The same is true for \code{jmleGPsep}.
 
   \code{mleGPsep} provides a \code{param = "both"} alternative to \code{jmleGPsep} 
-  leveraging a common gradient. It can be helful to supply a larger \code{maxit} 
+  leveraging a common gradient. It can be helpful to supply a larger \code{maxit} 
   argument compared to \code{jmleGPsep} as the latter may do up to 100 outer
-  iterations, cycling over lengthscale and nugget.  \code{mleGPsep} usually requries
+  iterations, cycling over lengthscale and nugget.  \code{mleGPsep} usually requires
   many fewer total iterations, unless one of the lengthscale or nugget is 
   already converged. In anticipation of \code{param = "both"} the 
   \code{mleGPsep} function has longer default values for its bounds and prior 
@@ -129,7 +129,7 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
   All methods are initialized at the value of the parameter(s) currently
   stored by the C-side object referenced by \code{gpi} or \code{gpsepi}.  It is
   \emph{highly recommended} that sensible range values (\code{tmin}, \code{tmax}
-  or \code{drange}, \code{grange}) be provided.  The defauls provided are
+  or \code{drange}, \code{grange}) be provided.  The defaults provided are
   too loose for most applications.  As illustrated in the examples below,
   the \code{\link{darg}} and \code{\link{garg}} functions can be used
   to set appropriate ranges from the distributions of inputs and output

@@ -7,11 +7,11 @@ GP Prediction/Kriging
 }
 \description{
   Perform Gaussian processes prediction (under isotropic or separable formulation)
-  at new \code{XX} locations using a GP object stored on the C side
+  at new \code{XX} locations using a GP object stored on the C-side
 }
 \usage{
-predGP(gpi, XX, lite = FALSE)
-predGPsep(gpsepi, XX, lite = FALSE)
+predGP(gpi, XX, lite = FALSE, nonug = FALSE)
+predGPsep(gpsepi, XX, lite = FALSE, nonug = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -32,6 +32,11 @@ as returned by \code{\link{newGPsep}}}
     but substantially increasing computation time if only point-prediction
     is required
 }
+\item{nonug}{ a scalar logical indicating if a (nonzero) nugget should be used in the predictive
+equations; this allows the user to toggle between visualizations of uncertainty due just
+to the mean, and a full quantification of predictive uncertainty. The latter (default \code{nonug = FALSE}) 
+is the standard approach, but the former may work better in some sequential design contexts.  See, e.g.,
+\code{\link{ieciGP}}}
 }
 \details{
   Returns the parameters of Student-t predictive equations.  By
@@ -42,7 +47,7 @@ as returned by \code{\link{newGPsep}}}
 
   GP prediction is sometimes called \dQuote{kriging}, especially in
   the spatial statistics literature.  So this function could
-  also be described as returning the \dQuote{kriging equations}
+  also be described as returning evaluations of the \dQuote{kriging equations}
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
@@ -57,7 +62,7 @@ as returned by \code{\link{newGPsep}}}
   \code{XX})}
 }
 \references{
-  for standard GP prediction, refer to any graduate text, e.g., Rasmussen
+  For standard GP prediction, refer to any graduate text, e.g., Rasmussen
   & Williams \emph{Gaussian Processes for Machine Learning}
 }
 \author{
@@ -77,7 +82,7 @@ as returned by \code{\link{newGPsep}}}
 f2d <- function(x, y=NULL)
   {
     if(is.null(y)) {
-      if(!is.matrix(x)) x <- matrix(x, ncol=2)
+      if(!is.matrix(x) && !is.data.frame(x)) x <- matrix(x, ncol=2)
       y <- x[,2]; x <- x[,1]
     }
     g <- function(z)
@@ -87,7 +92,7 @@ f2d <- function(x, y=NULL)
 
 ## design with N=441
 x <- seq(-2, 2, length=11)
-X <- as.matrix(expand.grid(x, x))
+X <- expand.grid(x, x)
 Z <- f2d(X)
 
 ## fit a GP
@@ -95,7 +100,7 @@ gpi <- newGP(X, Z, d=0.35, g=1/1000)
 
 ## predictive grid with NN=400
 xx <- seq(-1.9, 1.9, length=20)
-XX <- as.matrix(expand.grid(xx, xx))
+XX <- expand.grid(xx, xx)
 ZZ <- f2d(XX)
 
 ## predict

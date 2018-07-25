@@ -346,10 +346,10 @@ void laGPsep(const unsigned int m, const unsigned int start,
   }
 
   /* now predict */
-  if(lite) predGPsep_lite(gpsep, nref, Xref, mean, s2, df, llik); 
+  if(lite) predGPsep_lite(gpsep, nref, Xref, 0, mean, s2, df, llik); 
   else {
     Sigma = new_matrix_bones(s2, nref, nref);
-    predGPsep(gpsep, nref, Xref, mean, Sigma, df, llik);
+    predGPsep(gpsep, nref, Xref, 0, mean, Sigma, df, llik);
     free(Sigma); 
   }
 

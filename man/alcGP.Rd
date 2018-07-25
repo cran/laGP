@@ -30,8 +30,8 @@ alcGPsep(gpsepi, Xcand, Xref = Xcand, parallel = c("none", "omp", "gpu"),
       verb = 0)
 alcrayGP(gpi, Xref, Xstart, Xend, verb = 0)
 alcrayGPsep(gpsepi, Xref, Xstart, Xend, verb = 0)
-ieciGP(gpi, Xcand, fmin, Xref = Xcand, w = NULL, verb = 0)
-ieciGPsep(gpsepi, Xcand, fmin, Xref = Xcand, w = NULL, verb = 0)
+ieciGP(gpi, Xcand, fmin, Xref = Xcand, w = NULL, nonug = FALSE, verb = 0)
+ieciGPsep(gpsepi, Xcand, fmin, Xref = Xcand, w = NULL, nonug = FALSE, verb = 0)
 mspeGP(gpi, Xcand, Xref = Xcand, fi = TRUE, verb = 0)
 fishGP(gpi, Xcand)
 alcoptGP(gpi, Xref, start, lower, upper, maxit = 100, verb = 0)
@@ -68,14 +68,15 @@ dalcGPsep(gpsepi, Xcand, Xref = Xcand, verb = 0)
    reference locations for ALC or MSPE.  I.e., these are the locations
    at which the reduction in variance, or mean squared predictive error,
    are calculated.  In the context of \code{\link{laGP}}, this is
-   the single location \code{Xref = x} around which a local design 
-   is sought.  For \code{alcrayGP} and \code{alcrayGPsep} the 
+   the single location, or set of reference locations,
+   around which a local design (for accurate prediction) is sought.  
+   For \code{alcrayGP} and \code{alcrayGPsep} the 
    \code{matrix} may only have one row, i.e., one reference location
 }
 \item{parallel}{
   a switch indicating if any parallel calculation of 
   the criteria (\code{method}) is desired.    
-  For \code{parallel = "omp"}, the package be compiled with OpenMP flags; 
+  For \code{parallel = "omp"}, the package must be compiled with OpenMP flags; 
   for \code{parallel = "gpu"}, the package must be compiled with CUDA
   flags (only the ALC criteria is supported on the GPU); see README/INSTALL
   in the package source for more details
@@ -96,7 +97,12 @@ dalcGPsep(gpsepi, Xcand, Xref = Xcand, verb = 0)
   since the constituent parts are separately available via those functions
 }
 \item{w}{ weights on the reference locations \code{Xref} for IECI calculations;
-  IECI is not fully documented at this time}
+  IECI, which stands for Integrated Expected Conditional Improvement, is not fully documented at this 
+  time.  See Gramacy & Lee (2010) for more details.}
+\item{nonug}{ a scalar logical indicating if a (nonzero) nugget should be used in the predictive
+equations behind IECI calculations; this allows the user to toggle improvement via predictive
+mean uncertainty versus full predictive uncertainty. The latter (default \code{nonug = FALSE}) 
+is the standard approach, but the former may work better (citation forthcoming)}
 \item{verb}{
   a non-negative integer specifying the verbosity level; \code{verb = 0}
   is quiet, and larger values cause more progress information to be
@@ -116,27 +122,22 @@ dalcGPsep(gpsepi, Xcand, Xref = Xcand, verb = 0)
   approximation is to inspect the code in the \code{\link{laGP.R}} function.
 
   Otherwise they are pretty self-explanatory.  They evaluate the ALC, MSPE,
-  and EFI quantities outlined in Gramacy & Apley (2015).  The ALC is originally
+  and EFI quantities outlined in Gramacy & Apley (2015).  ALC is originally
   due to Seo, et al. (2000).  The ray-based search is described by Gramacy & Haaland (2015).
 
   MSPE and EFI calculations are not supported for separable GP models, i.e.,
   there are no \code{mspeGPsep} or \code{fishGPsep} functions.
 
-  \code{alcrayGP} and \code{alcrayGPsep} allows only one reference location 
-  (\code{nrow(Xref) = 1}).  \code{alcoptGP} and \code{alcoptGPsep} allows multiple 
-  reference locations. It optimizes a continuous ALC analog in its natural logarithm form 
-  via log(derivatives), using the starting locations, bounding boxes and (stored) gp provided, 
-  and finally snaps the solution back to the candidate grid.  The derivative-based search is
-  described by Sun, et al. (2017).
+  \code{alcrayGP} and \code{alcrayGPsep} allow only one reference location 
+  (\code{nrow(Xref) = 1}).  \code{alcoptGP} and \code{alcoptGPsep} allow multiple 
+  reference locations. These optimize a continuous ALC analog in its natural logarithm 
+  using the starting locations, bounding boxes and (stored) GP provided by \code{gpi} or \code{gpisep}, 
+  and finally snaps the solution back to the candidate grid.  For details, see
+  Sun, et al. (2017).
   
   Note that \code{ieciGP} and \code{ieciGPsep}, which are for optimization via 
   integrated expected conditional improvement (Gramacy & Lee, 2011) are 
-  alpha functionality and are not fully documented at this time.
-  
-  \code{dalcGP} and \code{dalcGPsep} calculate the derivative, with respect to \code{Xcand}, of the
-  \eqn{s2'}{s2'} component of the ALC calculation of the expected reduction in variance calculation 
-  at locations \code{Xcand} averaging over reference locations \code{Xref}: \eqn{ds2 = s2 - s2'}{ds2 = s2 - s2'}, where 
-  the \eqn{s2}{s2} are at \code{Xref} and the \eqn{s2'}{s2'} incorporates \code{Xcand}, and everything is averaged over \code{Xref}.
+  \dQuote{alpha} functionality and are not fully documented at this time.
 }
 
 \value{
@@ -144,10 +145,10 @@ Except for \code{alcoptGP}, \code{alcoptGPsep}, \code{dalcGP}, and \code{dalcGPs
 filled with values corresponding to the desired statistic
 \item{par}{the best set of parameters found}
 \item{its}{a two-element integer vector giving the number of calls to the object function and the gradient respectively.}
-\item{msg}{a character string giving any additional information returned by the optimizer, or NULL}
+\item{msg}{a character string giving any additional information returned by the optimizer, or \code{NULL}}
 \item{convergence}{An integer code. \code{0} indicates successful completion. For the other error codes,
                    see the documentation for \code{\link{optim}}}
-\item{alcs}{the predictive variance with the augmented local design by the new location averaging over the reference locations}
+\item{alcs}{reduced predictive variance averaged over the reference locations}
 \item{dalcs}{the derivative of \code{alcs} with respect to the new location}
 }
 
@@ -155,7 +156,7 @@ filled with values corresponding to the desired statistic
 
   F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2017)
   \emph{Emulating satellite drag from large simulation experiments.};
-  preprint on arXiv coming soon. 
+  preprint on arXiv:1712.00182. \url{http://arxiv.org/abs/1712.00182}
 
   R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
   Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
@@ -186,7 +187,7 @@ filled with values corresponding to the desired statistic
   Seo, S., Wallat, M., Graepel, T., Obermayer, K. (2000). 
   \emph{Gaussian Process Regression: Active Data Selection and Test Point Rejection.}
   In Proceedings of the International Joint Conference on Neural Networks, 
-  vol. III, 241-246. IEEE.
+  vol. III, 241-246. IEEE
 }
 
 \author{
@@ -206,7 +207,7 @@ filled with values corresponding to the desired statistic
 f2d <- function(x, y=NULL)
   {
     if(is.null(y)) {
-      if(!is.matrix(x)) x <- matrix(x, ncol=2)
+      if(!is.matrix(x) && !is.data.frame(x)) x <- matrix(x, ncol=2)
       y <- x[,2]; x <- x[,1]
     }
     g <- function(z)
@@ -216,7 +217,7 @@ f2d <- function(x, y=NULL)
 
 ## design with N=441
 x <- seq(-2, 2, length=11)
-X <- as.matrix(expand.grid(x, x))
+X <- expand.grid(x, x)
 Z <- f2d(X)
 
 ## fit a GP
@@ -224,7 +225,7 @@ gpi <- newGP(X, Z, d=0.35, g=1/1000, dK=TRUE)
 
 ## predictive grid with NN=400
 xx <- seq(-1.9, 1.9, length=20)
-XX <- as.matrix(expand.grid(xx, xx))
+XX <- expand.grid(xx, xx)
 
 ## predict
 alc <- alcGP(gpi, XX)
@@ -243,27 +244,35 @@ image(xx, xx, matrix(log(fish), nrow=length(xx)), col=heat.colors(128),
 ## clean up
 deleteGP(gpi)
 
-## search the new location to augment the current local design
-xx <- seq(-1.9, 1.9, length=10)
-XX <- as.matrix(expand.grid(xx, xx))
-e.alc <- laGP.R(XX, start=6, end=100, X, Z, method="alc", close=10000, parallel="omp")
-XC <- X[e.alc$Xi[1:6],] # the initial local design containing 6 NNs
-ZC <- Z[e.alc$Xi[1:6]]  # the corresponding responses
-Xcan <- data.frame(X[-e.alc$Xi[1:6],]) # the candidate input space
-gpi <- newGP(XC, ZC, d=e.alc$mle$d, g=e.alc$g$start)
-out1 <- alcoptGP(gpi=gpi, Xref=XX, start=c(0,0), lower=range(x)[1], upper=range(x)[2])
-## out1$par is the "new" location
-D <- t(distance(matrix(out1$par, ncol=ncol(XC)), as.matrix(Xcan))) 
-D.frame <- data.frame(cbind(Xcan, D, as.numeric(row.names(Xcan))))
-names(D.frame) <- c(paste("x", 1:ncol(XC), sep=""), "distance", "lab")
-D.label <- which.min(D.frame$distance) # snap the "new" location back to the global input space
-lab <- as.numeric(D.frame[D.label, (ncol(XC)+2)])
-xnew <- data.frame(X)[lab,] # the new location to augment the current local design
-out2 <- dalcGP(gpi=gpi, Xcand=as.matrix(xnew), Xref=XX)
 
-## Below is the predictive variance with the local design augmented 
-## by the new location averaging over the reference locations
-ALC <- out2$alcs 
+## 
+## Illustrating some of the other functions in a sequential design context, 
+## using X and XX above
+## 
+
+## first build a local design of size 25, see laGP documentation
+out <- laGP.R(XX, start=6, end=25, X, Z, method="alc", close=10000)
+
+## extract that design and fit GP
+XC <- X[out$Xi,] ## inputs
+ZC <- Z[out$Xi]  ## outputs
+gpi <- newGP(XC, ZC, d=out$mle$d, g=out$g$start)
+
+## calculate the ideal "next" location via continuous ALC optimization
+alco <- alcoptGP(gpi=gpi, Xref=XX, start=c(0,0), lower=range(x)[1], upper=range(x)[2])
+
+## alco$par is the "new" location; calculate distances between candidates (remaining
+## unchosen X locations) and this solution
+Xcan <- X[-out$Xi,]
+D <- distance(Xcan, matrix(alco$par, ncol=ncol(Xcan))) 
+
+## snap the new location back to the candidate set
+lab <- which.min(D) 
+xnew <- Xcan[lab,] 
+## add xnew to the local design, remove it from Xcan, and repeat
+
+## evaluate the derivative at this new location
+dalc <- dalcGP(gpi=gpi, Xcand=matrix(xnew, nrow=1), Xref=XX)
 
 ## clean up
 deleteGP(gpi)

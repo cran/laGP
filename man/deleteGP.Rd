@@ -27,10 +27,10 @@ deleteGPseps()
 \details{
   Any function calling \code{\link{newGP}} or \code{\link{newGPsep}}
   will require destruction
-  via these functions or there will be a memory leak.
+  via these functions or there will be a memory leak
 }
 \value{
-  Nothing is returned.
+  Nothing is returned
 }
 
 \author{

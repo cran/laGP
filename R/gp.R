@@ -355,7 +355,7 @@ updateGP <- function(gpi, X, Z, verb=0)
 ## distribution describing the predictive surface
 ## of the fitted GP model
 
-predGP <- function(gpi, XX, lite=FALSE)
+predGP <- function(gpi, XX, lite=FALSE, nonug=FALSE)
   {
     nn <- nrow(XX)
 
@@ -366,6 +366,7 @@ predGP <- function(gpi, XX, lite=FALSE)
                 nn = as.integer(nn),
                 XX = as.double(t(XX)),
                 lite = as.integer(TRUE),
+                nonug = as.integer(nonug),
                 mean = double(nn),
                 s2 = double(nn),
                 df = double(1),
@@ -383,6 +384,7 @@ predGP <- function(gpi, XX, lite=FALSE)
                 nn = as.integer(nn),
                 XX = as.double(t(XX)),
                 lite = as.integer(FALSE),
+                nonug = as.integer(nonug),
                 mean = double(nn),
                 Sigma = double(nn*nn),
                 df = double(1),
@@ -403,7 +405,7 @@ predGP <- function(gpi, XX, lite=FALSE)
 ## wrapper used to calculate the IECIs in C using
 ## the pre-stored isotropic GP representation.  
 
-ieciGP <- function(gpi, Xcand, fmin, Xref=Xcand, w=NULL, verb=0)
+ieciGP <- function(gpi, Xcand, fmin, Xref=Xcand, w=NULL, nonug=FALSE, verb=0)
   {
     m <- ncol(Xcand)
     if(ncol(Xref) != m) stop("Xcand and Xref have mismatched cols")
@@ -426,6 +428,7 @@ ieciGP <- function(gpi, Xcand, fmin, Xref=Xcand, w=NULL, verb=0)
               nref = as.integer(ncand),
               w = as.double(w),
               wb = as.integer(wb),
+              nonug = as.integer(nonug),
               verb = as.integer(verb),
               iecis = double(ncand),
               PACKAGE = "laGP")
@@ -450,6 +453,8 @@ alcGP <- function(gpi, Xcand, Xref=Xcand, parallel=c("none", "omp", "gpu"),
     parallel <- match.arg(parallel)
     if(parallel == "omp") {
       
+      if(!is.loaded("alcGP_omp_R")) stop("OMP not supported in this build; please re-compile")
+
       out <- .C("alcGP_omp_R",
               gpi = as.integer(gpi),
               m = as.integer(m),
@@ -607,7 +612,7 @@ lalcoptGP.R <- function(gpi, Xref, Xcand, rect=NULL, offset=1, numstart=1, verb=
     ## get starting and ending point of ray
     Xstart <- Xcand[offset:(offset + numstart - 1),,drop=FALSE]
 
-    ## solve for the best convex combination of Xstart and Xend
+    ## multi-start scheme for searching via derivatives
     best.obj <- -Inf; best.w <- NA
     for(i in 1:nrow(Xstart)) {
       opt <- alcoptGP(gpi, Xref, Xstart[i,], rect[1,], rect[2,], verb=verb)

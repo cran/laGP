@@ -80,14 +80,14 @@ double mleGPsep_nug(GPsep* gpsep, double tmin, double tmax, double *ab, int verb
   int *its);
 void mleGPsep_nug_R(int *gpsepi_in, int *verb_in, double *tmin_in, double *tmax_in, 
   double *ab_in, double *mle_out, int *its_out);
-void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *mean, 
-  double **Sigma, double *df, double *llik);
+void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, const int nonug, 
+  double *mean, double **Sigma, double *df, double *llik);
 void new_predutilGPsep_lite(GPsep *gpsep, unsigned int nn, double **XX, 
   double ***k, double ***ktKi, double **ktKik);
-void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, double *mean, 
-  double *sigma2, double *df, double *llik);
+void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, const int nonug,
+  double *mean, double *sigma2, double *df, double *llik);
 void predGPsep_R(int *gpsepi_in, int *m_in, int *nn_in, double *XX_in,
-  int *lite_in, double *mean_out, double *Sigma_out, double *df_out, 
+  int *lite_in, int *nonug_in, double *mean_out, double *Sigma_out, double *df_out, 
   double *llik_out);
 void alcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand, unsigned int nref, 
   double **Xref,  int verb, double *alc);

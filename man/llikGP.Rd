@@ -31,9 +31,9 @@ llikGPsep(gpsepi, dab = c(0, 0), gab = c(0, 0))
 
   An \dQuote{\code{ab}} parameter is a non-negative 2-vector describing 
   shape and rate parameters to a Gamma prior; a zero-setting for
-  either value results in no-prior being used in which case a likelihood
+  either value results in no-prior being used in which case a log likelihood
   is returned.  If both \code{ab} parameters are specified, then the value
-  returned can be interpreted as a posterior probability.  See \code{\link{darg}}
+  returned can be interpreted as a log posterior density.  See \code{\link{darg}}
   for more information about \code{ab}
 
 }

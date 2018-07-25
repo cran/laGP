@@ -1623,7 +1623,7 @@ void jmleGPsep_R(/* inputs */
         k, gpsep->d[k], k, dmin_in[k], dmax_in[k]);
   }
   if(gpsep->g < grange_in[0] || gpsep->g > grange_in[1])
-    error("gp->g=%g outside grange=[%g,%g]", gpsep->g, grange_in[0], grange_in[1]);
+    error("gpsep->g=%g outside grange=[%g,%g]", gpsep->g, grange_in[0], grange_in[1]);
 
   /* double check that derivatives have been calculated */
   if(! gpsep->dK)
@@ -1796,15 +1796,19 @@ void updateGPsep_R(/* inputs */
  * for XX predictive locations of dimension (n*m)
  */
 
-void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *mean,
-      double **Sigma, double *df, double *llik)
+void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, const int nonug, 
+  double *mean, double **Sigma, double *df, double *llik)
 {
   unsigned int m, n;
   double **k;
-  double phidf;
+  double phidf, g;
 
   /* easier referencing for dims */
   n = gpsep->n;  m = gpsep->m;
+
+  /* are we using a nugget in the final calculation */
+  if(nonug) g = SDEPS;
+  else g = gpsep->g;
 
   /* variance (s2) components */
   *df = (double) n;
@@ -1818,7 +1822,7 @@ void predGPsep(GPsep* gpsep, unsigned int nn, double **XX, double *mean,
   k = new_matrix(n, nn);
   covar_sep(m, gpsep->X, n, XX, nn, gpsep->d, k);
   /* Sigma <- covar(X1=XX, d=Zt$d, g=Zt$g) */
-  covar_sep_symm(m, XX, nn, gpsep->d, gpsep->g, Sigma);
+  covar_sep_symm(m, XX, nn, gpsep->d, g, Sigma);
 
   /* call generic function that would work for all GP covariance specs */
   pred_generic(n, phidf, gpsep->Z, gpsep->Ki, nn, k, mean, Sigma);
@@ -1856,17 +1860,21 @@ void new_predutilGPsep_lite(GPsep *gpsep, unsigned int nn, double **XX,
  * lite because sigma2 not Sigma is calculated
  */
 
-void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, double *mean,
-     double *sigma2, double *df, double *llik)
+void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, const int nonug,
+  double *mean, double *sigma2, double *df, double *llik)
 {
   unsigned int i;
   double **k, **ktKi;
   double *ktKik;
-  double phidf;
+  double phidf, g;
 
   /* sanity checks */
   assert(df);
   *df = gpsep->n;
+
+  /* are we using a nugget in the final calculation */
+  if(nonug) g = SDEPS;
+  else g = gpsep->g;
 
   /* utility calculations */
   new_predutilGPsep_lite(gpsep, nn, XX, &k, &ktKi, &ktKik);
@@ -1881,7 +1889,7 @@ void predGPsep_lite(GPsep* gpsep, unsigned int nn, double **XX, double *mean,
     phidf = gpsep->phi/(*df);
     // printVector(ktKik, nn, MYstdout, MACHINE);
     // MYprintf(MYstdout, "phi=%g, df=%g, phidf=%g, g=%g\n", gpsep->phi, *df, phidf, gpsep->g);
-    for(i=0; i<nn; i++) sigma2[i] = phidf * (1.0 + gpsep->g - ktKik[i]);
+    for(i=0; i<nn; i++) sigma2[i] = phidf * (1.0 + g - ktKik[i]);
   }
 
   /* calculate marginal likelihood (since we have the bits) */
@@ -1913,6 +1921,7 @@ void predGPsep_R(/* inputs */
         int *nn_in,
         double *XX_in,
         int *lite_in,
+        int *nonug_in,
 
         /* outputs */
         double *mean_out,
@@ -1938,9 +1947,9 @@ void predGPsep_R(/* inputs */
   else Sigma = NULL;
 
   /* call the C-only Predict function */
-  if(*lite_in) predGPsep_lite(gpsep, *nn_in, XX, mean_out, Sigma_out, df_out,
-                              llik_out);
-  else predGPsep(gpsep, *nn_in, XX, mean_out, Sigma, df_out, llik_out);
+  if(*lite_in) predGPsep_lite(gpsep, *nn_in, XX, *nonug_in, mean_out, 
+    Sigma_out, df_out, llik_out);
+  else predGPsep(gpsep, *nn_in, XX, *nonug_in, mean_out, Sigma, df_out, llik_out);
 
   /* clean up */
   free(XX);
@@ -2015,7 +2024,7 @@ void alGPsep_R(/* inputs */
     fgpsep = gpseps[gpsepi];
     mu = new_vector(*nn_in);
     s = new_vector(*nn_in);
-    predGPsep_lite(fgpsep, *nn_in, XX, mu, s, &df, NULL);
+    predGPsep_lite(fgpsep, *nn_in, XX, 0, mu, s, &df, NULL);
     for(k=0; k<*nn_in; k++) s[k] = sqrt(s[k]);
   } else { /* not modeling f; using known mean */
     mu = ff_in;
@@ -2030,7 +2039,7 @@ void alGPsep_R(/* inputs */
     if(cgpseps[j]) {
       cmu[j] = new_vector(*nn_in);
       cs[j] = new_vector(*nn_in);
-      predGPsep_lite(cgpseps[j], *nn_in, XX, cmu[j], cs[j], &df, NULL);
+      predGPsep_lite(cgpseps[j], *nn_in, XX, 0, cmu[j], cs[j], &df, NULL);
       for(k=0; k<*nn_in; k++) cs[j][k] = sqrt(cs[j][k]);
     } else { cmu[j] = CC[known]; cs[j] = NULL; known++; }
   }
@@ -2076,19 +2085,23 @@ void alGPsep_R(/* inputs */
  */
 
 void ieciGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand,
-  double fmin, unsigned int nref, double **Xref, double *w, int verb, double *ieci)
+  double fmin, unsigned int nref, double **Xref, double *w, 
+  int nonug, int verb, double *ieci)
 {
   unsigned int m, n;
   int i;
-  double **k; //, **Gmui;
-  double *kx, *kxy, *gvec, *ktKik, *ktKikx, /* *ktGmui,*/ *pmref;
-  double mui, df;
+  double **k;
+  double *kx, *kxy, *gvec, *ktKik, *ktKikx, *pmref;
+  double mui, df, g;
   double s2p[2] = {0, 0};
 
   /* degrees of freedom */
   m = gpsep->m;
   n = gpsep->n;
-  /* df = (double) n; */
+
+  /* are we using a nugget in the final calculation */
+  if(nonug) g = SDEPS;
+  else g = gpsep->g;
 
   /* allocate g, kxy, and ktKikx vectors */
   gvec = new_vector(n);
@@ -2101,16 +2114,12 @@ void ieciGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand,
   ktKik = new_vector(nref);
   /* this is a little inefficit since both ktKik and k (used below) are
    * calculated inside predGPsep_lite as intermediate steps */
-  predGPsep_lite(gpsep, nref, Xref, pmref, ktKik, &df, NULL);
+  predGPsep_lite(gpsep, nref, Xref, 0, pmref, ktKik, &df, NULL);
   for(i=0; i<nref; i++) ktKik[i] = 1.0 + gpsep->g - (df/gpsep->phi)*ktKik[i];
 
   /* k <- covar(X1=X, X2=Xref, d=Zt$d, g=0) */
   k = new_matrix(nref, n);
   covar_sep(m, Xref, nref, gpsep->X, n, gpsep->d, k);
-
-  /* utility allocations */
-  // Gmui = new_matrix(n, n);
-  // ktGmui = new_vector(n);
 
   /* calculate the ALC for each candidate */
   for(i=0; i<ncand; i++) {
@@ -2131,16 +2140,13 @@ void ieciGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand,
     }
 
     /* use g, mu, and kxy to calculate ktKik.x */
-    // calc_ktKikx(ktKik, nref, k, n, gvec, mui, kxy, Gmui, ktGmui, ktKikx);
     calc_ktKikx(ktKik, nref, k, n, gvec, mui, kxy, NULL, NULL, ktKikx);
 
     /* calculate the IECI */
-    ieci[i] = calc_ieci(nref, ktKikx, s2p, gpsep->phi, gpsep->g, NULL, pmref, df, fmin, w);
+    ieci[i] = calc_ieci(nref, ktKikx, s2p, gpsep->phi, g, NULL, pmref, df, fmin, w);
   }
 
   /* clean up */
-  // delete_matrix(Gmui);
-  // free(ktGmui);
   free(ktKikx);
   free(gvec);
   free(kx);
@@ -2172,6 +2178,7 @@ void ieciGPsep_R(
       int *nref_in,
       double *w_in,
       int *wb_in,
+      int *nonug_in,
       int *verb_in,
 
        /* outputs */
@@ -2198,7 +2205,7 @@ void ieciGPsep_R(
 
   /* call the C-only function */
   ieciGPsep(gpsep, *ncand_in, Xcand, *fmin_in, *nref_in, Xref,
-    w_in, *verb_in, ieci_out);
+    w_in, *nonug_in, *verb_in, ieci_out);
 
   /* clean up */
   free(Xcand);

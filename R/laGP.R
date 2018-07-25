@@ -43,7 +43,7 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 
     ## massage Xref
     m <- ncol(X)
-    if(!is.matrix(Xref)) Xref <- matrix(Xref, ncol=m)
+    if(!is.matrix(Xref)) Xref <- data.matrix(Xref)
     nref <- nrow(Xref)
 
     ## calculate rectangle if using alcray
@@ -168,7 +168,7 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 
     ## massage Xref
     m <- ncol(X)
-    if(!is.matrix(Xref)) Xref <- matrix(Xref, ncol=m)
+    if(!is.matrix(Xref)) Xref <- data.matrix(Xref)
     
     ## sanity checks
     if(start < 6 || end <= start) stop("must have 6 <= start < end")

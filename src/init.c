@@ -44,8 +44,8 @@ extern void getdGPsep_R(void *, void *);
 extern void getgGPsep_R(void *, void *);
 extern void getmGPsep_R(void *, void *);
 extern void getmGP_R(void *, void *);
-extern void ieciGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
-extern void ieciGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void ieciGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void ieciGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void Igamma_inv_R(void *, void *, void *, void *, void *);
 extern void jmleGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void jmleGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
@@ -64,8 +64,8 @@ extern void newGP_R(void *, void *, void *, void *, void *, void *, void *, void
 extern void newGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *);
 extern void newparamsGP_R(void *, void *, void *);
 extern void newparamsGPsep_R(void *, void *, void *);
-extern void predGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
-extern void predGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void predGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void predGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void rbetter_R(void *, void *, void *, void *, void *);
 extern void updateGP_R(void *, void *, void *, void *, void *, void *);
 extern void updateGPsep_R(void *, void *, void *, void *, void *, void *);
@@ -114,8 +114,8 @@ static const R_CMethodDef CEntries[] = {
     {"getgGPsep_R",      (DL_FUNC) &getgGPsep_R,       2},
     {"getmGPsep_R",      (DL_FUNC) &getmGPsep_R,       2},
     {"getmGP_R",         (DL_FUNC) &getmGP_R,          2},
-    {"ieciGP_R",         (DL_FUNC) &ieciGP_R,         11},
-    {"ieciGPsep_R",      (DL_FUNC) &ieciGPsep_R,      11},
+    {"ieciGP_R",         (DL_FUNC) &ieciGP_R,         12},
+    {"ieciGPsep_R",      (DL_FUNC) &ieciGPsep_R,      12},
     {"Igamma_inv_R",     (DL_FUNC) &Igamma_inv_R,      5},
     {"jmleGP_R",         (DL_FUNC) &jmleGP_R,         10},
     {"jmleGPsep_R",      (DL_FUNC) &jmleGPsep_R,      13},
@@ -134,8 +134,8 @@ static const R_CMethodDef CEntries[] = {
     {"newGPsep_R",       (DL_FUNC) &newGPsep_R,        8},
     {"newparamsGP_R",    (DL_FUNC) &newparamsGP_R,     3},
     {"newparamsGPsep_R", (DL_FUNC) &newparamsGPsep_R,  3},
-    {"predGP_R",         (DL_FUNC) &predGP_R,          9},
-    {"predGPsep_R",      (DL_FUNC) &predGPsep_R,       9},
+    {"predGP_R",         (DL_FUNC) &predGP_R,          10},
+    {"predGPsep_R",      (DL_FUNC) &predGPsep_R,       10},
     {"rbetter_R",        (DL_FUNC) &rbetter_R,         5},
     {"updateGP_R",       (DL_FUNC) &updateGP_R,        6},
     {"updateGPsep_R",    (DL_FUNC) &updateGPsep_R,     6},

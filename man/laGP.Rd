@@ -72,7 +72,7 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
     case of a partial list, the only the missing entries will be
     generated. Note that a default/generated list specifies MLE/MAP
     inference for this parameter. With 
-    \code{laGPsep}, the starting values can be a 
+    \code{laGPsep}, the starting values can be an
     \code{ncol(X)}-by-\code{nrow(XX)} \code{matrix} or \code{ncol(X)} vector
    }
   \item{g}{
@@ -137,7 +137,7 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
   \item{parallel}{
    a switch indicating if any parallel calculation of 
    the criteria is desired.  Currently parallelization at this level is only 
-   provided for \code{method = "alc"}). 
+   provided for option \code{method = "alc"}). 
    For \code{parallel = "omp"}, the package must be compiled with OMP flags;
    for \code{parallel = "gpu"}, the package must be compiled with CUDA
    flags see README/INSTALL
@@ -152,12 +152,12 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
   \item{rect}{
    an optional \code{2}-by-\code{ncol(X)} \code{matrix} describing a bounding
    rectangle for \code{X} that is used by the \code{"alcray"} method.  
-   If not specified, the rectangle is calculated from the \code{range} applied
+   If not specified, the rectangle is calculated from \code{range} applied
    to the columns of \code{X}
    }
   \item{lite}{ Similar to the \code{\link{predGP}} option of the same name,
   this argument specifies whether (\code{TRUE}, the default) or not (\code{FALSE}) to return
-  a full covariance structure, as opposed the diagonal.  A full covariance
+  a full covariance structure is returned, as opposed the diagonal only.  A full covariance
   structure requires more computation and more storage.  This option is
   only relevant when \code{nrow(Xref) > 1} }
   \item{verb}{
@@ -193,7 +193,7 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
   are returned.  Unless \code{Xi.ret = FALSE}, the indices of the
   local design are also returned.
   
-  The functions \code{laGP.R} and \code{laGPsep.R} are a prototype \R-only version for
+  \code{laGP.R} and \code{laGPsep.R} are a prototype \R-only version for
   debugging and transparency purposes.  They are slower than
   \code{laGP} and \code{laGPsep}, which are primarily in C, and may not
   provide identical output in all cases due to differing library implementations
@@ -234,7 +234,7 @@ The output is a \code{list} with the following components.
 
   F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2017)
   \emph{Emulating satellite drag from large simulation experiments};
-  preprint on arXiv coming soon. 
+  preprint on arXiv:1712.00182. \url{http://arxiv.org/abs/1712.00182} 
 
   R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
   Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
@@ -287,10 +287,7 @@ The output is a \code{list} with the following components.
   Differences between the C \code{qsort} function and \R's
   \code{\link{order}} function may cause chosen designs returned from
   \code{laGP} and \code{laGP.R} (code and \code{laGPsep} and \code{laGPsep.R})
-  to differ when multiple \code{X} values are equidistant to \code{Xref}.
-
-  Unfortunately, the separable GP versions do not support \code{method = "mspe"}
-  or \code{method = "fish"} at this time
+  to differ when multiple \code{X} values are equidistant to \code{Xref}
 }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
@@ -311,7 +308,7 @@ The output is a \code{list} with the following components.
 f2d <- function(x, y=NULL)
   {
     if(is.null(y)) {
-      if(!is.matrix(x)) x <- matrix(x, ncol=2)
+      if(!is.matrix(x) && !is.data.frame(x)) x <- matrix(x, ncol=2)
       y <- x[,2]; x <- x[,1]
     }
     g <- function(z)

@@ -40,7 +40,7 @@ garg(g, y)
 }
 \details{
   These functions use aspects of the data, either \code{X} or \code{y},
-  to form weakly informative default priors, and choose initial values,
+  to form weakly informative default priors and choose initial values
   for a lengthscale and nugget parameter.  This is useful since the
   likelihood can sometimes be very flat, and even with proper priors
   inference can be sensitive to the specification of those priors
@@ -74,7 +74,7 @@ garg(g, y)
  \item{mle }{ by default, \code{TRUE} for \code{darg} and \code{FALSE}
    for \code{garg} }
  \item{start }{ starting value chosen from the quantiles of
-   \code{distance(X)} or \code{(y - mean(y))^2)}}
+   \code{distance(X)} or \code{(y - mean(y))^2}}
  \item{min }{ minimum value in allowable range for the parameter - for
    future inference purposes }
  \item{max }{ maximum value in allowable range for the parameter - for

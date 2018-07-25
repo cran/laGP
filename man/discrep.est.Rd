@@ -2,10 +2,10 @@
 \alias{discrep.est}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Estimate Discrepency in Calibration Model
+Estimate Discrepancy in Calibration Model
 }
 \description{
-Estimates the Gaussian process discrepency/bias and/or noise term in
+Estimates the Gaussian process discrepancy/bias and/or noise term in
 a modularized calibration of a computer model (emulator) to field data,
 and returns the log likelihood or posterior probability
 }
@@ -58,13 +58,11 @@ discrep.est(X, Y, Yhat, d, g, bias = TRUE, clean = TRUE)
     missing entries will be generated. Note that a default/generated list
     specifies \emph{no} inference for this parameter; i.e., it is fixed
     at its starting value, which may be appropriate for emulating 
-    deterministic computer code output. When specifying initial values, a
-    vector of length \code{nrow(XX)} can be provided, giving a
-    different initial value for each predictive location
+    deterministic computer code output
 }
   \item{bias}{
   a scalar logical indicating if a (isotropic) 
-  GP discrepency should be estimated (\code{TRUE})
+  GP discrepancy should be estimated (\code{TRUE})
   or a Gaussian noise term only (\code{FALSE})
 }
   \item{clean}{
@@ -86,7 +84,7 @@ designed for large computer experiments.  However, once calibration is
 performed this function can be useful for making comparisons to other methods.
 Examples are provided in the \code{\link{fcalib}} documentation.
 
-When \code{bias=FALSE} no discrepency is estimated; only a zero-mean 
+When \code{bias=FALSE} no discrepancy is estimated; only a zero-mean 
 Gaussian error distribution is assumed
 }
 \value{
@@ -100,7 +98,7 @@ required
 
 \note{
   Note that in principle a separable correlation function could be used 
-  (e.g, via \code{newGPsep}), however this is not implemented at this time
+  (e.g, via \code{\link{newGPsep}} and \code{\link{mleGPsep}}), however this is not implemented at this time
 }
 
 \references{
@@ -134,7 +132,7 @@ required
 ## code from the Calibration Section of vignette("laGP")
 
 ## Here we generate calibration data using a true calibration
-## parameter, u, and then evaluatew log posterior probabities
+## parameter, u, and then evaluate log posterior probabilities
 ## and out-of-sample RMSEs for that u value;  the fcalib 
 ## documentation repeats this with a single call to fcalib rather 
 ## than first aGP.seq and then discrep.est
@@ -215,7 +213,7 @@ XT <- rbind(XT, XT2)
 ## evaluate the computer model
 Z <- M(XT[,1:2], XT[,3:4])
 
-## flag indicating if estimating bias/discrepency or not
+## flag indicating if estimating bias/discrepancy or not
 bias.est <- TRUE
 ## two passes of ALC with MLE calculations for aGP.seq
 methods <- rep("alcray", 2) ## demo uses rep("alc", 2)
@@ -237,11 +235,11 @@ g <- garg(list(mle=TRUE), Y)
 Xu <- cbind(X, matrix(rep(u, ny), ncol=2, byrow=TRUE))
 ehat.u <- aGP.seq(XT, Z, Xu, da, methods, ncalib=2, omp.threads=nth, verb=0)
 
-## estimate discrepency from the residual
+## estimate discrepancy from the residual
 cmle.u <- discrep.est(X, Y, ehat.u$mean, d, g, bias.est, FALSE)
 cmle.u$ll <- cmle.u$ll + beta.prior(u)
 print(cmle.u$ll)
-## compare to same caluclation with u.hat above
+## compare to same calculation with u.hat above
 
 ## now RMSE
 \dontrun{
@@ -261,7 +259,7 @@ YY.pred.u <- YYm.pred.u$mean + ehat.oos.u$mean
 ## calculate RMSE
 rmse.u <- sqrt(mean((YY.pred.u - YYtrue)^2))
 print(rmse.u)
-## compare to same caluclation with u.hat above
+## compare to same calculation with u.hat above
 
 ## clean up
 deleteGP(cmle.u$gp)

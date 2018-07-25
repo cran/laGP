@@ -30,7 +30,7 @@ optim.efi(fn, B, fhat = FALSE, cknown = NULL, start = 10, end = 100,
   \item{fn}{
     function of an input (\code{x}), facilitating vectorization on a 
     \code{matrix} \code{X} thereof,  returning a \code{list} 
-    with elements \code{"obj"} containing the (scalar) objective value and \code{"c"} 
+    with elements \code{$obj} containing the (scalar) objective value and \code{$c} 
     containing a vector of evaluations of the (multiple) constraint function at \code{x}.
     The \code{fn} function must take a \code{known.only} argument which is explained
     in the note below; it need not act on that argument
@@ -109,7 +109,7 @@ progress measures; ignored if there are no equality constraints }
 }
   \item{Bscale}{
     scalar indicating the relationship between the sum of the inputs, \code{sum(x)}, 
-    to \code{fn} and the output \code{fn(x)$obj$}; note that at this time only linear
+    to \code{fn} and the output \code{fn(x)$obj}; note that at this time only linear
     objectives are fully supported by the code - more details below
 }
   \item{ey.tol}{
@@ -141,14 +141,14 @@ progress measures; ignored if there are no equality constraints }
   \item{...}{ additional arguments passed to \code{fn}}
 }
 \details{
-In its current form, this is a \dQuote{beta} code illustrating the suite of
-methods used to optimize two challenging constrained optimization problems
+These subroutines support a suite of
+methods used to optimize challenging constrained problems
 from Gramacy, et al. (2016); and from Picheny, et al., (2016) see references below.  
 
-That scheme hybridizes Gaussian process based surrogate modeling and expected
+Those schemes hybridize Gaussian process based surrogate modeling and expected
 improvement (EI; Jones, et., al, 2008) with the additive penalty method (APM)
 implemented by the augmented Lagrangian (AL, e.g., Nocedal & Wright, 2006).
-The goal is to minimize a known linear objective function \code{f(x)} under
+The goal is to minimize a (possibly known) linear objective function \code{f(x)} under
 multiple, unknown (blackbox) constraint functions satisfying \code{c(x) <= 0},
 which is vector-valued.  The solution here emulates the components of \code{c}
 with Gaussian process surrogates, and guides optimization by searching the
@@ -163,18 +163,15 @@ details, see Gramacy, et al. (2016).
 
 A slack variable implementation that allows for exact EI calculations and can 
 accommodate equality constraints, and mixed (equality and inequality) constraints,
- is also provided.  For further details, see Picheny, et al. (2016).  Details
-will be added to the documentation here at a later time.
+ is also provided.  For further details, see Picheny, et al. (2016).
 
 The example below illustrates a variation on the toy problem considered in both papers,
 which bases sampling on EI.  For examples making used of equality constraints, 
 following the Picheny, et al (2016) papers; see the demos listed in the 
-\dQuote{See Also} section below, about which we now offer the following via an
-explanation of further, somewhat tangential, functionality provided by the library:
+\dQuote{See Also} section below.
 
-Although it is off by default, this function allows an unknown objective function to
-be modeled (\code{fhat = TRUE}), rather than assuming a known linear one.  This
-is \dQuote{beta} functionality at this time.  For examples see
+Although it is off by default, these functions allow an unknown objective to
+be modeled (\code{fhat = TRUE}), rather than assuming a known linear one.  For examples see
 \code{demo("ALfhat")} and \code{demo("GSBP")} which illustrate the AL and comparators
 in inequality and mixed constraints setups, respectively.
 
@@ -196,14 +193,14 @@ blackbox under optimization
 \item{X }{ \code{matrix} giving the input values at which the blackbox function was
 evaluated }
 \item{C }{ \code{matrix} giving the value of the constraint function for the input 
-  under consideration at each trial (corresponding to \code{X} above)}
+  under consideration at each trial}
 \item{d }{ \code{matrix} of lengthscale values obtained at the final update of the 
   GP emulator for each constraint}
 \item{df }{ if \code{fhat = TRUE} then this is a \code{matrix} of lengthscale values
 for the objective obtained at the final update of the GP emulator}
-\item{lambda }{ a \code{matrix} containing \code{lambda} vectors used in each outer
-loop iteration }
-\item{rho }{ a vector of \code{rho} values used in each outer loop iteration }
+\item{lambda }{ a \code{matrix} containing \code{lambda} vectors used in each \dQuote{outer
+loop} AL iteration }
+\item{rho }{ a vector of \code{rho} values used in each \dQuote{outer loop} AL iteration }
 }
 \references{
 
@@ -242,7 +239,7 @@ required to augment your blackbox function (\code{fn}) with an argument named
 \code{known.only}. This allows the user to specify if a potentially different
 object 
 (with a subset of the outputs, those that are \dQuote{known}) gets returned in
-certain circumstances. For example, the objective is treated as known in our
+certain circumstances. For example, the objective is treated as known in many of our
 examples. When a non-null \code{cknown} object is used, the \code{known.only}
 flag can be used to return only the outputs which are known.
 
@@ -255,7 +252,7 @@ The NoMax feature is no longer supported
 \code{vignette("laGP")}, \code{demo("ALfhat")} for blackbox objective,
 \code{demo("GSBP")} for a mixed constraints problem with blackbox objective,
 \code{demo("LAH")} for mix constraints with known objective,
-\code{\link[tgp]{optim.step.tgp}} for unconstrained optimization;\cr
+\code{\link[tgp]{optim.step.tgp}} for unconstrained optimization;
 \code{optim} with \code{method="L-BFGS-B"} for box constraints, or
 \code{optim} with \code{method="SANN"} for simulated annealing
 }

@@ -39,7 +39,7 @@
  *
  * calculate the correlation (K) between X1 and X2 with 
  * an isotropic power exponential correlation function 
- * with range d and nugget g -- assumes symetric matrix
+ * with range d and nugget g -- assumes symmetric matrix
  */
 
 void covar_symm(const int col, double **X, const int n, 
@@ -85,7 +85,7 @@ void covar(const int col, double **X1, const int n1, double **X2,
 /*
  * diff_covar_symm:
  *
- * calculate the first and 2nd derivative (wrt d) of the correlation (K)
+ * calculate the first and second derivative (wrt d) of the correlation (K)
  * between X1 and X2 with an isotropic power exponential 
  * correlation function with range d and nugget g (though g not
  * needed) -- assumes symmetric matrix
@@ -114,7 +114,7 @@ void diff_covar_symm(const int col, double **X, const int n,
 /*
  * diff_covar:
  *
- * calculate the first and 2nd derivative (wrt d) of the correlation (K)
+ * calculate the first and second derivative (wrt d) of the correlation (K)
  * between X1 and X2 with an isotropic power exponential 
  * correlation function with range d and nugget g (though g not
  * needed)
@@ -221,7 +221,7 @@ void distance_symm_R(double *X_in, int *n_in, int *m_in, double *D_out)
       D[i][j] = 0.0;
       for(k=0; k<m; k++) 
 	D[i][j] += sq(X[i][k] - X[j][k]);
-        D[j][i] = D[i][j];
+      D[j][i] = D[i][j];
     }
   }
 
@@ -275,7 +275,7 @@ void dist2covar_R(double *D_in, int *n1_in, int *n2_in, double *d_in,
  *
  * function for converting a symmetric distance matrix (D) 
  * into a covariance matrix (K) using an isotropic power 
- * expoential covariance function with range d and nugget d 
+ * exponential covariance function with range d and nugget g 
  */
 
 void dist2covar_symm_R(double *D_in, int *n_in, double *d_in,
