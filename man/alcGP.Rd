@@ -250,6 +250,11 @@ deleteGP(gpi)
 ## using X and XX above
 ## 
 
+## new, much bigger design
+x <- seq(-2, 2, by=0.02)
+X <- expand.grid(x, x)
+Z <- f2d(X)
+
 ## first build a local design of size 25, see laGP documentation
 out <- laGP.R(XX, start=6, end=25, X, Z, method="alc", close=10000)
 

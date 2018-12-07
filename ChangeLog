@@ -1,3 +1,15 @@
+1.5-3 (06 Dec 2018)
+-----
+
+fixed some method checkes in function headers
+
+Furong added readLines
+
+Fixed bug in IECI when Xref != Xcand
+
+Fixed end < close <= nrow(X) bug found by Mickael
+
+
 1.5-2 (23 Jul 2018)
 -----
 

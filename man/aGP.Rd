@@ -18,28 +18,29 @@ Localized Approximate GP Regression For Many Predictive Locations
 \usage{
 aGP(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
     method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
-    close = min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+    close = min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)), 
     numrays = ncol(X), num.gpus = 0, gpu.threads = num.gpus, 
     omp.threads = if (num.gpus > 0) 0 else 1, 
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
 aGP.parallel(cls, XX, chunks = length(cls), X, Z, start = 6, end = 50, 
     d = NULL, g = 1/10000, method = c("alc", "alcray", "mspe", "nn", "fish"), 
-    Xi.ret = TRUE, close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+    Xi.ret = TRUE, 
+    close = min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)),
     numrays = ncol(X), num.gpus = 0, gpu.threads = num.gpus, 
     omp.threads = if (num.gpus > 0) 0 else 1,
     nn.gpu = if (num.gpus > 0) nrow(XX) else 0, verb = 1)
 aGP.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
-      method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
-      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
-      numrays = ncol(X), laGP=laGP.R, verb = 1)
+    method = c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
+    close = min((1000+end) *if(method[1] == "alcray") 10 else 1, nrow(X)),
+    numrays = ncol(X), laGP=laGP.R, verb = 1)
 aGPsep(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
-      method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
-      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
-      numrays = ncol(X),  omp.threads = 1, verb = 1)
+    method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
+    close = min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)),
+    numrays = ncol(X),  omp.threads = 1, verb = 1)
 aGPsep.R(X, Z, XX, start = 6, end = 50, d = NULL, g = 1/10000,
-      method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
-      close = min(1000*if(method == "alcray") 10 else 1, nrow(X)),
-      numrays = ncol(X), laGPsep=laGPsep.R, verb = 1)
+    method = c("alc", "alcray", "nn"), Xi.ret = TRUE,
+    close = min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)),
+    numrays = ncol(X), laGPsep=laGPsep.R, verb = 1)
 aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -119,7 +120,8 @@ aGP.seq(X, Z, XX, d, methods=rep("alc", 2), M=NULL, ncalib=0, ...)
     predictive locations in \code{XX}, should be returned on
     output}
   \item{close}{
-    a non-negative integer specifying the number of NNs
+    a non-negative integer  \code{end < close <= nrow(X)}
+    specifying the number of NNs
     (to each row \code{XX}) in \code{X} to consider when
     searching for the sub-design; \code{close = 0} specifies all. 
     For \code{method="alcray"} this

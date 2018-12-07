@@ -29,8 +29,8 @@
 
 laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
       method=c("alc", "alcopt", "alcray", "nn"), Xi.ret=TRUE, 
-      close=min(1000*if(method %in% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
-      alc.gpu=FALSE, numstart=if(method == "alcray") ncol(X) else 1, 
+      close=min((1000+end)*if(method[1] %in% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
+      alc.gpu=FALSE, numstart=if(method[1] == "alcray") ncol(X) else 1, 
       rect=NULL, lite=TRUE, verb=0)
 {
   ## argument matching and numerifying
@@ -50,7 +50,7 @@ laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
   ## calculate rectangle if using alcray
   if(method == "alcray" || method == "alcopt") {
     if(is.null(rect)) rect <- matrix(0, nrow=2, ncol=m);
-    if(method == "alcray" && nrow(Xref) != 1) 
+    if(method == "alcray" && nref != 1) 
       stop("alcray only implemented for nrow(Xref) = 1")
     if(nrow(rect) != 2 || ncol(rect) != m)
       stop("bad rect dimensions, must be 2 x ncol(X)")
@@ -62,11 +62,13 @@ laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
   }
   
   ## sanity checks on input dims
+  n <- nrow(X)
   if(start < 6 || end <= start) stop("must have 6 <= start < end")
   if(ncol(Xref) != m) stop("bad dims")
-  if(length(Z) != nrow(X)) stop("bad dims")
-  if(start >= end || nrow(X) <= end) 
+  if(length(Z) != n) stop("bad dims")
+  if(start >= end || n <= end) 
     stop("start >= end or nrow(X) <= end, so nothing to do")
+  if(close <= end || close > n) stop("must have end < close <= n")
   if(!lite) {
     if(nref == 1) {
       warning("lite = FALSE only allowed for nref > 1")
@@ -104,7 +106,7 @@ laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
             end = as.integer(end),
             Xref = as.double(t(Xref)),
             nref = as.integer(nref),
-            n = as.integer(nrow(X)),
+            n = as.integer(n),
             X = as.double(t(X)),
             Z = as.double(Z),
             d = as.double(dd),
@@ -165,9 +167,9 @@ laGPsep <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
         method=c("alc", "alcopt", "alcray", "nn"), 
         Xi.ret=TRUE, pall=FALSE, 
-        close=min(1000*if(method %in% c("alcray", "alcopt")) 10 else 1, nrow(X)),
+        close=min((1000+end)*if(method[1] %in% c("alcray", "alcopt")) 10 else 1, nrow(X)),
         parallel=c("none", "omp", "gpu"), 
-        numstart=if(method == "alcray") ncol(X) else 1, 
+        numstart=if(method[1] == "alcray") ncol(X) else 1, 
         rect=NULL, lite=TRUE, verb=0)
 {
   ## argument matching
@@ -179,11 +181,13 @@ laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
   if(!is.matrix(Xref)) Xref <- data.matrix(Xref)
   
   ## sanity checks
+  n <- nrow(X)
   if(start < 6 || end <= start) stop("must have 6 <= start < end")
   if(ncol(Xref) != m) stop("bad dims")
-  if(length(Z) != nrow(X)) stop("bad dims")
-  if(start >= end || nrow(X) <= end) 
+  if(length(Z) != n) stop("bad dims")
+  if(start >= end || n <= end) 
     stop("start >= end or nrow(X) <= end, so nothing to do")
+  if(close <= end || close > n) stop("must have end < close <= n")
   if(!lite && nrow(Xref) == 1) 
     warning("lite = TRUE only allowed for nrow(Xref) > 1")
   
@@ -234,9 +238,9 @@ laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
   } else pall <- NULL
   
   ## determine remaining candidates
-  if(close >= nrow(X)) close <- 0
+  if(close >= n) close <- 0
   if(close > 0) {
-    if(close >= nrow(X)-start)
+    if(close >= n-start)
       stop("close not less than remaining cands")
     cands <- cands[(start+1):close]
   } else cands <- cands[-(1:start)]
@@ -321,7 +325,7 @@ laGPsep.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 
 aGPsep.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
                   method=c("alc", "alcray", "nn"), Xi.ret=TRUE, 
-                  close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+                  close=min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)),
                   numrays=ncol(X), laGPsep=laGPsep.R, verb=1)
   {
     ## sanity checks
@@ -438,15 +442,17 @@ aGPsep.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
 
 aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
                 method=c("alc", "alcray", "nn"), Xi.ret=TRUE, 
-                close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+                close=min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)), 
                 numrays=ncol(X), omp.threads=1, verb=1)
   {
     ## sanity checks
     nn <- nrow(XX)
     m <- ncol(X)
+    n <- nrow(X)
     if(ncol(XX) != m) stop("mismatch XX and X cols")
-    if(nrow(X) != length(Z)) stop("length(Z) != nrow(X)")
+    if(n != length(Z)) stop("length(Z) != nrow(X)")
     if(end-start <= 0) stop("nothing to do")
+    if(close <= end || close > n) stop("must have end < close <= n")
 
     ## numerify method
     method <- match.arg(method)
@@ -501,7 +507,7 @@ aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
               end = as.integer(end),
               XX = as.double(t(XX)),
               nn = as.integer(nn),
-              n = as.integer(nrow(X)),
+              n = as.integer(n),
               X = as.double(t(X)),
               Z = as.double(Z),
               dstart = as.double(t(d$start)),

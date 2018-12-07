@@ -66,7 +66,7 @@ aGP.chunk <- function(chunk, XX, X, Z, start, end, d, g, method,
 
 aGP.parallel <- function(cls, XX, chunks=length(cls), X, Z, start=6, end=50, d=NULL, 
                      g=1/10000, method=c("alc", "alcray", "mspe", "nn", "fish"), 
-                     Xi.ret=TRUE, close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+                     Xi.ret=TRUE, close=min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)),
                      numrays=ncol(X), num.gpus=0, gpu.threads=num.gpus, 
                      omp.threads=if(num.gpus > 0) 0 else 1, 
                      nn.gpu=if(num.gpus > 0) nrow(XX) else 0, verb=1)

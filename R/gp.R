@@ -425,7 +425,7 @@ ieciGP <- function(gpi, Xcand, fmin, Xref=Xcand, w=NULL, nonug=FALSE, verb=0)
               ncand = as.integer(ncand),
               fmin = as.double(fmin),
               Xref = as.double(t(Xref)),
-              nref = as.integer(ncand),
+              nref = as.integer(nref),
               w = as.double(w),
               wb = as.integer(wb),
               nonug = as.integer(nonug),

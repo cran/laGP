@@ -5,7 +5,7 @@ useDynLib(laGP, .registration=TRUE)
 export(aGP, aGP.R, aGP.parallel, laGP, laGP.R, newGP, updateGP, predGP, mleGP, 
        jmleGP, jmleGP.R, darg, garg, deleteGP, deleteGPs, distance, alcGP, 
        alcoptGP, dalcGP, ieciGP, mspeGP, fishGP, llikGP, alcrayGP, 
-       optim.auglag, optim.efi, blhs, blhs.loop,
+       optim.auglag, optim.efi, blhs, blhs.loop, randLine,
        laGPsep, laGPsep.R, aGPsep, aGPsep.R, newGPsep, mleGPsep, mleGPsep.R, 
        jmleGPsep, jmleGPsep.R, predGPsep, llikGPsep, alcGPsep, 
        alcoptGPsep, alcrayGPsep, dalcGPsep, ieciGPsep, deleteGPsep, 
@@ -20,4 +20,4 @@ importFrom(tgp, interp.loess)
 
 ## required for new CRAN checks
 importFrom("graphics", "image", "matplot", "par", "plot", "points", "boxplot")
-importFrom("stats", "dnorm", "median", "optim", "pnorm", "quantile")
+importFrom("stats", "dnorm", "median", "optim", "pnorm", "quantile", "rmultinom", "runif")

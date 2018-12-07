@@ -16,27 +16,27 @@ Localized Approximate GP Prediction At a Single Input Location
 \usage{
 laGP(Xref, start, end, X, Z, d = NULL, g = 1/10000,
      method = c("alc", "alcopt", "alcray", "mspe", "nn", "fish"), Xi.ret = TRUE,
-     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
-     alc.gpu = FALSE, numstart = if(method == "alcray") ncol(X) else 1, 
+     close = min((1000+end)*if(method[1] \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
+     alc.gpu = FALSE, numstart = if(method[1] == "alcray") ncol(X) else 1, 
      rect = NULL, lite = TRUE, verb = 0)
 laGP.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
      method = c("alc", "alcopt", "alcray", "mspe", "nn", "fish"), 
      Xi.ret = TRUE, pall = FALSE, 
-     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)),
+     close = min((1000+end)*if(method[1] \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)),
      parallel = c("none", "omp", "gpu"), 
-     numstart = if(method == "alcray") ncol(X) else 1, 
+     numstart = if(method[1] == "alcray") ncol(X) else 1, 
      rect = NULL, lite = TRUE, verb = 0)
 laGPsep(Xref, start, end, X, Z, d = NULL, g = 1/10000,
      method = c("alc", "alcopt", "alcray", "nn"), Xi.ret = TRUE, 
-     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
-     alc.gpu = FALSE, numstart = if(method == "alcray") ncol(X) else 1, 
+     close = min((1000+end)*if(method[1] \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
+     alc.gpu = FALSE, numstart = if(method[1] == "alcray") ncol(X) else 1, 
      rect = NULL, lite = TRUE, verb=0)
 laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
      method = c("alc", "alcopt", "alcray", "nn"), 
      Xi.ret = TRUE, pall = FALSE, 
-     close = min(1000*if(method \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)),
+     close = min((1000+end)*if(method[1] \%in\% c("alcray", "alcopt")) 10 else 1, nrow(X)),
      parallel = c("none", "omp", "gpu"), 
-     numstart = if(method == "alcray") ncol(X) else 1, 
+     numstart = if(method[1] == "alcray") ncol(X) else 1, 
      rect = NULL, lite = TRUE, verb = 0)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -117,7 +117,8 @@ laGPsep.R(Xref, start, end, X, Z, d = NULL, g = 1/10000,
    ability to obtain predictions after every update (for progress
    indication and debugging), rather than after just the last update}
   \item{close}{
-   a non-negative integer specifying the number of NNs (to \code{Xref}) in 
+   a non-negative integer \code{end < close <= nrow(X)} 
+   specifying the number of NNs (to \code{Xref}) in 
    \code{X} to consider when searching for elements of the sub-design; 
    \code{close = 0} specifies all.  For \code{method="alcray"} and 
    \code{method="alcopt"}, this argument specifies the scope used to snap 
@@ -296,7 +297,8 @@ The output is a \code{list} with the following components.
 \code{vignette("laGP")}, 
   \code{\link{aGP}}, \code{\link{newGP}}, \code{\link{updateGP}},
     \code{\link{predGP}}, \code{\link{mleGP}}, \code{\link{jmleGP}},
-    \code{\link{alcGP}}, \code{\link{mspeGP}}, \code{\link{alcrayGP}}
+    \code{\link{alcGP}}, \code{\link{mspeGP}}, \code{\link{alcrayGP}},
+    \code{\link{randLine}} ## path-based local prediction via \code{laGP}
 }
 
 \examples{
@@ -343,7 +345,7 @@ text(X[out2.alcray$Xi,], labels=1:50, cex=0.6, col="red")
 legend("right", c("ALC", "ALCOPT", "MSPE", "ALCRAY"),
        text.col=c("black", "forestgreen", "blue", "red"), bty="n")
 
-## compare times
+## compare computational time
 c(nn=out$time, alc=out2$time, alcopt=out2.alcopt$time, 
   mspe=out2.mspe$time, alcray=out2.alcray$time)
 
@@ -358,14 +360,14 @@ c(nn=out$time, alc=out2$time, alcopt=out2.alcopt$time,
   ## larger-than-default "close" argument to capture locations nearby path
   p.alc <- laGPsep(W, 6, 100, X, Z, method="alc", close=10000, lite=FALSE)
   p.alcopt <- laGPsep(W, 6, 100, X, Z, method="alcopt", lite=FALSE)
-  ## note that close = 10*1000 would be the default for method = "alcopt"
+  ## note that close=10*(1000+end) would be the default for method = "alcopt"
   p.nn <- laGPsep(W, 6, 100, X, Z, method="nn", close=10000, lite=FALSE)
 
   ## Mahalanobis distance to combine RMSE and covariance estimates
   mahdist <- function(Y, mu, Sigma) {
      Ymmu <- Y - mu
      Sigmai <- solve(Sigma)
-     return(sqrt(t(Ymmu) %*% Sigmai %*% Ymmu))
+     return(sqrt(t(Ymmu) \%*\% Sigmai \%*\% Ymmu))
   }
 
   ## comparison by Mahalanobis distance

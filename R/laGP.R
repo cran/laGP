@@ -28,8 +28,8 @@
 
 laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
       method=c("alc", "alcopt", "alcray", "mspe", "nn", "fish"), Xi.ret=TRUE, 
-      close=min(1000*if(method %in% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
-      alc.gpu=FALSE, numstart=if(method == "alcray") ncol(X) else 1, 
+      close=min((1000+end)*if(method[1] %in% c("alcray", "alcopt")) 10 else 1, nrow(X)), 
+      alc.gpu=FALSE, numstart=if(method[1] == "alcray") ncol(X) else 1, 
       rect=NULL, lite=TRUE, verb=0)
   {
     ## argument matching and numerifying
@@ -61,11 +61,13 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
     }
 
     ## sanity checks on input dims
+    n <- nrow(X)
     if(start < 6 || end <= start) stop("must have 6 <= start < end")
     if(ncol(Xref) != m) stop("bad dims")
-    if(length(Z) != nrow(X)) stop("bad dims")
-    if(start >= end || nrow(X) <= end) 
+    if(length(Z) != n) stop("bad dims")
+    if(start >= end || n <= end) 
       stop("start >= end or nrow(X) <= end, so nothing to do")
+    if(close <= end || close > n) stop("must have end < close <= n")
     if(!lite) {
       if(nref == 1) {
         warning("lite = FALSE only allowed for nref > 1")
@@ -95,7 +97,7 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
               end = as.integer(end),
               Xref = as.double(t(Xref)),
               nref = as.integer(nref),
-              n = as.integer(nrow(X)),
+              n = as.integer(n),
               X = as.double(t(X)),
               Z = as.double(Z),
               d = as.double(dd),
@@ -157,9 +159,9 @@ laGP <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
       method=c("alc", "alcopt", "alcray", "mspe", "nn", "fish"), Xi.ret=TRUE, 
       pall=FALSE, 
-      close=min(1000*if(method %in% c("alcray", "alcopt")) 10 else 1, nrow(X)),
+      close=min((1000+end)*if(method[1] %in% c("alcray", "alcopt")) 10 else 1, nrow(X)),
       parallel=c("none", "omp", "gpu"), 
-      numstart=if(method == "alcray") ncol(X) else 1, 
+      numstart=if(method[1] == "alcray") ncol(X) else 1, 
       rect=NULL, lite=TRUE, verb=0)
   {
     ## argument matching
@@ -171,11 +173,13 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
     if(!is.matrix(Xref)) Xref <- data.matrix(Xref)
     
     ## sanity checks
+    n <- nrow(X)
     if(start < 6 || end <= start) stop("must have 6 <= start < end")
     if(ncol(Xref) != m) stop("bad dims")
-    if(length(Z) != nrow(X)) stop("bad dims")
-    if(start >= end || nrow(X) <= end) 
+    if(length(Z) != n) stop("bad dims")
+    if(start >= end || n <= end) 
       stop("start >= end or nrow(X) <= end, so nothing to do")
+    if(close <= end || close > n) stop("must have end < close <= n")
     if(!lite && nrow(Xref) == 1) 
       warning("lite = TRUE only allowed for nrow(Xref) > 1")
 
@@ -224,9 +228,9 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
     } else pall <- NULL
 
     ## determine remaining candidates
-    if(close >= nrow(X)) close <- 0
+    if(close >= n) close <- 0
     if(close > 0) {
-      if(close >= nrow(X)-start)
+      if(close >= n-start)
         stop("close not less than remaining cands")
       cands <- cands[(start+1):close]
     } else cands <- cands[-(1:start)]
@@ -314,15 +318,17 @@ laGP.R <- function(Xref, start, end, X, Z, d=NULL, g=1/10000,
 
 aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
       method=c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret=TRUE, 
-      close=min(1000*if(method == "alcray") 10 else 1, nrow(X)),
+      close=min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)),
       numrays=ncol(X), laGP=laGP.R, verb=1)
   {
     ## sanity checks
     nn <- nrow(XX)
+    n <- nrow(X)
     if(ncol(XX) != ncol(X)) stop("mismatch XX and X cols")
-    if(nrow(X) != length(Z)) stop("length(Z) != nrow(X)")
-    if(start >= end || nrow(X) <= end) 
+    if(n != length(Z)) stop("length(Z) != nrow(X)")
+    if(start >= end || n <= end) 
       stop("start >= end or nrow(X) <= end, so nothing to do")
+    if(close <= end || close > n) stop("must have end < close <= n")
 
     ## check method argument
     method <- match.arg(method)
@@ -426,17 +432,19 @@ aGP.R <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
 
 aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
     method=c("alc", "alcray", "mspe", "nn", "fish"), Xi.ret=TRUE, 
-    close=min(1000*if(method == "alcray") 10 else 1, nrow(X)), 
+    close=min((1000+end)*if(method[1] == "alcray") 10 else 1, nrow(X)), 
     numrays=ncol(X), num.gpus=0, gpu.threads=num.gpus,
     omp.threads=if(num.gpus > 0) 0 else 1, 
 		nn.gpu=if(num.gpus > 0) nrow(XX) else 0, verb=1)
   {
     ## sanity checks
     nn <- nrow(XX)
+    n <- nrow(X)
     if(ncol(XX) != ncol(X)) stop("mismatch XX and X cols")
-    if(nrow(X) != length(Z)) stop("length(Z) != nrow(X)")
-    if(start >= end || nrow(X) <= end) 
+    if(n != length(Z)) stop("length(Z) != nrow(X)")
+    if(start >= end || n <= end) 
       stop("start >= end or nrow(X) <= end, so nothing to do")
+    if(close <= end || close > n) stop("must have end < close <= n")
 
     ## numerify method
     method <- match.arg(method)
@@ -518,7 +526,7 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
               end = as.integer(end),
               XX = as.double(t(XX)),
               nn = as.integer(nn),
-              n = as.integer(nrow(X)),
+              n = as.integer(n),
               X = as.double(t(X)),
               Z = as.double(Z),
               d = as.double(d$start),
@@ -581,16 +589,16 @@ aGP <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
 closestIndices <- function(Xref, X, start=6, close=1000, sorted=FALSE)
   {
     out <- .C("closest_indices_R",
-               m = as.integer(ncol(Xref)),
-               start = as.integer(start),
-               Xref = as.double(t(Xref)),
-               nref = as.integer(nrow(Xref)),
-               n = as.integer(nrow(X)),
-               X = as.double(t(X)),
-               close = as.integer(close),
-               sorted = as.integer(sorted),
-               oD = integer(min(close, nrow(X))),
-               PACKAGE = "laGP")
+      m=as.integer(ncol(Xref)),
+      start=as.integer(start),
+      Xref=as.double(t(Xref)),
+      nref=as.integer(nrow(Xref)),
+      n=as.integer(nrow(X)),
+      X=as.double(t(X)),
+      close=as.integer(close),
+      sorted=as.integer(sorted),
+      oD=integer(min(close, nrow(X))),
+      PACKAGE="laGP")
     
     return(out$oD)
   }
