@@ -529,13 +529,14 @@ alcoptGP <- function(gpi, Xref, start, lower, upper, maxit=100, verb=0)
               Xref = as.double(t(Xref)),
               nref = as.integer(nrow(Xref)),
               par = double(m),
+              value = double(1),
               counts = integer(2),
               msg = paste(rep(0,60), collapse=""),
               convergence = integer(1),              
               PACKAGE = "laGP")
 
     ## for now return the whole optim output
-    return(list(par=out$par, its=out$counts, msg=out$msg, convergence=out$convergence))
+    return(list(par=out$par, value=out$value, its=out$counts, msg=out$msg, convergence=out$convergence))
   }
 
 
@@ -841,7 +842,8 @@ alcrayGP <- function(gpi, Xref, Xstart, Xend, verb=0)
               Xend = as.double(t(Xend)),
               verb = as.integer(verb),
               s = double(1),
-              r = integer(1))
+              r = integer(1),
+	      PACKAGE = "laGP")
     
     ## return the convex combination
     return(list(r=out$r, s=out$s))

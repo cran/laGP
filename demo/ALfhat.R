@@ -36,7 +36,6 @@ aimprob2 <- function(X, known.only = FALSE)
   return(list(obj=f, c=cbind(c1,c2)))
 }
 
-
 ## for visualization
 x <- seq(0,1, length=200)
 X <- expand.grid(x, x)
@@ -96,7 +95,8 @@ while(1) {
 ## approach initialized randomly, and randomly restarted
 ## until a total budget is met
 
-lambda <- rep(0,2); rho <- 1/2
+lambda <- rep(0,2)
+rho <- 1/2
 xbest <- runif(2)
 
 for(i in 1:6) {

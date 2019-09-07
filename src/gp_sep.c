@@ -1141,8 +1141,6 @@ void mleGPsep_both_R(/* inputs */
     error("derivative info not in gpsep; use newGPsep with dK=TRUE");
 
   /* call C-side MLE */
-  /* dupv(mle_out, gp->d, gp->m);
-  dupv(mle_out+gp->m, gp->g, gp->glen); */ /* already done inside mleGP_both */
   mleGPsep_both(gpsep, tmin_in, tmax_in, ab_in, *maxit_in, *verb_in, mle_out,
             its_out, *msg_out, conv_out, 1);
 }
@@ -3098,7 +3096,7 @@ static void fcn_ndalcsep(int n, double *p, double *df, struct callinfo_alcsep *i
  * to get an approximate new location for multiple design.
  */
 
-void alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper, 
+double alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper, 
               double **Xref, const int nref, const unsigned int maxit, int verb, double *p, 
               int *its, char *msg, int *conv, int fromR)
 {
@@ -3141,7 +3139,7 @@ void alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper,
   else lbfgs_verb = verb - 1;
   
   /* call the C-routine behind R's optim function with method = "L-BFGS-B" */
-  MYlbfgsb(gpsep->m, p, lower, upper,
+  obj = MYlbfgsb(gpsep->m, p, lower, upper,
            (double (*)(int, double*, void*)) fcn_nalcsep,
            (void (*)(int, double *, double *, void *)) fcn_ndalcsep,
            conv, &info, 0.1, its, maxit, msg, lbfgs_verb, fromR);
@@ -3150,8 +3148,9 @@ void alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper,
   if(verb > 0) {
     MYprintf(MYstdout, "-> %d lbfgsb its -> (par=[%g", its[1], p[0]);
     for(k=1; k<gpsep->m; k++) MYprintf(MYstdout, ",%g", p[k]);
+    MYprintf(MYstdout, "], obj=%g", obj);
     alcGPsep(gpsep, 1, &p, nref, Xref, 0, &obj);
-    MYprintf(MYstdout, "], log(alc)=%g)\n", log(obj));
+    MYprintf(MYstdout, ", log(alc)=%g)\n", log(obj));
   }
   
   /* clean up */
@@ -3164,6 +3163,9 @@ void alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper,
   free(info.Kidks); 
   delete_matrix(info.k);
   free(info.dk); 
+
+  /* return optimize objective value */
+  return(obj);
 }
 
 
@@ -3174,22 +3176,24 @@ void alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper,
 * to get an approximate new location for multiple design.
 */
 
-void alcoptGPsep_R(/* inputs */
-int *gpsepi_in,
-int *maxit_in,
-int *verb_in,
-double *start_in,
-double *lower_in,
-double *upper_in,
-int *m_in,
-double *Xref_in,
-int *nref_in,
+void alcoptGPsep_R(
+/* inputs */
+  int *gpsepi_in,
+  int *maxit_in,
+  int *verb_in,
+  double *start_in,
+  double *lower_in,
+  double *upper_in,
+  int *m_in,
+  double *Xref_in,
+  int *nref_in,
 
-/* outputs */
-double *par_out,
-int *its_out,
-char **msg_out,
-int *conv_out)
+  /* outputs */
+  double *par_out,
+  double *val_out,
+  int *its_out,
+  char **msg_out,
+  int *conv_out)
 {
   GPsep *gpsep;
   unsigned int gpsepi;
@@ -3207,7 +3211,7 @@ int *conv_out)
   Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
   
   /* call the ordinary C function */
-  alcoptGPsep(gpsep, start_in, lower_in, upper_in, Xref, *nref_in, *maxit_in, 
+  *val_out = alcoptGPsep(gpsep, start_in, lower_in, upper_in, Xref, *nref_in, *maxit_in, 
            *verb_in, par_out, its_out, *msg_out, conv_out, 1);
 }
 

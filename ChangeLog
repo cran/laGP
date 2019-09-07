@@ -1,7 +1,36 @@
+1.5-5 (05 Sep 2019)
+-----
+
+removed akima suggests
+
+
+1.5-4 (27 Aug 2019)
+----- 
+
+copied over tgp's updated linalg.c/.h
+
+returning optimized value as out$value in alcoptGP and
+alcoptGPsep
+
+Simplified linalg.c/,h BLAS and Lapack headers, primarily
+for monomvn, but copied from tgp
+
+Fixed aGPsep bug with vectorized d$start argument
+
+Made sure all .C have PACKAGE argument
+
+Removed progress function from ALBO demos because $prog
+is returned
+
+added reset in mleGPsep when init is on boundary
+
+corrected imethod for alcray in aGPsep
+
+
 1.5-3 (06 Dec 2018)
 -----
 
-fixed some method checkes in function headers
+Fixed some method checkes in function headers
 
 Furong added readLines
 
@@ -25,7 +54,7 @@ of matrix to convert Xref
 1.5-1 (15 Oct 2017)
 -----
 
-fixed NN bug in aGPsep
+Fixed NN bug in aGPsep
 
 1.5 (22 Sep 2017)
 ---

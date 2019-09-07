@@ -233,9 +233,11 @@ The output is a \code{list} with the following components.
 
 \references{
 
-  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2017)
-  \emph{Emulating satellite drag from large simulation experiments};
-  preprint on arXiv:1712.00182. \url{http://arxiv.org/abs/1712.00182} 
+  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2019).
+  \emph{Emulating satellite drag from large simulation experiments},
+  SIAM/ASA Journal on Uncertainty Quantification, 7(2), pp. 720-759;
+  preprint on arXiv:1712.00182;
+  \url{http://arxiv.org/abs/1712.00182}
 
   R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
   Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
@@ -350,7 +352,7 @@ c(nn=out$time, alc=out2$time, alcopt=out2.alcopt$time,
   mspe=out2.mspe$time, alcray=out2.alcray$time)
 
 \dontrun{
-  ## A comparison between ALC-ex, ALC-opt and NN
+  ## Joint path sampling: a comparison between ALC-ex, ALC-opt and NN
 
   ## defining a predictive path
   wx <- seq(-0.85, 0.45, length=100)
@@ -358,48 +360,22 @@ c(nn=out$time, alc=out2$time, alcopt=out2.alcopt$time,
 
   ## three comparators from Sun, et al. (2017)
   ## larger-than-default "close" argument to capture locations nearby path
-  p.alc <- laGPsep(W, 6, 100, X, Z, method="alc", close=10000, lite=FALSE)
+  p.alc <- laGPsep(W, 6, 100, X, Z, close=10000, lite=FALSE)
   p.alcopt <- laGPsep(W, 6, 100, X, Z, method="alcopt", lite=FALSE)
   ## note that close=10*(1000+end) would be the default for method = "alcopt"
   p.nn <- laGPsep(W, 6, 100, X, Z, method="nn", close=10000, lite=FALSE)
 
-  ## Mahalanobis distance to combine RMSE and covariance estimates
-  mahdist <- function(Y, mu, Sigma) {
-     Ymmu <- Y - mu
-     Sigmai <- solve(Sigma)
-     return(sqrt(t(Ymmu) \%*\% Sigmai \%*\% Ymmu))
-  }
-
-  ## comparison by Mahalanobis distance
-  WY <- f2d(W)
-  c(alc=mahdist(WY, p.alc$mean, p.alc$Sigma),
-    alcopt=mahdist(WY, p.alcopt$mean, p.alcopt$Sigma),
-    nn=mahdist(WY, p.nn$mean, p.nn$Sigma))
-
-  ## comparison via time
+  ## time comparison
   c(alc=p.alc$time, alcopt=p.alcopt$time, nn=p.nn$time)
 
   ## visualization
-  ## first ALC-ex
-  plot(W, type="l", bty="n", lwd=2, xlab="x1", ylab="x2", 
-    xlim=c(-2.25,0), ylim=c(-0.75,1.25), main="")
-  points(W[length(wx)/2,1], W[length(wx)/2,2], col=2, pch=19)
-  points(X[p.alc$Xi,], col="blue", cex=0.6)
-  legend("bottomright", c("x0", "ALC-opt", "ALC-ex", "NN"), 
-    pch=c(19, 23, 21, 22), bty="n", cex=1.25,
-    col=c("red", "purple", "blue", "forestgreen"))
-  legend("topleft", "W(x0)", lty=1, col=1, lwd=2, bty="n", 
-    cex=1.25)
-  ## then shifted NN
-  lines(W[,1]+0.25, W[,2]-0.25)
-  points(W[length(wx)/2,1]+0.25, W[length(wx)/2,2]-0.25, col=2, pch=19)
-  points(X[p.nn$Xi,1]+0.25, X[p.nn$Xi,2]-0.25, pch=22, 
-    col="forestgreen", cex=0.6)
-  ## finally shifted (in the other direction) ALC-opt
-  lines(W[,1]-0.25, W[,2]+0.25) 
-  points(W[length(wx)/2,1]-0.25, W[length(wx)/2,2]+0.25, col=2, pch=19)
-  points(X[p.alcopt$Xi,1]-0.25, X[p.alcopt$Xi,2]+0.25, pch=23, 
-    col="purple", cex=0.6)
+  plot(W, type="l", xlab="x1", ylab="x2", xlim=c(-2.25,0), ylim=c(-0.75,1.25), lwd=2)
+  points(X[p.alc$Xi,], col=2, cex=0.6)
+  lines(W[,1]+0.25, W[,2]-0.25, lwd=2)
+  points(X[p.nn$Xi,1]+0.25, X[p.nn$Xi,2]-0.25, pch=22, col=3, cex=0.6)
+  lines(W[,1]-0.25, W[,2]+0.25, lwd=2) 
+  points(X[p.alcopt$Xi,1]-0.25, X[p.alcopt$Xi,2]+0.25, pch=23, col=4, cex=0.6)
+  legend("bottomright", c("ALC-opt", "ALC-ex", "NN"), pch=c(22, 21, 23), col=c(4,2,3))
 }
 }
 

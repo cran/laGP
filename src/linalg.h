@@ -111,4 +111,3 @@ int linalg_dpotrf(int n, double **var);
 int solve_cg_symm(double *x, double *x_star, double **A, double *b, double theta, unsigned int n);
 
 #endif
-

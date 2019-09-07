@@ -83,23 +83,14 @@ ALslack <- optim.auglag(gsbpprob, B, equal=c(0,1,1), fhat=TRUE, urate=5,
 ALslack2 <- optim.auglag(gsbpprob, B, equal=c(0,1,1), fhat=TRUE, urate=5, 
               slack=2, ncandf=ncandf)
 
+## replace infinite progress with 2.1 for visuals
+AL$prog[is.infinite(AL$prog)] <- 2.1
+EFI$prog[is.infinite(EFI$prog)]  <- 2.1
+ALslack$prog[is.infinite(ALslack$prog)] <- 2.1 
+ALslack2$prog[is.infinite(ALslack2$prog)] <- 2.1 
 
-## plot progress
-progress <- function(out, eps=1e-2)
-  {
-    v <- out$C[,1] < 0 & abs(out$C[,2]) < eps & abs(out$C[,3]) < eps
-    vobj <- out$obj
-    vobj[!v] <- 2.1
-    for(i in 2:length(vobj)) 
-      if(vobj[i] > vobj[i-1]) vobj[i] <- vobj[i-1] 
-    return(vobj)
-  }
-
-AL$vobj <- progress(AL)
-EFI$vobj <- progress(EFI)
-ALslack$vobj <- progress(ALslack)
-ALslack2$vobj <- progress(ALslack2)
-matplot(cbind(AL$vobj, EFI$vobj, ALslack$vobj, ALslack2$vobj),
+## visuals
+matplot(cbind(AL$prog, EFI$prog, ALslack$prog, ALslack2$prog),
   type="l", lwd=2)
 legend("topright", c("AL", "EFI", "ALslack", "ALslack + L-BFGS-B"), 
     lty=1:4, col=1:4, lwd=2)

@@ -54,7 +54,7 @@
   e.g., retaining marginal properties like univariate stratification modulo features present in the original, 
   large \code{N}, design. 
 
-  For more details, see Liu (2014), Zhao, et al. (2017) and Sun, et al. (2017).
+  For more details, see Liu (2014), Zhao, et al. (2017) and Sun, et al. (2019).
   
   \code{blhs} returns the subsampled input space and the corresponding responses. 
   
@@ -74,15 +74,24 @@
   \item{\code{ym}}{the subsampled responses (median)}
 }
 
-\references{
+\note{
+  This implementation assums that \code{X} has been coded to the unit cube (\eqn{[0,1]^p}{[0,1]^p}),
+  where \code{p = ncol(X)}.
+  
+  \code{X} should be relatively homogeneous. A space-filling design (input) \code{X}
+  is ideal, but not required
+}
 
-  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2017)
-  \emph{Emulating satellite drag from large simulation experiments};
-  preprint on arXiv:1712.00182. \url{http://arxiv.org/abs/1712.00182}
+\references{
+  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2019).
+  \emph{Emulating satellite drag from large simulation experiments},
+  SIAM/ASA Journal on Uncertainty Quantification, 7(2), pp. 720-759;
+  preprint on arXiv:1712.00182;
+  \url{http://arxiv.org/abs/1712.00182}
   
   Y. Zhao, Y. Hung, and Y. Amemiya (2017).
-  \emph{Efficient Gaussian Process Modeling using Experimental Design-Based Subagging.}
-  To appear in Statistica Sinica;
+  \emph{Efficient Gaussian Process Modeling using Experimental Design-Based Subagging},
+  Statistica Sinica, to appear;
   
   Yufan Liu (2014)
   \emph{Recent Advances in Computer Experiment Modeling}.
@@ -92,11 +101,6 @@
 
 \author{
   Robert B. Gramacy \email{rbg@vt.edu} and Furong Sun \email{furongs@vt.edu}
-}
-
-\note{
-  The global input space should be relatively homogeneous. A space-filling design (input) \code{X}
-  is ideal, but not required
 }
 
 \examples{

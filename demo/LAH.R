@@ -70,22 +70,14 @@ ALslack <- optim.auglag(lahprob, B, end=50, equal=c(1,0), urate=5,
 ALslack2 <- optim.auglag(lahprob, B, end=50, equal=c(1,0), urate=5, 
                   slack=2, ncandf=ncandf)
 
-## plot progress
-progress <- function(out, eps=1e-2)
-  {
-    v <- out$C[,2] < 0 & abs(out$C[,1]) < eps
-    vobj <- out$obj
-    vobj[!v] <- 4
-    for(i in 2:length(vobj)) 
-      if(vobj[i] > vobj[i-1]) vobj[i] <- vobj[i-1] 
-    return(vobj)
-  }
+## replace infinite progress with 4 for visuals
+AL$prog[is.infinite(AL$prog)] <- 2.1
+EFI$prog[is.infinite(EFI$prog)]  <- 2.1
+ALslack$prog[is.infinite(ALslack$prog)] <- 2.1 
+ALslack2$prog[is.infinite(ALslack2$prog)] <- 2.1 
 
-AL$vobj <- progress(AL)
-EFI$vobj <- progress(EFI)
-ALslack$vobj <- progress(ALslack)
-ALslack2$vobj <- progress(ALslack2)
-matplot(cbind(AL$vobj, EFI$vobj, ALslack$vobj, ALslack2$vobj),
+## visuals
+matplot(cbind(AL$prog, EFI$prog, ALslack$prog, ALslack2$prog),
   type="l", lwd=2)
 legend("left", c("AL", "EFI", "ALslack", "ALslack + L-BFGS-B"), 
     lty=1:4, col=1:4, lwd=2)

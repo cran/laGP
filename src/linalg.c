@@ -203,7 +203,6 @@ double *X, *Y;
   size_t n64, lda64, ldy64, ldx64;
   n64 = n; lda64 = lda; ldx64 = ldx; ldy64 = ldy;
   /* dsymv(&uplo,&n,&alpha,*A,&lda,X,&ldx,&beta,Y,&ldy); */
-
   dsymv(&uplo,&n64,&alpha,*A,&lda64,X,&ldx64,&beta,Y,&ldy64);
 #else
   cblas_dsymv(CblasColMajor,CblasUpper,n,alpha,*A,lda,X,ldx,beta,Y,ldy);

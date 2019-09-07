@@ -37,7 +37,7 @@ double Brent_fmin(double ax, double bx, double (*f)(double, void *),
       void *info, double tol);
 #endif
 
-void MYlbfgsb(int n, double *x, double *l, double *u, 
+double MYlbfgsb(int n, double *x, double *l, double *u, 
 	double (*fn)(int, double*, void*), 
 	void (*gr)(int, double *, double *, void *), 
 	int *fail, void *ex, double pgtol, int *counts, int maxit, 

@@ -121,6 +121,7 @@ void aGP_R(/* inputs */
   /* copy method */
   method = ALC; /* to guarantee initialization */
   if(*imethod_in == 1) method = ALC;
+  else if(*imethod_in == 2) error("alcopt not supported at this time");
   else if(*imethod_in == 3) method = ALCRAY;
   else if(*imethod_in == 4) method = MSPE;
   else if(*imethod_in == 5) method = EFI;

@@ -2396,7 +2396,7 @@ static void fcn_ndalc(int n, double *p, double *df, struct callinfo_alc *info)
  * to get an approximate new location for multiple design.
  */
 
-void alcoptGP(GP* gp, double *start, double* lower, double *upper, 
+double alcoptGP(GP* gp, double *start, double* lower, double *upper, 
   double **Xref, const int nref, const unsigned int maxit, int verb, double *p, 
   int *its, char *msg, int *conv, int fromR)
 {
@@ -2439,7 +2439,7 @@ void alcoptGP(GP* gp, double *start, double* lower, double *upper,
   else lbfgs_verb = verb - 1;
 
   /* call the C-routine behind R's optim function with method = "L-BFGS-B" */
-  MYlbfgsb(gp->m, p, lower, upper,
+  obj = MYlbfgsb(gp->m, p, lower, upper,
          (double (*)(int, double*, void*)) fcn_nalc,
          (void (*)(int, double *, double *, void *)) fcn_ndalc,
          conv, &info, 0.1, its, maxit, msg, lbfgs_verb, fromR);
@@ -2448,8 +2448,9 @@ void alcoptGP(GP* gp, double *start, double* lower, double *upper,
   if(verb > 0) {
     MYprintf(MYstdout, "-> %d lbfgsb its -> (par=[%g", its[1], p[0]);
     for(k=1; k<gp->m; k++) MYprintf(MYstdout, ",%g", p[k]);
+    MYprintf(MYstdout, "], obj=%g", obj);
     alcGP(gp, 1, &p, nref, Xref, 0, &obj);
-    MYprintf(MYstdout, "], log(alc)=%g)\n", log(obj));
+    MYprintf(MYstdout, ", log(alc)=%g)\n", log(obj));
   }
 
   /* clean up */
@@ -2462,6 +2463,9 @@ void alcoptGP(GP* gp, double *start, double* lower, double *upper,
   free(info.Kidks); 
   delete_matrix(info.k);
   free(info.dk); 
+
+  /* return optimized value */
+  return(obj);
 }
 
 
@@ -2472,22 +2476,24 @@ void alcoptGP(GP* gp, double *start, double* lower, double *upper,
  * to get an approximate new location for multiple design.
  */
 
-void alcoptGP_R(/* inputs */
-       int *gpi_in,
-       int *maxit_in,
-       int *verb_in,
-       double *start_in,
-       double *lower_in,
-       double *upper_in,
-       int *m_in,
-       double *Xref_in,
-       int *nref_in,
+void alcoptGP_R(
+  /* inputs */
+  int *gpi_in,
+  int *maxit_in,
+  int *verb_in,
+  double *start_in,
+  double *lower_in,
+  double *upper_in,
+  int *m_in,
+  double *Xref_in,
+  int *nref_in,
 
-       /* outputs */
-       double *par_out,
-       int *its_out,
-       char **msg_out,
-       int *conv_out)
+  /* outputs */
+  double *par_out,
+  double *val_out,
+  int *its_out,
+  char **msg_out,
+  int *conv_out)
 {
   GP *gp;
   unsigned int gpi;
@@ -2505,7 +2511,7 @@ void alcoptGP_R(/* inputs */
   Xref = new_matrix_bones(Xref_in, *nref_in, *m_in);
 
   /* call the ordinary C function */
-  alcoptGP(gp, start_in, lower_in, upper_in, Xref, *nref_in, *maxit_in, 
+  *val_out = alcoptGP(gp, start_in, lower_in, upper_in, Xref, *nref_in, *maxit_in, 
     *verb_in, par_out, its_out, *msg_out, conv_out, 1);
 }
 

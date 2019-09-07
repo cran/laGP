@@ -220,7 +220,7 @@ void distance_symm_R(double *X_in, int *n_in, int *m_in, double *D_out)
     for(j=i+1; j<n; j++) {
       D[i][j] = 0.0;
       for(k=0; k<m; k++) 
-	D[i][j] += sq(X[i][k] - X[j][k]);
+	      D[i][j] += sq(X[i][k] - X[j][k]);
       D[j][i] = D[i][j];
     }
   }

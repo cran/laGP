@@ -85,7 +85,7 @@ void alcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   double **Xref,  int verb, double *alc);
 void dalcGP(GP *gp, unsigned int ncand, double **Xcand, unsigned int nref,
   double **Xref,  int verb, double *alc, double **dalc, void *);
-void alcoptGP(GP* gp, double *start, double* lower, double *upper, double **Xref, 
+double alcoptGP(GP* gp, double *start, double* lower, double *upper, double **Xref, 
   const int nref,const unsigned int maxit, int verb, double *p, int *its, 
   char *msg, int *conv, int fromR);
 void ray_bounds(const unsigned int offset, const unsigned int nr, const unsigned int m, 
@@ -140,7 +140,7 @@ void alGP_R(int *m_in, double *XX_in, int *nn_in, int *fgpi_in, double *fnorm_in
 void getmGP_R(int *gpi_in, int *m_out);
 void alcoptGP_R(int *gpi_in, int *maxit_in, int *verb_in, double *start_in,
   double *lower_in, double *upper_in, int *m_in, double *Xref_in, int *nref_in,
-  double *par_out, int *its_out, char **msg_out, int *conv_out);
+  double *par_out, double *var_out, int *its_out, char **msg_out, int *conv_out);
 int lalcoptGP(GP *gp, double **Xcand, const unsigned int ncand, double **Xref,
   const unsigned int nref, const unsigned int offset, unsigned int numstart, 
   double **rect, int maxit, int verb, int fromR);

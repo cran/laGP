@@ -163,7 +163,7 @@ double Brent_fmin(double ax, double bx, double (*f)(double, void *),
 #endif
 
 
-void MYlbfgsb(int n, double *x, double *l, double *u, optimfn fn, 
+double MYlbfgsb(int n, double *x, double *l, double *u, optimfn fn, 
   optimgr gr, int *fail, void *ex, double pgtol, int *counts, int maxit, 
   char *msg, int trace, int fromR)
 {
@@ -190,4 +190,7 @@ void MYlbfgsb(int n, double *x, double *l, double *u, optimfn fn,
 #endif
   }
   free(nbd);
+
+  /* return the objective value */
+  return(val);
 }

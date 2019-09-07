@@ -277,8 +277,8 @@ B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
 
 ## optimization (primarily) by EI, change 25 to 100 for
 ## 99% chance of finding the global optimum with value 0.6
-library(akima) ## for plotprog=interp
-out <- optim.auglag(aimprob, B, end=25, plotprog=interp)
+## library(akima) ## for plotprog=interp below
+out <- optim.auglag(aimprob, B, end=25) ##, plotprog=interp)
 
 ## using the slack variable implementation which is a little slower
 ## but more precise; slack=2 augments random search with L-BFGS-B

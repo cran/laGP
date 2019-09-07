@@ -97,18 +97,18 @@ void dalcGPsep(GPsep *gpsep, unsigned int ncand, double **Xcand, unsigned int nr
   double **Xref,  int verb, double *alc, double **dalc, void *);
 void dalcGPsep_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in, 
   double *Xref_in, int *nref_in, int *verb_in, double *alc_out, double *dalc_out);
-void alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper, double **Xref, 
-              const int nref, const unsigned int maxit, int verb, double *p, int *its, 
-              char *msg, int *conv, int fromR);
+double alcoptGPsep(GPsep* gpsep, double *start, double* lower, double *upper, double **Xref, 
+  const int nref, const unsigned int maxit, int verb, double *p, int *its, 
+  char *msg, int *conv, int fromR);
 void alcoptGPsep_R(int *gpsepi_in, int *maxit_in, int *verb_in, double *start_in,
-                double *lower_in, double *upper_in, int *m_in, double *Xref_in, int *nref_in,
-                double *par_out, int *its_out, char **msg_out, int *conv_out);
+  double *lower_in, double *upper_in, int *m_in, double *Xref_in, int *nref_in,
+  double *par_out, double *var_out, int *its_out, char **msg_out, int *conv_out);
 int lalcoptGPsep(GPsep *gpsep, double **Xcand, const unsigned int ncand, double **Xref,
-                 const unsigned int nref, const unsigned int offset, unsigned int numstart, 
-                 double **rect, int maxit, int verb, int fromR);
+  const unsigned int nref, const unsigned int offset, unsigned int numstart, 
+  double **rect, int maxit, int verb, int fromR);
 void lalcoptGPsep_R(int *gpsepi_in, int *m_in, double *Xcand_in, int *ncand_in,
-                    double *Xref_in, int *nref_in, int *offset_in, int *numstart_in, double *rect_in,
-                    int *maxit_in, int *verb_in, int *w_out);
+  double *Xref_in, int *nref_in, int *offset_in, int *numstart_in, double *rect_in,
+  int *maxit_in, int *verb_in, int *w_out);
 #ifdef _OPENMP
 void alcGPsep_omp(GPsep *gpsep, unsigned int ncand, double **Xcand, 
   unsigned int nref, double **Xref,  int verb, double *alc);

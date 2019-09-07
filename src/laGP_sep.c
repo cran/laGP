@@ -90,6 +90,7 @@ void aGPsep_R(/* inputs */
   /* copy method */
   method = ALC; /* to guarantee initializaion */
   if(*imethod_in == 1) method = ALC;
+  else if(*imethod_in == 2) error("alcopt not supported for separable GPs at this time");
   else if(*imethod_in == 3) method = ALCRAY;
   else if(*imethod_in == 4) error("MSPE not supported for separable GPs at this time");
   else if(*imethod_in == 5) error("EFI not supported for separable GPs at this time");

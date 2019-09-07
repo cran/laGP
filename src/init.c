@@ -14,8 +14,8 @@ extern void alcGPsep_omp_R(void *, void *, void *, void *, void *, void *, void 
 extern void dalcGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void alcGP_R(void *, void *, void *, void *, void *, void *, void *, void *);
 extern void dalcGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *);
-extern void alcoptGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
-extern void alcoptGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void alcoptGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
+extern void alcoptGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void lalcoptGP_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void lalcoptGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *, void *);
 extern void alcGPsep_R(void *, void *, void *, void *, void *, void *, void *, void *);
@@ -85,8 +85,8 @@ static const R_CMethodDef CEntries[] = {
     {"dalcGP_R",         (DL_FUNC) &dalcGP_R,          9},
     {"lalcoptGP_R",      (DL_FUNC) &lalcoptGP_R,      12},
     {"lalcoptGPsep_R",   (DL_FUNC) &lalcoptGPsep_R,   12},
-    {"alcoptGP_R",       (DL_FUNC) &alcoptGP_R,       13},
-    {"alcoptGPsep_R",    (DL_FUNC) &alcoptGPsep_R,    13},
+    {"alcoptGP_R",       (DL_FUNC) &alcoptGP_R,       14},
+    {"alcoptGPsep_R",    (DL_FUNC) &alcoptGPsep_R,    14},
     {"alcGPsep_R",       (DL_FUNC) &alcGPsep_R,        8},
     {"dalcGPsep_R",      (DL_FUNC) &dalcGPsep_R,       9},
     {"alcrayGP_R",       (DL_FUNC) &alcrayGP_R,        9},

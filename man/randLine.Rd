@@ -39,7 +39,7 @@
   
   For a quick visualization, see Figure 15 in Sun, et al. (2017). Figure 7 
   in the same manuscript illustrates the application of this function in
-  out-of-sample prediction using \code{\link{laGP}}, in \code{2d} and \code{4d}, respectively.
+  out-of-sample prediction using \code{\link{laGPsep}}, in \code{2d} and \code{4d}, respectively.
   
   \code{randLine} returns different types of random paths and the indices of
   the randomly selected pair, i.e., subset, of input coordinates (when \code{D > 2}).
@@ -57,9 +57,11 @@
 }
 
 \references{
-  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2017)
-  \emph{Emulating satellite drag from large simulation experiments};
-  preprint on arXiv:1712.00182. \url{http://arxiv.org/abs/1712.00182}
+  F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2019).
+  \emph{Emulating satellite drag from large simulation experiments},
+  SIAM/ASA Journal on Uncertainty Quantification, 7(2), pp. 720-759;
+  preprint on arXiv:1712.00182;
+  \url{http://arxiv.org/abs/1712.00182}
 }
 
 \author{
@@ -74,7 +76,7 @@
 }
 
 \seealso{
-  \code{\link{laGP}}, \code{\link{laGPsep}}
+  \code{\link{laGPsep}}, \code{\link{aGPsep}}
 }
 
 \examples{
@@ -94,10 +96,12 @@ d <- line.set$d
 ## visualization
 
 ## first create an empty plot
+par(mar=c(5, 4, 6, 2) + 0.1)
 plot(0, xlim=a, ylim=a, type="l", xlab=paste("factor ", d[1], sep=""), 
-     ylab=paste("factor ", d[2], sep=""), main="2d random paths")
+     ylab=paste("factor ", d[2], sep=""), main="2d random paths", 
+     cex.lab=1.5, cex.main=2)
 abline(h=(a[1]+a[2])/2, v=(a[1]+a[2])/2, lty=2)
-  
+
 ## merge each path type together
 W <- unlist(list(line.set$lin, line.set$qua, line.set$cub, line.set$ep, line.set$ln), 
   recursive=FALSE)
@@ -105,15 +109,20 @@ W <- unlist(list(line.set$lin, line.set$qua, line.set$cub, line.set$ep, line.set
 ## calculate colors to retain 
 n <- unlist(lapply(line.set, length)[-6])
 cols <- rep(c("orange", "blue", "forestgreen", "magenta", "cornflowerblue"), n)
-  
-#* plot randomly generated paths with a centering dot in red at the midway point
+
+## plot randomly generated paths with a centering dot in red at the midway point
 for(i in 1:N){
   lines(W[[i]][,1], W[[i]][,2], col=cols[i])
   points(W[[i]][res/2,1], W[[i]][res/2,2], col=2, pch=20)
 }
-  
+
+## add legend
+legend("top", legend=c("lin", "qua", "cub", "exp", "log"), cex=1.5, bty="n",
+       xpd=TRUE, horiz=TRUE, inset=c(0, -0.085), lty=rep(1, 5), lwd=rep(1, 5),
+       col=c("orange", "blue", "forestgreen", "magenta", "cornflowerblue"))
+
 ## 2. use the random paths for out-of-sample prediction via laGPsep
-  
+
 ## test function (same 2d function as in other examples package)
 ## (ignoring 4d nature of path generation above)
 f2d <- function(x, y=NULL){

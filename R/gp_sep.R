@@ -334,6 +334,15 @@ mleGPsep <- function(gpsepi, param=c("d", "g", "both"),
       else if(length(tmin) != m+1) stop("length(tmin) should be 2 or m+1")
       if(length(ab) != 4 || any(ab < 0)) stop("ab should be a positive 4-vector")
 
+      ## possibly reset params
+      theta <- c(getdGPsep(gpsepi), getgGPsep(gpsepi))
+      if(any(theta <= tmin)) {
+        tmax[tmax < 0] <- sqrt(m)
+        theta.new <- 0.9*max(tmin, 0) + 0.1*tmax
+        newparamsGPsep(gpsepi, theta.new[1:m], theta.new[m+1])
+        return(list(theta=theta.new, its=0, msg="reset due to init on lower boundary", conv=102))
+      }
+
       out <- .C("mleGPsep_both_R",
                 gpsepi = as.integer(gpsepi),
                 maxit = as.integer(maxit),
@@ -361,6 +370,15 @@ mleGPsep <- function(gpsepi, param=c("d", "g", "both"),
       else if(length(tmin) != m) stop("length(tmin) should be 1 or m")
       if(length(ab) == 4 && all(ab == 0)) ab <- ab[1:2]
       if(length(ab) != 2 || any(ab < 0)) stop("ab should be a positive 2-vector")   
+
+      ## possibly reset params
+      theta <- getdGPsep(gpsepi)
+      if(any(theta <= tmin)) {
+        tmax[tmax < 0] <- sqrt(m)
+        theta.new <- 0.9*tmin + 0.1*tmax
+        newparamsGPsep(gpsepi, theta.new, -1)
+        return(list(d=theta.new, its=0, msg="reset due to init on lower boundary", conv=102))
+      }
 
       out <- .C("mleGPsep_R",
                 gpsepi = as.integer(gpsepi),
@@ -487,7 +505,8 @@ jmleGPsep <- function(gpsepi, drange=c(sqrt(.Machine$double.eps), 10),
             g = double(1),
             dits = integer(1),
             gits = integer(1),
-            dconv = integer(1))
+            dconv = integer(1),
+	    PACKAGE = "laGP")
 
     return(data.frame(d=t(r$d), g=r$g, tot.its=r$dits+r$gits,
                       dits=r$dits, gits=r$gits, dconv=r$dconv))
@@ -515,7 +534,8 @@ predGPsep <- function(gpsepi, XX, lite=FALSE, nonug=FALSE)
                 mean = double(nn),
                 s2 = double(nn),
                 df = double(1),
-                llik = double(1))
+                llik = double(1),
+		PACKAGE = "laGP")
       
       ## coerce matrix output
       return(list(mean=out$mean, s2=out$s2, df=out$df, llik=out$llik))
@@ -532,7 +552,8 @@ predGPsep <- function(gpsepi, XX, lite=FALSE, nonug=FALSE)
                 mean = double(nn),
                 Sigma = double(nn*nn),
                 df = double(1),
-                llik = double(1))
+                llik = double(1),
+		PACKAGE = "laGP")
       
       ## coerce matrix output
       Sigma <- matrix(out$Sigma, ncol=nn)
@@ -780,13 +801,14 @@ alcoptGPsep <- function(gpsepi, Xref, start, lower, upper, maxit=100, verb=0)
             Xref = as.double(t(Xref)),
             nref = as.integer(nrow(Xref)),
             par = double(m),
+            value = double(1),
             counts = integer(2),
             msg = paste(rep(0,60), collapse=""),
             convergence = integer(1),              
             PACKAGE = "laGP")
   
   ## for now return the whole optim output
-  return(list(par=out$par, its=out$counts, msg=out$msg, convergence=out$convergence))
+  return(list(par=out$par, value=out$value, its=out$counts, msg=out$msg, convergence=out$convergence))
 }
 
 ## alcoptGPsep.R:

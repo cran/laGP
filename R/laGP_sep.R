@@ -457,7 +457,7 @@ aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
     ## numerify method
     method <- match.arg(method)
     if(method == "alc") imethod <- 1
-    else if(method == "alcray") imethod <- 2
+    else if(method == "alcray") imethod <- 3
     else imethod <- 6
 
     ## calculate rectangle if using alcray
@@ -473,7 +473,7 @@ aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
     if(!(is.logical(Xi.ret) && length(Xi.ret) == 1))
       stop("Xi.ret not a scalar logical")
 
-        ## get d and g arguments
+    ## get d and g arguments
     d <- darg(d, X)
     dd <- c(d$mle, rep(d$min, m), rep(d$max, m), d$ab)
     g <- garg(g, Z)
@@ -484,7 +484,7 @@ aGPsep <- function(X, Z, XX, start=6, end=50, d=NULL, g=1/10000,
     if(length(d$start) == 1) 
       d$start <- matrix(rep(d$start, m), ncol=m, nrow=nn, byrow=TRUE)
     else if(length(d$start) == m) 
-      d$start <- matrix(d$start, nrow=nn, byrow=TRUE)
+      d$start <- matrix(rep(d$start, nn), ncol=m, byrow=TRUE)
     else if(nrow(d$start) != nn || ncol(d$start) != m)
       stop("d$start must be a scalar, or a vector of length ncol(X), or an nrow(XX) x ncol(X) matrix")
     ## check gstart
