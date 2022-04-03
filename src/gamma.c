@@ -24,7 +24,9 @@
 
 
 #include "gamma.h"
+#ifdef RPRINT
 #include <Rmath.h>
+#endif
 #include <assert.h>
 
 /*

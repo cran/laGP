@@ -30,6 +30,10 @@
 #include "covar.h"
 #include "order.h"
 #include <assert.h>
+#include <stdlib.h>
+#ifdef RPRINT
+#include <Rmath.h>
+#endif
 #ifdef _GPU
   #include "alc_gpu.h"
 #endif
@@ -268,9 +272,9 @@ void aGP_R(/* inputs */
 /*
  * closest_indices:
  *
- * returns the close indices into X which are closest (on average) to the
- * element(s) of Xref.  The first start of those indices are the start 
- * closest, otherwise the indices unordered (unless sorted=true).  
+ * returns the close indices into X which are closest (via min for nref 
+ * > 1) to the element(s) of Xref.  The first start of those indices are 
+ * the start closest, otherwise the indices unordered (unless sorted=true).  
  * Even when sorted=true the indices close+1, ... are not sorted.
  */
 

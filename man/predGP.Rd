@@ -54,7 +54,7 @@ is the standard approach, but the former may work better in some sequential desi
   The output is a \code{list} with the following components.
   
   \item{mean }{a vector of predictive means of length \code{nrow(Xref)}}
-  \item{Sigma}{ covariance matrix of
+  \item{Sigma}{ covariance matrix 
     for a multivariate Student-t distribution; alternately
      if \code{lite = TRUE},
     then a field \code{s2} contains the diagonal of this matrix}
@@ -63,7 +63,12 @@ is the standard approach, but the former may work better in some sequential desi
 }
 \references{
   For standard GP prediction, refer to any graduate text, e.g., Rasmussen
-  & Williams \emph{Gaussian Processes for Machine Learning}
+  & Williams \emph{Gaussian Processes for Machine Learning}, or
+
+  Gramacy, R. B. (2020) \emph{Surrogates: Gaussian Process Modeling,
+  Design and Optimization for the Applied Sciences}. Boca Raton,
+  Florida: Chapman Hall/CRC.  (See Chapter 5.)
+  \url{https://bobby.gramacy.com/surrogates/}
 }
 \author{
     Robert B. Gramacy \email{rbg@vt.edu}

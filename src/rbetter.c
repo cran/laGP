@@ -24,6 +24,7 @@
 
 #include "matrix.h"
 #include "rhelp.h"
+#include <stdlib.h>
 #ifdef RPRINT
 #include <R.h>
 #include <Rmath.h>

@@ -53,7 +53,8 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
     for \code{mleGP}, smallest value considered for the parameter (\code{param})
   }
 \item{tmax}{
-      for \code{mleGP}, largest value considered for the parameter (\code{param})
+      for \code{mleGP}, largest value considered for the parameter (\code{param}); a setting of \code{-1} for lengthscales, the default, causes
+      \code{ncol(X)^2} to be used
     }
 \item{drange}{ for \code{jmleGP}, these are \code{c(tmin, tmax)}
     values for the lengthscale parameter; the default values are
@@ -162,7 +163,12 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
 }
 \references{
   For standard GP inference, refer to any graduate text, e.g., Rasmussen
-  & Williams \emph{Gaussian Processes for Machine Learning};
+  & Williams \emph{Gaussian Processes for Machine Learning}, or
+
+  Gramacy, R. B. (2020) \emph{Surrogates: Gaussian Process Modeling,
+  Design and Optimization for the Applied Sciences}. Boca Raton,
+  Florida: Chapman Hall/CRC.  (See Chapter 5.)
+  \url{https://bobby.gramacy.com/surrogates/}
 }
 \author{
     Robert B. Gramacy \email{rbg@vt.edu}
@@ -243,7 +249,7 @@ deleteGPsep(gpisep)
 
 ## alternatively, we can optimize via a combined gradient
 gpisep <- newGPsep(X, Y, d=rep(d$start, 2), g=g$start, dK=TRUE)
-mleGPsep(gpisep, param="both", tmin=c(d$min, g$min), tmax=c(d$max, d$max))
+mleGPsep(gpisep, param="both", tmin=c(d$min, g$min), tmax=c(d$max, g$max))
 deleteGPsep(gpisep)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

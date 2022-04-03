@@ -506,7 +506,7 @@ jmleGPsep <- function(gpsepi, drange=c(sqrt(.Machine$double.eps), 10),
             dits = integer(1),
             gits = integer(1),
             dconv = integer(1),
-	    PACKAGE = "laGP")
+	          PACKAGE = "laGP")
 
     return(data.frame(d=t(r$d), g=r$g, tot.its=r$dits+r$gits,
                       dits=r$dits, gits=r$gits, dconv=r$dconv))
@@ -522,6 +522,7 @@ jmleGPsep <- function(gpsepi, drange=c(sqrt(.Machine$double.eps), 10),
 predGPsep <- function(gpsepi, XX, lite=FALSE, nonug=FALSE)
   {
     nn <- nrow(XX)
+    if(is.null(nn) || nn == 0) stop("XX bad dims")
 
     if(lite) {  ## lite means does not compute full Sigma, only diag
       out <- .C("predGPsep_R",
@@ -535,7 +536,7 @@ predGPsep <- function(gpsepi, XX, lite=FALSE, nonug=FALSE)
                 s2 = double(nn),
                 df = double(1),
                 llik = double(1),
-		PACKAGE = "laGP")
+		            PACKAGE = "laGP")
       
       ## coerce matrix output
       return(list(mean=out$mean, s2=out$s2, df=out$df, llik=out$llik))
@@ -553,7 +554,7 @@ predGPsep <- function(gpsepi, XX, lite=FALSE, nonug=FALSE)
                 Sigma = double(nn*nn),
                 df = double(1),
                 llik = double(1),
-		PACKAGE = "laGP")
+		            PACKAGE = "laGP")
       
       ## coerce matrix output
       Sigma <- matrix(out$Sigma, ncol=nn)

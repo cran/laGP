@@ -30,7 +30,8 @@
 blhs <- function(y, X, m)
   {
     if(length(y) != nrow(X)) stop("dimension mismatch")
-    if(m <= 0) stop("m must be positive.")
+    if(m <= 0) stop("m must be positive")
+    if(m > nrow(X)^(1/(ncol(X)-1))) stop("must have <= N^[1/(d-1]")
     D <- as.data.frame(cbind(y, X))  
     d <- ncol(D)          
     k <- d - 1    ## dimensionality of input space        
@@ -63,7 +64,7 @@ blhs <- function(y, X, m)
     ysub <- D[D$Global_block %in% sub, 1]    
     Xsub <- D[D$Global_block %in% sub, 2:d]  
     return(list(xs = Xsub, ys = ysub))
-}
+  }
 
 
 ## blhs.loop:
@@ -108,4 +109,4 @@ blhs.loop <- function(y, X, m, K, da, g = 1e-3, maxit = 100, verb = 0, plot.it =
     }
     
     return(list(that = theta.hat_median, ly = ly_median, xm = X_median, ym = y_median))  
-}
+  }

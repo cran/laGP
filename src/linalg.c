@@ -33,6 +33,25 @@ char uplo = 'U';
 #endif
 /* #define DEBUG */
 
+/* moved from header file */
+#ifdef FORTPACK
+  #include <R_ext/Lapack.h>
+  #define dpotrf dpotrf_
+  #define dtrsv dtrsv_
+  #define dposv dposv_
+  #define dgesv dgesv_
+#endif
+#ifdef FORTBLAS
+  #include <R_ext/BLAS.h>
+  #define dgemm dgemm_
+  #define dsymm dsymm_
+  #define dgemv dgemv_
+  #define dsymv dsymv_
+  #define ddot ddot_
+  #define daxpy daxpy_
+  #define dtrsv dtrsv_
+#endif
+
 /*
  * linalg_dtrsv:
  *
@@ -50,7 +69,7 @@ double *Y;
 	char ta;
 	char diag = 'N';
 	if(TA == CblasTrans) ta = 'T'; else ta = 'N';
-	dtrsv(&uplo, &ta, &diag, &n, *A, &lda, Y, &ldy);
+	dtrsv(&uplo, &ta, &diag, &n, *A, &lda, Y, &ldy FCONE FCONE FCONE);
 	#else
 	cblas_dtrsv(CblasRowMajor,CblasLower,TA,CblasNonUnit,
     	/*cblas_dtrsv(CblasColMajor,CblasUpper,CblasNoTrans,CblasNonUnit,*/
@@ -72,9 +91,7 @@ double *X, *Y;
   double result;
 
 #ifdef FORTBLAS
-  size_t n64,ldx64,ldy64;
-  n64 = n; ldx64 = ldx; ldy64=ldy;
-  result = ddot(&n64,X,&ldx64,Y,&ldy64);
+  result = ddot(&n,X,&ldx,Y,&ldy);
 #else
   result = cblas_ddot(n, X, ldx, Y, ldy);
 #endif
@@ -94,10 +111,7 @@ double alpha;
 double *X, *Y;
 {
 #ifdef FORTBLAS
-  size_t n64, ldx64, ldy64;
-  n64 = n; ldx64 = ldx; ldy64 = ldy;
-  /* daxpy(&n,&alpha,X,&ldx,Y,&ldy); */
-  daxpy(&n64,&alpha,X,&ldx64,Y,&ldy64);
+  daxpy(&n,&alpha,X,&ldx,Y,&ldy);
 #else
   cblas_daxpy(n, alpha, X, ldx, Y, ldy);
 #endif
@@ -118,13 +132,10 @@ double alpha, beta;
 double **A, **B, **C;
 {
 #ifdef FORTBLAS
-  size_t m64, n64, k64, lda64, ldb64, ldc64;
   char ta, tb;
-  m64 = m; n64 = n; k64 = k; lda64 = lda; ldb64 = ldb; ldc64 = ldc;
   if(TA == CblasTrans) ta = 'T'; else ta = 'N';
   if(TB == CblasTrans) tb = 'T'; else tb = 'N';
-  /* dgemm(&ta,&tb,&m,&n,&k,&alpha,*A,&lda,*B,&ldb,&beta,*C,&ldc); */
-  dgemm(&ta,&tb,&m64,&n64,&k64,&alpha,*A,&lda64,*B,&ldb64,&beta,*C,&ldc64);
+  dgemm(&ta,&tb,&m,&n,&k,&alpha,*A,&lda,*B,&ldb,&beta,*C,&ldc FCONE FCONE);
 #else
   cblas_dgemm(CblasColMajor,TA,TB,m,n,k,alpha,*A,lda,*B,ldb,beta,*C,ldc);
 #endif
@@ -146,12 +157,9 @@ double **A;
 double *X, *Y;
 {
 #ifdef FORTBLAS
-  size_t m64, n64, lda64, ldx64, ldy64;
   char ta;
-  m64 = m; n64 = n, lda64 = lda; ldx64 = ldx; ldy64 = ldy;
   if(TA == CblasTrans) ta = 'T'; else ta = 'N';
-  /* dgemv(&ta,&m,&n,&alpha,*A,&lda,X,&ldx,&beta,Y,&ldy); */
-  dgemv(&ta,&m64,&n64,&alpha,*A,&lda64,X,&ldx64,&beta,Y,&ldy64);
+  dgemv(&ta,&m,&n,&alpha,*A,&lda,X,&ldx,&beta,Y,&ldy FCONE);
 #else
   cblas_dgemv(CblasColMajor,TA,m,n,alpha,*A,lda,X,ldx,beta,Y,ldy);
 #endif
@@ -173,12 +181,9 @@ double alpha, beta;
 double **A, **B, **C;
 {
 #ifdef FORTBLAS
-  size_t m64, n64, lda64, ldb64, ldc64;
   char side;
-  m64 = m; n64 = n; lda64 = lda; ldb64 = ldb; ldc64 = ldc;
   if(SIDE == CblasRight) side = 'R'; else side = 'L';
-  /* dsymm(&side,&uplo,&m,&n,&alpha,*A,&lda,*B,&ldb,&beta,*C,&ldc); */
-  dsymm(&side,&uplo,&m64,&n64,&alpha,*A,&lda64,*B,&ldb64,&beta,*C,&ldc64);
+  dsymm(&side,&uplo,&m,&n,&alpha,*A,&lda,*B,&ldb,&beta,*C,&ldc FCONE FCONE);
 #else
   cblas_dsymm(CblasColMajor,SIDE,CblasUpper,m,n,alpha,*A,lda,*B,ldb,beta,*C,ldc);
 #endif
@@ -200,10 +205,7 @@ double **A;
 double *X, *Y;
 {
 #ifdef FORTBLAS
-  size_t n64, lda64, ldy64, ldx64;
-  n64 = n; lda64 = lda; ldx64 = ldx; ldy64 = ldy;
-  /* dsymv(&uplo,&n,&alpha,*A,&lda,X,&ldx,&beta,Y,&ldy); */
-  dsymv(&uplo,&n64,&alpha,*A,&lda64,X,&ldx64,&beta,Y,&ldy64);
+  dsymv(&uplo,&n,&alpha,*A,&lda,X,&ldx,&beta,Y,&ldy FCONE);
 #else
   cblas_dsymv(CblasColMajor,CblasUpper,n,alpha,*A,lda,X,ldx,beta,Y,ldy);
 #endif
@@ -221,13 +223,11 @@ int linalg_dposv(n, Mutil, Mi)
 int n;
 double **Mutil, **Mi;
 {
-  long info;
+  int info;
 	
   /* then use LAPACK */
 #ifdef FORTPACK
-  size_t n64;
-  n64 = n;
-  dposv(&uplo,&n64,&n64,*Mutil,&n64,*Mi,&n64,&info);
+  dposv(&uplo,&n,&n,*Mutil,&n,*Mi,&n,&info FCONE);
 #else
   /*info = clapack_dposv(CblasColMajor,CblasUpper,n,n,*Mutil,n,*Mi,n);*/
   info = clapack_dposv(CblasRowMajor,CblasLower,n,n,*Mutil,n,*Mi,n);
@@ -288,12 +288,10 @@ int linalg_dpotrf(n, var)
 int n;
 double **var;
 {
-  long info;
+  int info;
 
 #ifdef FORTPACK
-  size_t n64;
-  n64 = n;
-  dpotrf(&uplo,&n64,*var,&n64,&info); 
+  dpotrf(&uplo,&n,*var,&n,&info FCONE); 
 #else
   info = clapack_dpotrf(CblasRowMajor,CblasLower,n,*var,n);
   /*info = clapack_dpotrf(CblasColMajor,CblasUpper,n,*var,n);*/

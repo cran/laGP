@@ -35,10 +35,9 @@
 #ifdef RPRINT
 #include <R.h>
 #include <Rmath.h>
-#else 
-#include <math.h>
 #endif
 
+#define SDEPS sqrt(DBL_EPSILON)
 
 #ifdef RPRINT
 /*

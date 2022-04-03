@@ -10,7 +10,7 @@
 #ifndef RPRINT
 void warning(const char *str, ...);
 void error(const char *str, ...);
-#define DOUBLE_EPS 2.220446e-16
+/* #define DOUBLE_EPS 2.220446e-16 */
 #define M_LN_SQRT_2PI   0.918938533204672741780329736406  
 #include <stdio.h>
 #define MYstdout stdout

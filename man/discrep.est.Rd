@@ -102,16 +102,21 @@ required
 }
 
 \references{
+  Gramacy, R. B. (2020) \emph{Surrogates: Gaussian Process Modeling,
+  Design and Optimization for the Applied Sciences}. Boca Raton,
+  Florida: Chapman Hall/CRC.  (See Chapter 8.)
+  \url{https://bobby.gramacy.com/surrogates/}
 
   R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
   Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
-  Software, 72(1), 1-46; or see \code{vignette("laGP")}
+  Software, 72(1), 1-46; \doi{10.18637/jss.v072.i01} 
+  or see \code{vignette("laGP")}
 
   R.B. Gramacy, D. Bingham, JP. Holloway, M.J. Grosskopf, C.C. Kuranz, E. Rutter, 
   M. Trantham, P.R. Drake (2015). \emph{Calibrating a large computer 
   experiment simulating radiative shock hydrodynamics.}  
   Annals of Applied Statistics, 9(3) 1141-1168; preprint on arXiv:1410.3293 
-  \url{http://arxiv.org/abs/1410.3293}
+  \url{https://arxiv.org/abs/1410.3293}
 
   F. Liu, M. Bayarri and J. Berger (2009). 
   \emph{Modularization in Bayesian analysis, with emphasis on analysis of computer 

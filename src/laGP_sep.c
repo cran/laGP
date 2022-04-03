@@ -31,6 +31,10 @@
 #include "covar.h"
 #include "order.h"
 #include <assert.h>
+#include <stdlib.h>
+#ifdef RPRINT
+#include <Rmath.h>
+#endif
 #ifdef _OPENMP
   #include <omp.h>
 #endif

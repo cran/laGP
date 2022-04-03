@@ -11,7 +11,7 @@ export(aGP, aGP.R, aGP.parallel, laGP, laGP.R, newGP, updateGP, predGP, mleGP,
        alcoptGPsep, alcrayGPsep, dalcGPsep, ieciGPsep, deleteGPsep, 
        deleteGPseps, updateGPsep, aGP.seq, discrep.est, fcalib)
 
-# Only import certain functions from Imports list for tgp and parallel
+# Only import certain functions from Imports list for tgp and akima
 importFrom(parallel, clusterEvalQ)
 importFrom(parallel, clusterApply)
 importFrom(tgp, dopt.gp)

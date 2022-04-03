@@ -33,7 +33,10 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
+#ifdef RPRINT
+#include <R.h>
 #include <Rmath.h>
+#endif
 #ifdef _GPU
   #include "alc_gpu.h"
 #endif
@@ -41,6 +44,7 @@
   #include <omp.h>
 #endif
 
+#define SDEPS sqrt(DBL_EPSILON)
 
 /*
  * Global variables used to accumulate data on the C-side

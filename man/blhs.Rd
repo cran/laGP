@@ -83,11 +83,16 @@
 }
 
 \references{
+  Gramacy, R. B. (2020) \emph{Surrogates: Gaussian Process Modeling,
+  Design and Optimization for the Applied Sciences}. Boca Raton,
+  Florida: Chapman Hall/CRC.  (See Chapter 9.)
+  \url{https://bobby.gramacy.com/surrogates/}
+
   F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2019).
   \emph{Emulating satellite drag from large simulation experiments},
   SIAM/ASA Journal on Uncertainty Quantification, 7(2), pp. 720-759;
   preprint on arXiv:1712.00182;
-  \url{http://arxiv.org/abs/1712.00182}
+  \url{https://arxiv.org/abs/1712.00182}
   
   Y. Zhao, Y. Hung, and Y. Amemiya (2017).
   \emph{Efficient Gaussian Process Modeling using Experimental Design-Based Subagging},
@@ -96,7 +101,7 @@
   Yufan Liu (2014)
   \emph{Recent Advances in Computer Experiment Modeling}.
   Ph.D. Thesis at Rutgers, The State University of New Jersey.
-  \url{http://dx.doi.org/doi:10.7282/T38G8J1H}
+  \url{https://dx.doi.org/doi:10.7282/T38G8J1H}
 }
 
 \author{

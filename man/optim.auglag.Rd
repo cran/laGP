@@ -203,17 +203,21 @@ loop} AL iteration }
 \item{rho }{ a vector of \code{rho} values used in each \dQuote{outer loop} AL iteration }
 }
 \references{
+Gramacy, R. B. (2020) \emph{Surrogates: Gaussian Process Modeling,
+Design and Optimization for the Applied Sciences}. Boca Raton,
+Florida: Chapman Hall/CRC.  (See Chapter 7.)
+\url{https://bobby.gramacy.com/surrogates/}
 
 Picheny, V., Gramacy, R.B., Wild, S.M., Le Digabel, S. (2016). 
 \dQuote{Bayesian optimization under mixed constraints
 with a slack-variable augmented Lagrangian}. Preprint available on arXiv:1605.09466;
-\url{http://arxiv.org/abs/1605.09466}
+\url{https://arxiv.org/abs/1605.09466}
 
 Gramacy, R.B, Gray, G.A, Lee, H.K.H, Le Digabel, S., Ranjan P., Wells, G., Wild, S.M. (2016)
 \dQuote{Modeling an Augmented Lagrangian for Improved
   Blackbox Constrained Optimization}, \emph{Technometrics} (with discussion), 
   58(1), 1-11. Preprint available on arXiv:1403.4890;
-  \url{http://arxiv.org/abs/1403.4890}
+  \url{https://arxiv.org/abs/1403.4890}
 
 Jones, D., Schonlau, M., and Welch, W. J. (1998). 
 \dQuote{Efficient Global Optimization of Expensive Black Box Functions.} 
@@ -277,8 +281,8 @@ B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
 
 ## optimization (primarily) by EI, change 25 to 100 for
 ## 99% chance of finding the global optimum with value 0.6
-## library(akima) ## for plotprog=interp below
-out <- optim.auglag(aimprob, B, end=25) ##, plotprog=interp)
+library(akima) ## for plotprog=interp
+out <- optim.auglag(aimprob, B, end=25, plotprog=interp)
 
 ## using the slack variable implementation which is a little slower
 ## but more precise; slack=2 augments random search with L-BFGS-B

@@ -31,7 +31,10 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
+#ifdef RPRINT
+#include <R.h>
 #include <Rmath.h>
+#endif
 #include "covar_sep.h"
 #include "ieci.h"
 #include "gp.h"
@@ -39,8 +42,7 @@
   #include <omp.h>
 #endif
 
-
-#define SDEPS sqrt(DOUBLE_EPS)
+#define SDEPS sqrt(DBL_EPSILON)
 
 /*
  * Global variables used to accumulate data on the C-side

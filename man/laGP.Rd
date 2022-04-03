@@ -232,34 +232,39 @@ The output is a \code{list} with the following components.
 }
 
 \references{
+  Gramacy, R. B. (2020) \emph{Surrogates: Gaussian Process Modeling,
+  Design and Optimization for the Applied Sciences}. Boca Raton,
+  Florida: Chapman Hall/CRC.  (See Chapter 9.)
+  \url{https://bobby.gramacy.com/surrogates/}
 
   F. Sun, R.B. Gramacy, B. Haaland, E. Lawrence, and A. Walker (2019).
   \emph{Emulating satellite drag from large simulation experiments},
   SIAM/ASA Journal on Uncertainty Quantification, 7(2), pp. 720-759;
   preprint on arXiv:1712.00182;
-  \url{http://arxiv.org/abs/1712.00182}
+  \url{https://arxiv.org/abs/1712.00182}
 
   R.B. Gramacy (2016). \emph{\pkg{laGP}: Large-Scale Spatial Modeling via 
   Local Approximate Gaussian Processes in \R.}, Journal of Statistical 
-  Software, 72(1), 1-46; or see \code{vignette("laGP")}
+  Software, 72(1), 1-46; \doi{10.18637/jss.v072.i01} 
+  or see \code{vignette("laGP")}
   
   R.B. Gramacy and B. Haaland (2016).
   \emph{Speeding up neighborhood search in local Gaussian process prediction.}
   Technometrics, 58(3), pp. 294-303;
   preprint on arXiv:1409.0074 
-  \url{http://arxiv.org/abs/1409.0074}
+  \url{https://arxiv.org/abs/1409.0074}
 
   R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
     experiments.} Journal of Computational and Graphical Statistics, 
   24(2), pp. 561-678; preprint on arXiv:1303.0383;
-  \url{http://arxiv.org/abs/1303.0383}
+  \url{https://arxiv.org/abs/1303.0383}
 
   R.B. Gramacy, J. Niemi, R.M. Weiss (2014).
   \emph{Massively parallel approximate Gaussian process regression.}
   SIAM/ASA Journal on Uncertainty Quantification, 2(1), pp. 568-584;
   preprint on arXiv:1310.5182;
-  \url{http://arxiv.org/abs/1310.5182}
+  \url{https://arxiv.org/abs/1310.5182}
 
 }
 

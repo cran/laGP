@@ -25,6 +25,9 @@
 #include "order.h"
 #include "rhelp.h"
 #include <stdlib.h>
+#ifdef RPRINT
+#include <Rmath.h>
+#endif
 
 
 /*

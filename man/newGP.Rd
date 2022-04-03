@@ -76,15 +76,20 @@ updateGPsep(gpsepi, X, Z, verb = 0)
   modified C-side object as a side effect }
 \references{
   For standard GP inference, refer to any graduate text, e.g., Rasmussen
-  & Williams \emph{Gaussian Processes for Machine Learning}. \cr
+  & Williams \emph{Gaussian Processes for Machine Learning}, or
 
-  For efficient updates of GPs, see: \cr
+  Gramacy, R. B. (2020) \emph{Surrogates: Gaussian Process Modeling,
+  Design and Optimization for the Applied Sciences}. Boca Raton,
+  Florida: Chapman Hall/CRC.  (See Chapter 6.)
+  \url{https://bobby.gramacy.com/surrogates/}
+
+  For efficient updates of GPs, see: 
   
   R.B. Gramacy and D.W. Apley (2015).
   \emph{Local Gaussian process approximation for large computer
     experiments.} Journal of Computational and Graphical Statistics, 
   24(2), pp. 561-678; preprint on arXiv:1303.0383;
-  \url{http://arxiv.org/abs/1303.0383}
+  \url{https://arxiv.org/abs/1303.0383}
 }
 \author{
   Robert B. Gramacy \email{rbg@vt.edu}

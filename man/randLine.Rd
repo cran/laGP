@@ -61,7 +61,7 @@
   \emph{Emulating satellite drag from large simulation experiments},
   SIAM/ASA Journal on Uncertainty Quantification, 7(2), pp. 720-759;
   preprint on arXiv:1712.00182;
-  \url{http://arxiv.org/abs/1712.00182}
+  \url{https://arxiv.org/abs/1712.00182}
 }
 
 \author{

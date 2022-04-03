@@ -358,6 +358,7 @@ updateGP <- function(gpi, X, Z, verb=0)
 predGP <- function(gpi, XX, lite=FALSE, nonug=FALSE)
   {
     nn <- nrow(XX)
+    if(is.null(nn) || nn == 0) stop("XX bad dims")
 
     if(lite) {
       out <- .C("predGP_R",

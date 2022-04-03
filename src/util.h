@@ -25,8 +25,6 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
-#define SDEPS sqrt(DOUBLE_EPS)
-
 double log_determinant_chol(double **M, const unsigned int n);
 #ifdef BRENT_FROM_R
 extern double Brent_fmin(double ax, double bx, 
