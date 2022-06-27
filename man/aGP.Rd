@@ -405,42 +405,43 @@ out2r <- aGP(X, Z, XX, method="alcray", d=out$mle$d, verb=0)
 sqrt(mean((out2r$mean - ZZ)^2))
 
 ## a simple example with estimated nugget
-library(MASS)
+if(require("MASS")) {
 
-## motorcycle data and predictive locations
-X <- matrix(mcycle[,1], ncol=1)
-Z <- mcycle[,2]
-XX <- matrix(seq(min(X), max(X), length=100), ncol=1)
+  ## motorcycle data and predictive locations
+  X <- matrix(mcycle[,1], ncol=1)
+  Z <- mcycle[,2]
+  XX <- matrix(seq(min(X), max(X), length=100), ncol=1)
 
-## first stage
-out <- aGP(X=X, Z=Z, XX=XX, end=30, g=list(mle=TRUE), verb=0) 
+  ## first stage
+  out <- aGP(X=X, Z=Z, XX=XX, end=30, g=list(mle=TRUE), verb=0) 
+  
+  ## plot smoothed versions of the estimated parameters
+  par(mfrow=c(2,1))
+  df <- data.frame(y=log(out$mle$d), XX)
+  lo <- loess(y~., data=df, span=0.25)
+  plot(XX, log(out$mle$d), type="l")
+  lines(XX, lo$fitted, col=2)
+  dfnug <- data.frame(y=log(out$mle$g), XX)
+  lonug <- loess(y~., data=dfnug, span=0.25)
+  plot(XX, log(out$mle$g), type="l")
+  lines(XX, lonug$fitted, col=2)
 
-## plot smoothed versions of the estimated parameters
-par(mfrow=c(2,1))
-df <- data.frame(y=log(out$mle$d), XX)
-lo <- loess(y~., data=df, span=0.25)
-plot(XX, log(out$mle$d), type="l")
-lines(XX, lo$fitted, col=2)
-dfnug <- data.frame(y=log(out$mle$g), XX)
-lonug <- loess(y~., data=dfnug, span=0.25)
-plot(XX, log(out$mle$g), type="l")
-lines(XX, lonug$fitted, col=2)
-
-## second stage design
-out2 <- aGP(X=X, Z=Z, XX=XX, end=30, verb=0,
-		d=list(start=exp(lo$fitted), mle=FALSE),
-		g=list(start=exp(lonug$fitted)))
-
-## plot the estimated surface
-par(mfrow=c(1,1))
-plot(X,Z)
-df <- 20
-s2 <- out2$var*(df-2)/df
-q1 <- qt(0.05, df)*sqrt(s2) + out2$mean
-q2 <- qt(0.95, df)*sqrt(s2) + out2$mean
-lines(XX, out2$mean)
-lines(XX, q1, col=1, lty=2)
-lines(XX, q2, col=1, lty=2)
+  ## second stage design
+  out2 <- aGP(X=X, Z=Z, XX=XX, end=30, verb=0,
+		  d=list(start=exp(lo$fitted), mle=FALSE),
+		  g=list(start=exp(lonug$fitted)))
+  
+  ## plot the estimated surface
+  par(mfrow=c(1,1))
+  plot(X,Z)
+  df <- 20
+  s2 <- out2$var*(df-2)/df
+  q1 <- qt(0.05, df)*sqrt(s2) + out2$mean
+  q2 <- qt(0.95, df)*sqrt(s2) + out2$mean
+  lines(XX, out2$mean)
+  lines(XX, q1, col=1, lty=2)
+  lines(XX, q2, col=1, lty=2)
+}
 
 ## compare to the single-GP result provided in the mleGP documentation
 }

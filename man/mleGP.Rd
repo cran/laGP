@@ -181,37 +181,38 @@ jmleGPsep.R(gpsepi, N=100, drange=c(sqrt(.Machine$double.eps),10),
 }
 \examples{
 ## a simple example with estimated nugget
-library(MASS)
+if(require("MASS")) {
 
-## motorcycle data and predictive locations
-X <- matrix(mcycle[,1], ncol=1)
-Z <- mcycle[,2]
+  ## motorcycle data and predictive locations
+  X <- matrix(mcycle[,1], ncol=1)
+  Z <- mcycle[,2]
 
-## get sensible ranges
-d <- darg(NULL, X)
-g <- garg(list(mle=TRUE), Z)
+  ## get sensible ranges
+  d <- darg(NULL, X)
+  g <- garg(list(mle=TRUE), Z)
 
-## initialize the model
-gpi <- newGP(X, Z, d=d$start, g=g$start, dK=TRUE)
+  ## initialize the model
+  gpi <- newGP(X, Z, d=d$start, g=g$start, dK=TRUE)
 
-## separate marginal inference (not necessary - for illustration only)
-print(mleGP(gpi, "d", d$min, d$max))
-print(mleGP(gpi, "g", g$min, g$max))
+  ## separate marginal inference (not necessary - for illustration only)
+  print(mleGP(gpi, "d", d$min, d$max))
+  print(mleGP(gpi, "g", g$min, g$max))
 
-## joint inference (could skip straight to here)
-print(jmleGP(gpi, drange=c(d$min, d$max), grange=c(g$min, g$max)))
+  ## joint inference (could skip straight to here)
+  print(jmleGP(gpi, drange=c(d$min, d$max), grange=c(g$min, g$max)))
 
-## plot the resulting predictive surface
-N <- 100
-XX <- matrix(seq(min(X), max(X), length=N), ncol=1)
-p <- predGP(gpi, XX, lite=TRUE)
-plot(X, Z, main="stationary GP fit to motorcycle data")
-lines(XX, p$mean, lwd=2)
-lines(XX, p$mean+1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
-lines(XX, p$mean-1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
+  ## plot the resulting predictive surface
+  N <- 100
+  XX <- matrix(seq(min(X), max(X), length=N), ncol=1)
+  p <- predGP(gpi, XX, lite=TRUE)
+  plot(X, Z, main="stationary GP fit to motorcycle data")
+  lines(XX, p$mean, lwd=2)
+  lines(XX, p$mean+1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
+  lines(XX, p$mean-1.96*sqrt(p$s2*p$df/(p$df-2)), col=2, lty=2)
 
-## clean up
-deleteGP(gpi)
+  ## clean up
+  deleteGP(gpi)
+}
 
 ## 
 ## with a separable correlation function 

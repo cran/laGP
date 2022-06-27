@@ -125,13 +125,13 @@ progress measures; ignored if there are no equality constraints }
   \item{plotprog}{
     \code{logical} indicating if progress plots should be made after each inner iteration;
     the plots show three panels tracking the best valid objective, the EI or EY surface
-    over the first two input variables (requires \code{\link[akima]{interp}}, 
+    over the first two input variables (requires \code{\link[interp]{interp}}, 
     and the parameters of the lengthscale(s) of the GP(s) respectively.  When 
     \code{plotprog = TRUE} the \code{\link[tgp]{interp.loess}} function is used to
     aid in creating surface plots, however this does not work well with fewer than 
     fifteen points.  You may also provide a function as an argument, having similar
     arguments/formals as \code{\link[tgp]{interp.loess}}.  For example, we use
-    \code{\link[akima]{interp}} below, which would have been the default if not 
+    \code{\link[interp]{interp}} below, which would have been the default if not 
     for licensing incompatibilities
 }
   \item{verb}{
@@ -281,8 +281,11 @@ B <- matrix(c(rep(0,2),rep(1,2)),ncol=2)
 
 ## optimization (primarily) by EI, change 25 to 100 for
 ## 99% chance of finding the global optimum with value 0.6
-library(akima) ## for plotprog=interp
-out <- optim.auglag(aimprob, B, end=25, plotprog=interp)
+if(require("interp")) { ## for plotprog=interp
+  out <- optim.auglag(aimprob, B, end=25, plotprog=interp)
+} else {
+  out <- optim.auglag(aimprob, B, end=25)
+}
 
 ## using the slack variable implementation which is a little slower
 ## but more precise; slack=2 augments random search with L-BFGS-B

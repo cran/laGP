@@ -117,7 +117,7 @@ while(its < 10) {
 }
 
 ## visualize the posterior surface
-library(akima)
+library(interp)
 Xp <- rbind(uinit, as.matrix(fcalib.save[,1:2]))
 Zp <- c(-llinit, fcalib.save[,3])
 wi <- which(!is.finite(Zp))

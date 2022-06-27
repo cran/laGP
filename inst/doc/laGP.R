@@ -1,33 +1,30 @@
 ### R code from vignette source 'laGP.Rnw'
 
 ###################################################
-### code chunk number 1: laGP.Rnw:87-94
+### code chunk number 1: laGP.Rnw:87-91
 ###################################################
 library("laGP")
-library("MASS")
-library("lhs")
-library("akima")
 library("tgp")
 options(prompt="R> ", width=65)
 set.seed(1)
 
 
 ###################################################
-### code chunk number 2: laGP.Rnw:240-242
+### code chunk number 2: laGP.Rnw:237-239
 ###################################################
 X <- matrix(seq(0, 2 * pi,length = 6), ncol = 1)
 Z <- sin(X)
 
 
 ###################################################
-### code chunk number 3: laGP.Rnw:248-250
+### code chunk number 3: laGP.Rnw:245-247
 ###################################################
 gp <- newGP(X, Z, 2, 1e-6, dK = TRUE)
 mleGP(gp, tmax=20)
 
 
 ###################################################
-### code chunk number 4: laGP.Rnw:266-269
+### code chunk number 4: laGP.Rnw:263-266
 ###################################################
 XX <- matrix(seq(-1, 2 * pi + 1, length = 499), ncol = ncol(X))
 p <- predGP(gp, XX)
@@ -35,21 +32,24 @@ deleteGP(gp)
 
 
 ###################################################
-### code chunk number 5: laGP.Rnw:276-280
+### code chunk number 5: laGP.Rnw:273-278
 ###################################################
-library("mvtnorm")
+if(require("mvtnorm")) {
 N <- 100
 ZZ <- rmvt(N, p$Sigma, p$df)
 ZZ <- ZZ + t(matrix(rep(p$mean, N), ncol = N))
+} else { cat("this example is not doable without mvtnorm") }
 
 
 ###################################################
 ### code chunk number 6: sin
 ###################################################
+if(require("mvtnorm")) {
 matplot(XX, t(ZZ), col = "gray", lwd = 0.5, lty = 1, type = "l",
 	bty = "n", main = "simple sinusoidal example", xlab = "x", 
 	ylab = "Y(x) | thetahat")
 points(X, Z, pch = 19)
+} else { plot(X, Z, pch = 19, main = "install mvtnorm!") }
 
 
 ###################################################
@@ -273,16 +273,15 @@ borehole <- function(x){
 
 
 ###################################################
-### code chunk number 31: laGP.Rnw:1028-1032
+### code chunk number 31: laGP.Rnw:1028-1031
 ###################################################
 N <- 100000
 Npred <- 1000
 dim <- 8
-library("lhs")
 
 
 ###################################################
-### code chunk number 32: laGP.Rnw:1041-1047
+### code chunk number 32: laGP.Rnw:1040-1046
 ###################################################
 T <- 10
 nas <- rep(NA, T)
@@ -293,11 +292,12 @@ times <- rmse <- data.frame(mspe = nas, mspe2 = nas,
 
 
 ###################################################
-### code chunk number 33: laGP.Rnw:1061-1124
+### code chunk number 33: laGP.Rnw:1060-1124
 ###################################################
 for(t in 1:T) {
 
-  x <- randomLHS(N + Npred, dim)
+  if(require("lhs")) { x <- randomLHS(N + Npred, dim) }
+  else { x <- matrix(runif((N + Npred)*dim), ncol=dim) }
   y <- apply(x, 1, borehole)
   ypred.0 <- y[-(1:N)]; y <- y[1:N]
   xpred <- x[-(1:N),]; x <- x[1:N,]
@@ -433,30 +433,34 @@ sqrt(mean((out14$mean - ypred.0)^2))
 
 
 ###################################################
-### code chunk number 40: laGP.Rnw:1322-1329
+### code chunk number 40: laGP.Rnw:1322-1330
 ###################################################
-library("MASS")
+if(require("MASS")) {
 d <- darg(NULL, mcycle[, 1, drop = FALSE])
 g <- garg(list(mle = TRUE), mcycle[,2])
 motogp <- newGP(mcycle[ , 1, drop=FALSE], mcycle[ ,2], d = d$start, 
   g = g$start, dK = TRUE)
 jmleGP(motogp, drange = c(d$min, d$max), grange = c(d$min, d$max), 
   dab = d$ab, gab = g$ab)
+} else { cat("this example is not doable without MASS") }
 
 
 ###################################################
-### code chunk number 41: laGP.Rnw:1334-1339
+### code chunk number 41: laGP.Rnw:1335-1342
 ###################################################
+if(require("MASS")) {
 XX <- matrix(seq(min(mcycle[ ,1]), max(mcycle[ ,1]), length = 100), 
   ncol = 1)
 motogp.p <- predGP(motogp, XX = XX, lite = TRUE)
 motoagp <- aGP(mcycle[ , 1, drop=FALSE], mcycle[,2], XX, end = 30, 
   d = d, g = g, verb = 0)
+} else { cat("this example is not doable without MASS") }
 
 
 ###################################################
 ### code chunk number 42: mcycle
 ###################################################
+if(require("MASS")) {
 plot(mcycle, cex = 0.5, main = "motorcycle data")
 lines(XX, motogp.p$mean, lwd = 2)
 q1 <- qnorm(0.05, mean = motogp.p$mean, sd = sqrt(motogp.p$s2))
@@ -468,20 +472,24 @@ q1 <- qnorm(0.05, mean = motoagp$mean, sd = sqrt(motoagp$var))
 q2 <- qnorm(0.95, mean = motoagp$mean, sd = sqrt(motoagp$var))
 lines(XX, q1, lty = 2, col = 2, lwd = 2)
 lines(XX, q2, lty = 2, col = 2, lwd = 2)
+} else { plot(0, 0, main = "install MASS package!") }
 
 
 ###################################################
-### code chunk number 43: laGP.Rnw:1381-1385
+### code chunk number 43: laGP.Rnw:1386-1392
 ###################################################
+if(require("MASS")) {
 X <- matrix(rep(mcycle[ ,1], 10), ncol = 1)
 X <- X + rnorm(nrow(X), sd = 1)
 Z <- rep(mcycle[ ,2], 10)
 motoagp2 <- aGP(X, Z, XX, end = 30, d = d, g = g, verb = 0)
+} else { cat("this example is not doable without MASS") }
 
 
 ###################################################
 ### code chunk number 44: mcycle-rep
 ###################################################
+if(require("MASS")) {
 plot(X, Z, main = "simulating a larger data setup", xlab = "times", 
   ylab = "accel")
 lines(XX, motoagp2$mean, col = 2, lwd = 2)
@@ -489,10 +497,11 @@ q1 <- qnorm(0.05, mean = motoagp2$mean, sd = sqrt(motoagp2$var))
 q2 <- qnorm(0.95, mean = motoagp2$mean, sd = sqrt(motoagp2$var))
 lines(XX, q1, col = 2, lty = 2, lwd = 2)
 lines(XX, q2, col = 2, lty = 2, lwd = 2)
+} else { plot(0, 0, main = "install MASS!") }
 
 
 ###################################################
-### code chunk number 45: laGP.Rnw:1633-1643
+### code chunk number 45: laGP.Rnw:1642-1652
 ###################################################
 M <- function(x,u) 
   {
@@ -507,7 +516,7 @@ M <- function(x,u)
 
 
 ###################################################
-### code chunk number 46: laGP.Rnw:1647-1653
+### code chunk number 46: laGP.Rnw:1656-1662
 ###################################################
 bias <- function(x) 
   {
@@ -518,7 +527,7 @@ bias <- function(x)
 
 
 ###################################################
-### code chunk number 47: laGP.Rnw:1658-1668
+### code chunk number 47: laGP.Rnw:1667-1677
 ###################################################
 library("tgp")
 rect <- matrix(rep(0:1, 4), ncol = 2, byrow = 2)
@@ -533,7 +542,7 @@ Y <- rep(Zu, reps) + rep(bias(X), reps) +
 
 
 ###################################################
-### code chunk number 48: laGP.Rnw:1680-1690
+### code chunk number 48: laGP.Rnw:1689-1699
 ###################################################
 nz <- 10000
 XU <- lhs(nz, rect)
@@ -548,7 +557,7 @@ Z <- M(XU[ ,1:2], XU[ ,3:4])
 
 
 ###################################################
-### code chunk number 49: laGP.Rnw:1702-1706
+### code chunk number 49: laGP.Rnw:1711-1715
 ###################################################
 bias.est <- TRUE
 methods <- rep("alc", 2)
@@ -557,7 +566,7 @@ g <- garg(list(mle = TRUE), Y)
 
 
 ###################################################
-### code chunk number 50: laGP.Rnw:1717-1726
+### code chunk number 50: laGP.Rnw:1726-1735
 ###################################################
 beta.prior <- function(u, a = 2, b = 2, log = TRUE)
 {
@@ -571,7 +580,7 @@ beta.prior <- function(u, a = 2, b = 2, log = TRUE)
 
 
 ###################################################
-### code chunk number 51: laGP.Rnw:1734-1746
+### code chunk number 51: laGP.Rnw:1743-1755
 ###################################################
 initsize <- 10*ncol(X)
 imesh <- 0.1
@@ -588,21 +597,23 @@ for(i in 1:nrow(uinit)) {
 
 
 ###################################################
-### code chunk number 52: laGP.Rnw:1765-1768
+### code chunk number 52: laGP.Rnw:1774-1778
 ###################################################
-library("crs")
+if(require("crs")) {
 opts <- list("MAX_BB_EVAL" = 1000, "INITIAL_MESH_SIZE" = imesh, 
   "MIN_POLL_SIZE" = "r0.001", "DISPLAY_DEGREE" = 0)
+} else { cat("this example is not doable without crs") }
 
 
 ###################################################
-### code chunk number 53: laGP.Rnw:1782-1797
+### code chunk number 53: laGP.Rnw:1792-1817
 ###################################################
 its <- 0
 o <- order(llinit)
 i <- 1
 out <- NULL
 while(its < 10) {
+if(require("crs")) {
   outi <- snomadr(fcalib, 2, c(0,0), 0, x0 = uinit[o[i],],
             lb = c(0,0), ub = c(1,1), opts = opts, XU = XU, 
             Z = Z, X = X, Y = Y, da = da, d = d, g = g, 
@@ -610,36 +621,52 @@ while(its < 10) {
             omp.threads = nth, uprior = beta.prior, 
             save.global = .GlobalEnv, verb = 0)
   its <- its + outi$iterations
+} else {
+  outi <- fcalib(uinit[o[i],], XU = XU,
+            Z = Z, X = X, Y = Y, da = da, d = d, g = g,
+            methods = methods, M = M, bias = bias.est,
+            omp.threads = nth, uprior = beta.prior,
+            save.global = .GlobalEnv, verb = 0)
+  outi <- list(objective=outi, solution=uinit[o[i],]) 
+  its <- its + 1
+}
   if(is.null(out) || outi$objective < out$objective) out <- outi
   i <- i + 1;
 }
 
 
 ###################################################
-### code chunk number 54: laGP.Rnw:1809-1814
+### code chunk number 54: laGP.Rnw:1829-1836
 ###################################################
 Xp <- rbind(uinit, as.matrix(fcalib.save[ ,1:2]))
 Zp <- c(-llinit, fcalib.save[ ,3])
 wi <- which(!is.finite(Zp))
 if(length(wi) > 0) { Xp <- Xp[-wi, ]; Zp <- Zp[-wi]}
+if(require("interp")) {
 surf <- interp(Xp[ ,1], Xp[ ,2], Zp, duplicate = "mean")
+} else { cat("visual not available without interp") }
 
 
 ###################################################
 ### code chunk number 55: usurf
 ###################################################
+if(require("interp")) {
 image(surf, xlab = "u1", ylab = "u2", main = "posterior surface",
   col = heat.colors(128), xlim = c(0,1), ylim = c(0,1))
+} else { 
+  plot(0, 0, xlim = c(0,1), ylim = c(0,1), type="n",
+    main = "install interp!") 
+}
 points(uinit)
 points(fcalib.save[,1:2], col = 3, pch = 18)
-u.hat <- outi$solution
+u.hat <- out$solution
 points(u.hat[1], u.hat[2], col = 4, pch = 18)
 abline(v = u[1], lty = 2)
 abline(h = u[2], lty = 2)
 
 
 ###################################################
-### code chunk number 56: laGP.Rnw:1848-1853
+### code chunk number 56: laGP.Rnw:1876-1881
 ###################################################
 Xu <- cbind(X, matrix(rep(u, ny), ncol = 2, byrow = TRUE))
 Mhat.u <- aGP.seq(XU, Z, Xu, da, methods, ncalib = 2, omp.threads = nth, 
@@ -649,13 +676,13 @@ cmle.u$ll <- cmle.u$ll + beta.prior(u)
 
 
 ###################################################
-### code chunk number 57: laGP.Rnw:1856-1857
+### code chunk number 57: laGP.Rnw:1884-1885
 ###################################################
-data.frame(u.hat = -outi$objective, u = cmle.u$ll)
+data.frame(u.hat = -out$objective, u = cmle.u$ll)
 
 
 ###################################################
-### code chunk number 58: laGP.Rnw:1869-1873
+### code chunk number 58: laGP.Rnw:1897-1901
 ###################################################
 nny <- 1000  
 XX <- lhs(nny, rect[1:2,])
@@ -664,7 +691,7 @@ YYtrue <- ZZu + bias(XX)
 
 
 ###################################################
-### code chunk number 59: laGP.Rnw:1877-1884
+### code chunk number 59: laGP.Rnw:1905-1912
 ###################################################
 XXu <- cbind(XX, matrix(rep(u, nny), ncol = 2, byrow = TRUE))
 Mhat.oos.u <- aGP.seq(XU, Z, XXu, da, methods, ncalib = 2, 
@@ -676,7 +703,7 @@ deleteGP(cmle.u$gp)
 
 
 ###################################################
-### code chunk number 60: laGP.Rnw:1891-1896
+### code chunk number 60: laGP.Rnw:1919-1924
 ###################################################
 Xu <- cbind(X, matrix(rep(u.hat, ny), ncol = 2, byrow = TRUE))
 Mhat <- aGP.seq(XU, Z, Xu, da, methods, ncalib = 2, omp.threads = nth, 
@@ -686,13 +713,13 @@ cmle$ll <- cmle$ll + beta.prior(u.hat)
 
 
 ###################################################
-### code chunk number 61: laGP.Rnw:1901-1902
+### code chunk number 61: laGP.Rnw:1929-1930
 ###################################################
-print(c(cmle$ll, -outi$objective))
+print(c(cmle$ll, -out$objective))
 
 
 ###################################################
-### code chunk number 62: laGP.Rnw:1906-1912
+### code chunk number 62: laGP.Rnw:1934-1940
 ###################################################
 XXu <- cbind(XX, matrix(rep(u.hat, nny), ncol = 2, byrow = TRUE))
 Mhat.oos <- aGP.seq(XU, Z, XXu, da, methods, ncalib = 2, 
@@ -703,7 +730,7 @@ rmse <- sqrt(mean((YY.pred - YYtrue)^2))
 
 
 ###################################################
-### code chunk number 63: laGP.Rnw:1915-1916
+### code chunk number 63: laGP.Rnw:1943-1944
 ###################################################
 data.frame(u.hat = rmse, u = rmse.u)
 

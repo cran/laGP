@@ -95,13 +95,14 @@ garg(g, y)
 }
 \examples{
 ## motorcycle data
-library(MASS)
-X <- matrix(mcycle[,1], ncol=1)
-Z <- mcycle[,2]
+if(require("MASS")) {
+  X <- matrix(mcycle[,1], ncol=1)
+  Z <- mcycle[,2]
 
-## get darg and garg
-darg(NULL, X)
-garg(list(mle=TRUE), Z)
+  ## get darg and garg
+  darg(NULL, X)
+  garg(list(mle=TRUE), Z)
+}
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

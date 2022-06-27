@@ -337,7 +337,7 @@ out <- laGP(Xref, 6, 50, X, Z, method="nn")
 ## second pass via ALC, ALCOPT, MSPE, and ALC-ray respectively,
 ## conditioned on MLE d-values found above
 out2 <- laGP(Xref, 6, 50, X, Z, d=out$mle$d)
-out2.alcopt <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="alcopt")
+# out2.alcopt <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="alcopt")
 out2.mspe <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="mspe")
 out2.alcray <- laGP(Xref, 6, 50, X, Z, d=out2$mle$d, method="alcray")
 
@@ -346,14 +346,14 @@ plot(rbind(X[out2$Xi,], X[out2.mspe$Xi,]), type="n",
      xlab="x1", ylab="x2", main="comparing local designs")
 points(Xref[1], Xref[2], col=2, cex=0.5)
 text(X[out2$Xi,], labels=1:50, cex=0.6)
-text(X[out2.alcopt$Xi,], labels=1:50, cex=0.6, col="forestgreen")
+# text(X[out2.alcopt$Xi,], labels=1:50, cex=0.6, col="forestgreen")
 text(X[out2.mspe$Xi,], labels=1:50, cex=0.6, col="blue")
 text(X[out2.alcray$Xi,], labels=1:50, cex=0.6, col="red")
 legend("right", c("ALC", "ALCOPT", "MSPE", "ALCRAY"),
        text.col=c("black", "forestgreen", "blue", "red"), bty="n")
 
 ## compare computational time
-c(nn=out$time, alc=out2$time, alcopt=out2.alcopt$time, 
+c(nn=out$time, alc=out2$time, # alcopt=out2.alcopt$time, 
   mspe=out2.mspe$time, alcray=out2.alcray$time)
 
 \dontrun{

@@ -110,9 +110,9 @@
 
 \examples{
   # input space based on latin-hypercube sampling (not required)
-  library(lhs)
-  ## two dimensional example with N=216 sized sample
-  X <- randomLHS(216, 2)  
+  # two dimensional example with N=216 sized sample
+  if(require(lhs)) { X <- randomLHS(216, 2)  
+  } else { X <- matrix(runif(216*2), ncol=2) }
   # pseudo responses, not important for visualizing design
   Y <- runif(216) 
   
@@ -150,7 +150,8 @@
     }
     
     N <- 100000                   # number of observations
-    xt <- randomLHS(N, 8)         # input space
+    if(require(lhs)) { xt <- randomLHS(N, 8)   # input space
+    } else { xt <- matrix(runif(N*8), ncol=8) }
     yt <- apply(xt, 1, borehole)  # response
     colnames(xt) <- c("rw", "r", "Tu", "Tl", "Hu", "Hl", "L", "Kw")
 

@@ -1,4 +1,12 @@
+1.5-7 (15 Jun 2022)
+-----
+
+akima out again for interp, and now conditionally 
+loading suggests
+
+
 1.5-6 (02 Apr 2022)
+-----
 
 akima is back and now USE_FC_LEN and DOUBLE_
 for Brian
