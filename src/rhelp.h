@@ -16,16 +16,17 @@ void error(const char *str, ...);
 #define MYstdout stdout
 #define MYstderr stderr
 #else
-#include <R_ext/Utils.h>
-#include <R.h>
-#include <Rmath.h>
+// #include <R_ext/Utils.h>
+// #include <R.h>
+// #include <Rmath.h>
+// #include <Rinterface.h>
+#include <R_ext/Error.h>
 extern FILE *MYstdout, *MYstderr;
 #endif
 
-void R_FlushConsole(void); /* R < 2.3 does not have this in R.h (in Rinterface.h) */
+// void R_FlushConsole(void); /* R < 2.3 does not have this in R.h (in Rinterface.h) */
 void MYprintf(FILE *outfile, const char *str, ...);
 void MYflush(FILE *outfile);
-time_t my_r_process_events(time_t itime);
+time_t MY_r_process_events(time_t itime);
 
 #endif
-

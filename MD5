@@ -1,5 +1,5 @@
-3c97cfea7b2170a6a429b9644110e0af *ChangeLog
-c1c32f29fcc0304ac1f97b6a55fc5eba *DESCRIPTION
+14b642600e53704e18dc091934bd25de *ChangeLog
+365db3617e40c9999a4c5f4ed65c92d4 *DESCRIPTION
 b8b6faecf4aeb173380b8c4e6620babb *INSTALL
 b762dfe34a0fd4262c6890e4c74c3a3d *NAMESPACE
 86d10d4eb0d40cfd9495755a4ee6e00c *R/blhs.R
@@ -24,7 +24,7 @@ f591b4054110577150f7f322f2d39edb *demo/calib.R
 076d1832bb27e3feb65b5b6151758bc4 *inst/CITATION
 1f0d27daa82c7c42bc6d81fb802fce2e *inst/doc/laGP.R
 a4c362a7ca8e7701eb81fbb05d1f2a0b *inst/doc/laGP.Rnw
-89e468a701859e12fba92a546c6984c1 *inst/doc/laGP.pdf
+e61e586efbfb2ef934764f9f2dc2648d *inst/doc/laGP.pdf
 55fc6d9cf31584b9a9710ace7e71f1ee *man/aGP.Rd
 58088079a3f220edade8deda659407e9 *man/alcGP.Rd
 fbf77f46e77c1b563a84eef03305046c *man/blhs.Rd
@@ -58,12 +58,12 @@ d46398ca6d3eac55a6707b7d57c53555 *src/gp.c
 01c8fd084ee328176b248a013b624350 *src/gp_sep.h
 b81a6e657a47e6a0abdc934bee8ef79f *src/ieci.c
 2e94411c8320ae74bf14844fdf8d5d7e *src/ieci.h
-bf85fe7ac7a8ff26740ae342f0444839 *src/init.c
+8a3db6dda7de465d196b028559ef7fe9 *src/init.c
 a5292cf0a3853aaf90836a73f0d1fde3 *src/laGP.c
 74bf725cb57f0edc7bd388eff4ed3a74 *src/laGP.h
 11070bd103bba701d750753f9c8de5bd *src/laGP_sep.c
 75164af7d03bcb40eeb6d6521e4b2a92 *src/laGP_sep.h
-e90480ffa1bad9428d4c296e9e21b776 *src/linalg.c
+ba9736dcffd4a8a31474ffef8593725a *src/linalg.c
 34bb5ea52a0789339e46df5bf45badce *src/linalg.h
 6f6c5a9c4c8521884871e7a51199e8fe *src/matrix.c
 bd1f3a2bd46287c340a2820ca558ceac *src/matrix.h
@@ -71,7 +71,7 @@ bd1f3a2bd46287c340a2820ca558ceac *src/matrix.h
 8bad5c7f15a302f969fb03654a435a2d *src/order.h
 144d0a63554889be7b0964704889b134 *src/rbetter.c
 566af35ef5275604911cef5092623510 *src/rhelp.c
-d62af4367164463378a7a4faff1ae4bf *src/rhelp.h
+dae29d1025761366517b56cb7db0e08f *src/rhelp.h
 170d63c55f01ee1be5b10d60d80ab47d *src/util.c
 b4baa7984dc562ef1c271b118d3428e3 *src/util.h
 a4c362a7ca8e7701eb81fbb05d1f2a0b *vignettes/laGP.Rnw

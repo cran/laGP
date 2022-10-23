@@ -59,11 +59,8 @@ char uplo = 'U';
  * assumed row-major lower-tri and non-unit
  */
 
-void linalg_dtrsv(TA, n, A, lda, Y, ldy)
-const enum CBLAS_TRANSPOSE TA;
-int n, lda, ldy;
-double **A;
-double *Y;
+void linalg_dtrsv(const enum CBLAS_TRANSPOSE TA, int n, double **A, int lda, 
+  double *Y, int ldy)
 {
 	#ifdef FORTBLAS
 	char ta;
@@ -84,9 +81,7 @@ double *Y;
  * analog of ddot in cblas nad blas
  */
 
-double linalg_ddot(n, X, ldx, Y, ldy)
-int n, ldx, ldy;
-double *X, *Y;
+double linalg_ddot(int n, double *X, int ldx, double *Y, int ldy)
 {
   double result;
 
@@ -105,10 +100,7 @@ double *X, *Y;
  * analog of daxpy in cblas nad blas
  */
 
-void linalg_daxpy(n,alpha,X,ldx,Y,ldy)
-int n, ldx, ldy;
-double alpha;
-double *X, *Y;
+void linalg_daxpy(int n, double alpha, double *X, int ldx, double *Y, int ldy)
 {
 #ifdef FORTBLAS
   daxpy(&n,&alpha,X,&ldx,Y,&ldy);
@@ -125,11 +117,9 @@ double *X, *Y;
  * assumed column major representation
  */
 
-void linalg_dgemm(TA, TB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc)
-const enum CBLAS_TRANSPOSE TA, TB;
-int m, n, k, lda, ldb, ldc;
-double alpha, beta;
-double **A, **B, **C;
+void linalg_dgemm(const enum CBLAS_TRANSPOSE TA, const enum CBLAS_TRANSPOSE TB, 
+  int m, int n, int k, double alpha, double **A, int lda, double **B, int ldb, 
+  double beta, double **C, int ldc)
 {
 #ifdef FORTBLAS
   char ta, tb;
@@ -149,12 +139,8 @@ double **A, **B, **C;
  * assumed column major representation
  */
 
-void linalg_dgemv(TA, m, n, alpha, A, lda, X, ldx, beta, Y, ldy)
-const enum CBLAS_TRANSPOSE TA;
-int m, n, lda, ldx, ldy;
-double alpha, beta;
-double **A;
-double *X, *Y;
+void linalg_dgemv(const enum CBLAS_TRANSPOSE TA, int m, int n, double alpha, 
+  double **A, int lda, double *X, int ldx, double beta, double *Y, int ldy)
 {
 #ifdef FORTBLAS
   char ta;
@@ -174,11 +160,8 @@ double *X, *Y;
  */
 
 
-void linalg_dsymm(SIDE, m, n, alpha, A, lda, B, ldb, beta, C, ldc)
-const enum CBLAS_SIDE SIDE;
-int m, n, lda, ldb, ldc;
-double alpha, beta;
-double **A, **B, **C;
+void linalg_dsymm(const enum CBLAS_SIDE SIDE, int m, int n, double alpha, double **A, 
+  int lda, double **B, int ldb, double beta, double **C, int ldc)
 {
 #ifdef FORTBLAS
   char side;
@@ -198,11 +181,8 @@ double **A, **B, **C;
  */
 
 
-void linalg_dsymv(n, alpha, A, lda, X, ldx, beta, Y, ldy)
-int n, lda, ldx, ldy;
-double alpha, beta;
-double **A;
-double *X, *Y;
+void linalg_dsymv(int n, double alpha, double **A, int lda, double *X, int ldx, 
+  double beta, double *Y, int ldy)
 {
 #ifdef FORTBLAS
   dsymv(&uplo,&n,&alpha,*A,&lda,X,&ldx,&beta,Y,&ldy FCONE);
@@ -219,9 +199,7 @@ double *X, *Y;
  * and lowertri
  */
 
-int linalg_dposv(n, Mutil, Mi)
-int n;
-double **Mutil, **Mi;
+int linalg_dposv(int n, double **Mutil, double **Mi)
 {
   int info;
 	
@@ -254,9 +232,7 @@ double **Mutil, **Mi;
  * inverse_lu used this with RowMajor, other with ColMajor
  */
 
-int linalg_dgesv(n, Mutil, Mi)
-int n;
-double **Mutil, **Mi;
+int linalg_dgesv(int n, double **Mutil, double **Mi)
 {
 	int info;
 	int *p;
@@ -284,9 +260,7 @@ double **Mutil, **Mi;
  * and lowertri
  */
 
-int linalg_dpotrf(n, var)
-int n;
-double **var;
+int linalg_dpotrf(int n, double **var)
 {
   int info;
 
@@ -314,11 +288,8 @@ double **var;
  * C[n][n] double u[n], y[n], y_star[n]
  */
 
-int solve_cg_symm(y, y_star, C, u, theta, n)
-unsigned int n;
-double **C;
-double *u, *y, *y_star;
-double theta;
+int solve_cg_symm(double *y, double *y_star, double **C, double *u, double theta, 
+  unsigned int n)
 {
 	double g[n], g_star[n], h[n], h_star[n], Ch[n], Ch_star[n]; 
 	double Cy[n], Cy_star[n], Ag_star[n], ACh_star[n], Ay_star[n], CAy_star[n];
