@@ -25,7 +25,7 @@ updateGPsep(gpsepi, X, Z, verb = 0)
     the full (large) design matrix of input locations
   }
 \item{Z}{
-      a vector of responses/dependent values with \code{length(Z) = ncol(X)}
+      a vector of responses/dependent values with \code{length(Z) = nrow(X)}
 }
   \item{d}{
     a positive scalar lengthscale parameter for an isotropic Gaussian

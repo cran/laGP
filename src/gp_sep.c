@@ -1071,7 +1071,7 @@ void mleGPsep_both(GPsep* gpsep, double* tmin, double *tmax, double *ab,
   rmse = 0.0;
   for(k=0; k<gpsep->m+1; k++) rmse += sq(p[k] - told[k]);
   if(sqrt(rmse/((double) (gpsep->m + 1))) < SDEPS) {
-    sprintf(msg, "lbfgs initialized at minima");
+    snprintf(msg, 28, "lbfgs initialized at minima");
     *conv = 0;
     its[0] = its[1] = 0;
   }
@@ -1201,7 +1201,7 @@ void mleGPsep(GPsep* gpsep, double* dmin, double *dmax, double *ab,
   rmse = 0.0;
   for(k=0; k<gpsep->m; k++) rmse += sq(p[k] - dold[k]);
   if(sqrt(rmse/k) < SDEPS) {
-    sprintf(msg, "lbfgs initialized at minima");
+    snprintf(msg, 28, "lbfgs initialized at minima");
     *conv = 0;
     its[0] = its[1] = 0;
   }

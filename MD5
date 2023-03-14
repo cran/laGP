@@ -1,5 +1,5 @@
-14b642600e53704e18dc091934bd25de *ChangeLog
-365db3617e40c9999a4c5f4ed65c92d4 *DESCRIPTION
+4ee4195d298c1bc0fc30503632a14fa1 *ChangeLog
+23290ef58f5207bc6b905b8ab346b805 *DESCRIPTION
 b8b6faecf4aeb173380b8c4e6620babb *INSTALL
 b762dfe34a0fd4262c6890e4c74c3a3d *NAMESPACE
 86d10d4eb0d40cfd9495755a4ee6e00c *R/blhs.R
@@ -14,8 +14,8 @@ d1ccf50dfd5f0ea977d4f83aa226f149 *R/laGP_sep.R
 4d89345a8c44e8d282596e8c980d356c *R/randLine.R
 b2841b694e539e3b1e7c2a045f261041 *R/util.R
 1017347a1957f4c0e87acee61293be1f *README
-439bf689fa27cf9affd0335332142165 *build/partial.rdb
-8b7ab68349f0f787cf62be708cc882d3 *build/vignette.rds
+ea124a494ad7922985532ad3b308e4d5 *build/partial.rdb
+a23fecf42e94c57697097e72e982371b *build/vignette.rds
 b30934bc88aa91825e7cd26188d78137 *demo/00Index
 2d7700b751e32b9ced3631faf1354099 *demo/ALfhat.R
 f6d217ec6f4d97a908a69d69623b8c6e *demo/GSBP.R
@@ -24,7 +24,7 @@ f591b4054110577150f7f322f2d39edb *demo/calib.R
 076d1832bb27e3feb65b5b6151758bc4 *inst/CITATION
 1f0d27daa82c7c42bc6d81fb802fce2e *inst/doc/laGP.R
 a4c362a7ca8e7701eb81fbb05d1f2a0b *inst/doc/laGP.Rnw
-e61e586efbfb2ef934764f9f2dc2648d *inst/doc/laGP.pdf
+e1d2a4593277f7791fcc0d0ae09c6d02 *inst/doc/laGP.pdf
 55fc6d9cf31584b9a9710ace7e71f1ee *man/aGP.Rd
 58088079a3f220edade8deda659407e9 *man/alcGP.Rd
 fbf77f46e77c1b563a84eef03305046c *man/blhs.Rd
@@ -36,7 +36,7 @@ b1cfae3b0f983fa67b07f0d457a08bfe *man/discrep.est.Rd
 a27a69a173b5ebaaf393033e2c4e48cb *man/laGP.Rd
 d5c1028a6d8e0ba62971d45b79dab099 *man/llikGP.Rd
 02bda93956e4e461d8131fe8888aa593 *man/mleGP.Rd
-3b1a8fcb66f9a1a07da63135964c70ec *man/newGP.Rd
+9a4b02f9d4921ede0226735ffc6f9067 *man/newGP.Rd
 4afb775b123232cb09554ddee05711da *man/optim.auglag.Rd
 44318b76e85f9b0beb2efb8c06312ec2 *man/predGP.Rd
 e5583a7052219f86e4e48910a7873a6f *man/randLine.Rd
@@ -54,7 +54,7 @@ e3c45997f6caaaacb78a4fef6e99cb08 *src/gamma.c
 2eb0ab4444dbba030a7eb7a1b5c0a927 *src/gamma.h
 d46398ca6d3eac55a6707b7d57c53555 *src/gp.c
 16295d371d97113eb0617768040e1a80 *src/gp.h
-01240ed731c7881c2a832c5739b36481 *src/gp_sep.c
+840255ad0175f5ac281c9beb5dbb603c *src/gp_sep.c
 01c8fd084ee328176b248a013b624350 *src/gp_sep.h
 b81a6e657a47e6a0abdc934bee8ef79f *src/ieci.c
 2e94411c8320ae74bf14844fdf8d5d7e *src/ieci.h
